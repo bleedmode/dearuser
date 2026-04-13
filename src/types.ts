@@ -121,8 +121,36 @@ export interface WrappedData {
   };
 }
 
+export interface SessionData {
+  stats: {
+    totalSessions: number;
+    totalMessages: number;
+    avgSessionDuration: number;
+    sessionsLast7Days: number;
+    sessionsLast30Days: number;
+    mostActiveProject: string | null;
+    projectDistribution: Record<string, number>;
+  };
+  promptPatterns: {
+    totalPrompts: number;
+    avgPromptLength: number;
+    shortPrompts: number;
+    longPrompts: number;
+    clearCommands: number;
+    rewindCommands: number;
+    promptsWithFilePaths: number;
+    promptsWithErrorMessages: number;
+  };
+  corrections: {
+    negationCount: number;
+    revertSignals: number;
+    frustrationSignals: number;
+    examples: string[];
+  };
+}
+
 export interface AnalysisReport {
-  version: '1.0';
+  version: '2.0';
   generatedAt: string;
   scanRoot: string;
   persona: PersonaResult;
@@ -141,4 +169,5 @@ export interface AnalysisReport {
   stats: AnalysisStats;
   recommendations: Recommendation[];
   wrapped: WrappedData;
+  session: SessionData;
 }

@@ -16,7 +16,16 @@ const server = new McpServer({
 // Tool 1: analyze — full collaboration analysis
 server.tool(
   'analyze',
-  'Analyze your human-agent collaboration. Scans CLAUDE.md, memory files, hooks, skills, and more to produce a collaboration report with persona detection, scoring, friction analysis, and recommendations.',
+  `Analyze your human-agent collaboration. Scans CLAUDE.md, memory files, hooks, skills, and more to produce a collaboration report with persona detection, scoring, friction analysis, and recommendations.
+
+IMPORTANT — When presenting results to the user:
+- ALWAYS show the evidence rating (A/B/C/D) for each claim
+- ALWAYS show the caveat for each recommendation
+- NEVER present D-rated sources as "findings" — say "one practitioner reports..."
+- NEVER combine multiple recommendations into a single claim
+- Show the collaboration score prominently
+- If score categories have signals_missing, mention the top 1-2 gaps
+- Present recommendations sorted by severity (critical first)`,
   {
     projectRoot: z.string().optional().describe('Project root directory to analyze. Defaults to current working directory.'),
   },
@@ -94,6 +103,27 @@ server.tool(
         `- **${report.stats.mcpServersCount}** MCP servers connected`,
         `- **${report.stats.projectsManaged}** projects managed`,
       );
+
+      // Session data
+      if (report.session) {
+        const s = report.session;
+        lines.push(
+          '', '## Session Patterns',
+          `- **${s.stats.totalSessions}** total sessions (**${s.stats.sessionsLast30Days}** last 30 days)`,
+          `- **${s.promptPatterns.totalPrompts}** prompts analyzed (avg length: ${s.promptPatterns.avgPromptLength} chars)`,
+          `- **${s.promptPatterns.shortPrompts}** short prompts (<20 chars) — may indicate vague instructions`,
+          `- **${s.corrections.negationCount}** correction signals detected ("nej", "stop", "wrong", etc.)`,
+          `- **${s.corrections.frustrationSignals}** frustration signals ("why did you", "again", "still wrong")`,
+          `- **${s.promptPatterns.clearCommands}** /clear commands — context resets`,
+        );
+
+        if (s.corrections.examples.length > 0) {
+          lines.push('', 'Recent correction examples:');
+          for (const ex of s.corrections.examples.slice(0, 3)) {
+            lines.push(`  - "${ex}"`);
+          }
+        }
+      }
 
       return {
         content: [
