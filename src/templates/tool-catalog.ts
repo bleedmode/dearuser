@@ -221,6 +221,60 @@ export const TOOL_CATALOG: ToolRecommendation[] = [
     personas: ['vibe_coder', 'indie_hacker', 'venture_studio', 'senior_dev', 'team_lead'],
     lastVerified: '2026-04-13',
   },
+
+  // === Skills (reusable workflows) ===
+  {
+    name: '/learn skill',
+    type: 'skill',
+    description: 'End-of-session learning capture. Reviews corrections, confirmations, and insights. Saves to memory so the agent remembers next time.',
+    install: `Create ~/.claude/skills/learn/SKILL.md with instructions to:
+1. Review session for corrections and confirmations
+2. Present learnings to user for approval
+3. Save as feedback/project memory files
+4. Update MEMORY.md index`,
+    solves: ['no_learning_loop', 'corrections_lost', 'no_memory', 'session_amnesia'],
+    personas: ['vibe_coder', 'indie_hacker', 'venture_studio', 'senior_dev', 'team_lead'],
+    lastVerified: '2026-04-13',
+  },
+  {
+    name: '/ship skill',
+    type: 'skill',
+    description: 'Safe shipping workflow. Builds, tests, commits, and pushes in one flow with quality checks at each step.',
+    install: `Create ~/.claude/skills/ship/SKILL.md with instructions to:
+1. Run build and verify success
+2. Run tests if they exist
+3. Git add relevant files (not .env, not node_modules)
+4. Commit with conventional commit message
+5. Push to remote`,
+    solves: ['manual_deploy', 'no_build_verification', 'quality_gaps', 'process_friction'],
+    personas: ['vibe_coder', 'indie_hacker', 'venture_studio'],
+    lastVerified: '2026-04-13',
+  },
+  {
+    name: '/research skill',
+    type: 'skill',
+    description: 'Quality-controlled research in 3 phases: Collect sources → Rate + find counter-evidence → Analyze only from verified data. Prevents presenting unverified claims as findings.',
+    install: `Create ~/.claude/skills/research/SKILL.md with 3-phase process:
+Phase 1: Find sources, save each with evidence rating (A-F)
+Phase 2: Rate sources, search for counter-evidence
+Phase 3: Analyze ONLY from saved sources, two-source minimum for findings`,
+    solves: ['bad_research', 'unverified_claims', 'hallucination', 'no_sources'],
+    personas: ['venture_studio', 'senior_dev', 'team_lead'],
+    lastVerified: '2026-04-13',
+  },
+  {
+    name: '/standup skill',
+    type: 'skill',
+    description: 'Daily standup briefing. Checks all projects, git status, open tasks, and recommends what to work on today.',
+    install: `Create ~/.claude/skills/standup/SKILL.md with instructions to:
+1. Check git status across all projects
+2. List open/in-progress tasks
+3. Recommend top priorities based on goals
+4. Flag blocked items`,
+    solves: ['no_daily_overview', 'missing_priorities', 'context_loss_between_sessions'],
+    personas: ['venture_studio', 'team_lead'],
+    lastVerified: '2026-04-13',
+  },
 ];
 
 /**
