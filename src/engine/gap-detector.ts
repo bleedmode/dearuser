@@ -1,5 +1,8 @@
 // Gap Detector — finds missing sections and features based on detected persona
 
+import { existsSync } from 'fs';
+import { join } from 'path';
+import { homedir } from 'os';
 import type { Gap, GapSeverity, PersonaId, ParseResult, ScanResult } from '../types.js';
 
 interface GapDefinition {
@@ -243,9 +246,6 @@ const GAP_DEFINITIONS: GapDefinition[] = [
 ];
 
 function existsSkill(name: string): boolean {
-  const { existsSync } = require('fs');
-  const { join } = require('path');
-  const { homedir } = require('os');
   return existsSync(join(homedir(), '.claude', 'skills', name, 'SKILL.md'));
 }
 
