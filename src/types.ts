@@ -170,4 +170,19 @@ export interface AnalysisReport {
   recommendations: Recommendation[];
   wrapped: WrappedData;
   session: SessionData;
+  feedback: {
+    totalRecommendations: number;
+    implemented: number;
+    ignored: number;
+    pending: number;
+    avgScoreImprovement: number | null;
+    history: Array<{
+      id: string;
+      title: string;
+      status: string;
+      givenAt: string;
+      scoreAtGiven: number;
+      scoreAtCheck?: number;
+    }>;
+  };
 }
