@@ -1,10 +1,10 @@
 {
-  "name": "agent-wrapped-mcp",
-  "version": "0.1.0",
-  "description": "MCP server that analyzes human-agent collaboration and helps improve it",
+  "name": "dearuser-mcp",
+  "version": "1.0.0",
+  "description": "Dear User — helps humans and AI agents understand each other better",
   "type": "module",
   "bin": {
-    "agent-wrapped-mcp": "./dist/index.js"
+    "dearuser-mcp": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -22,6 +22,7 @@
     "ai-agent",
     "collaboration",
     "claude-code",
+    "dearuser",
     "agent-wrapped"
   ],
   "author": "Poised ApS",
