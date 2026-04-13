@@ -125,6 +125,19 @@ IMPORTANT — When presenting results to the user:
         }
       }
 
+      // Feedback loop section
+      if (report.feedback && report.feedback.totalRecommendations > 0) {
+        lines.push(
+          '', '## Feedback Loop',
+          `- **${report.feedback.totalRecommendations}** previous recommendations tracked`,
+          `- **${report.feedback.implemented}** implemented, **${report.feedback.ignored}** ignored, **${report.feedback.pending}** pending`,
+        );
+        if (report.feedback.avgScoreImprovement !== null) {
+          const dir = report.feedback.avgScoreImprovement >= 0 ? '+' : '';
+          lines.push(`- Average score change after implementation: **${dir}${report.feedback.avgScoreImprovement}** points`);
+        }
+      }
+
       return {
         content: [
           { type: 'text', text: lines.join('\n') },

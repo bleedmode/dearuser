@@ -8,6 +8,7 @@ import { analyzeFriction } from '../engine/friction-analyzer.js';
 import { detectGaps } from '../engine/gap-detector.js';
 import { generateRecommendations } from '../templates/recommendations.js';
 import { analyzeSession } from '../engine/session-analyzer.js';
+import { trackRecommendations, checkImplementation } from '../engine/feedback-tracker.js';
 import type { AnalysisReport, AnalysisStats, WrappedData } from '../types.js';
 
 function buildStats(parsed: ReturnType<typeof parse>, scanResult: ReturnType<typeof scan>): AnalysisStats {
@@ -102,6 +103,13 @@ export function runAnalysis(projectRoot: string): AnalysisReport {
   // 10. Build wrapped data
   const wrapped = buildWrapped(stats, persona, frictionPatterns);
 
+  // 11. Feedback loop — check previous recommendations + track new ones
+  const claudeMdContent = [scanResult.globalClaudeMd?.content, scanResult.projectClaudeMd?.content]
+    .filter(Boolean).join('\n');
+  const settingsContent = scanResult.settingsFiles.map(f => f.content).join('\n');
+  const feedback = checkImplementation(claudeMdContent, settingsContent, collaborationScore);
+  trackRecommendations(recommendations, collaborationScore);
+
   return {
     version: '2.0',
     generatedAt: new Date().toISOString(),
@@ -115,5 +123,6 @@ export function runAnalysis(projectRoot: string): AnalysisReport {
     recommendations,
     wrapped,
     session: sessionData,
+    feedback,
   };
 }
