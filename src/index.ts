@@ -153,62 +153,148 @@ IMPORTANT — When presenting results to the user:
   }
 );
 
-// Tool 2: suggest — get specific recommendations
+// Tool 2: onboard — conversational onboarding that generates CLAUDE.md
 server.tool(
-  'suggest',
-  'Get specific, actionable recommendations to improve your agent collaboration. Returns text blocks you can add to your CLAUDE.md or settings.',
+  'onboard',
+  `Help a human and their agent get to know each other. Scans existing setup first, then returns what's already configured and what's missing — so the agent can ask ONLY about gaps.
+
+This tool does NOT ask questions itself. It returns structured data about what exists and what's missing. The calling agent should use this data to have a natural conversation with the user, asking about gaps one at a time.
+
+Flow:
+1. Call onboard → get back what exists + what's missing
+2. Agent asks user about missing items conversationally (one at a time, not a form)
+3. Agent shares something about itself too (capabilities, limitations) — it's mutual
+4. When done, agent generates CLAUDE.md sections from answers`,
   {
     projectRoot: z.string().optional().describe('Project root directory to analyze. Defaults to current working directory.'),
-    focus: z.enum(['roles', 'autonomy', 'communication', 'quality', 'memory', 'all']).optional().describe('Focus area for recommendations. Defaults to all.'),
   },
-  async ({ projectRoot, focus }) => {
+  async ({ projectRoot }) => {
     try {
       const root = projectRoot || process.cwd();
       const report = runAnalysis(root);
 
-      let recs = report.recommendations;
-      if (focus && focus !== 'all') {
-        const focusMap: Record<string, string[]> = {
-          roles: ['missing_roles'],
-          autonomy: ['missing_autonomy'],
-          communication: ['missing_communication'],
-          quality: ['missing_quality', 'no_hooks'],
-          memory: ['no_memory'],
-        };
-        const ids = focusMap[focus] || [];
-        recs = recs.filter(r => ids.some(id => r.title.toLowerCase().includes(id.replace('missing_', '').replace('no_', ''))));
-      }
+      // What we already know (from files)
+      const known: string[] = [];
+      const missing: Array<{ id: string; question: string; why: string; example: string }> = [];
 
-      if (recs.length === 0) {
-        return {
-          content: [{ type: 'text', text: `No recommendations for focus area "${focus}". Your ${focus} setup looks good!` }],
-        };
-      }
+      // Check each dimension
+      const hasRoles = report.categories.roleClarity.score >= 70;
+      const hasComm = report.categories.communication.score >= 70;
+      const hasAutonomy = report.categories.autonomyBalance.score >= 50;
+      const hasQuality = report.categories.qualityStandards.score >= 50;
+      const hasNorthStar = report.gaps.every(g => g.id !== 'missing_north_star');
+      const hasTechStack = report.gaps.every(g => g.id !== 'missing_tech_stack');
 
+      if (hasRoles) known.push('Roles are defined — I can see who does what');
+      else missing.push({
+        id: 'roles',
+        question: 'What is your role? Are you the coder, the product owner, or something else?',
+        why: 'This helps calibrate how technical the agent should be and what it handles autonomously.',
+        example: 'Example: "I\'m a CEO who can\'t code. You handle all technical work."',
+      });
+
+      if (hasComm) known.push('Communication style is defined');
+      else missing.push({
+        id: 'communication',
+        question: 'How do you prefer communication? Short and direct? Detailed explanations? What language?',
+        why: 'Without this, the agent defaults to technical English — which may not be what you need.',
+        example: 'Example: "Danish, business language, no jargon, keep it short."',
+      });
+
+      if (hasAutonomy) known.push('Autonomy levels are configured');
+      else missing.push({
+        id: 'autonomy',
+        question: 'What should the agent do without asking? What should it always ask about first?',
+        why: 'Too much autonomy → scope creep. Too little → constant interruptions.',
+        example: 'Example: "Fix bugs and commit yourself. Ask before changing architecture or adding dependencies."',
+      });
+
+      if (hasQuality) known.push('Quality standards are in place');
+      else missing.push({
+        id: 'quality',
+        question: 'How do you know something is "done"? What checks should pass?',
+        why: 'Without quality gates, the agent may ship broken code.',
+        example: 'Example: "It builds without errors, existing features still work, code is committed."',
+      });
+
+      if (hasNorthStar) known.push('Goals/north star is defined');
+      else missing.push({
+        id: 'north_star',
+        question: 'What is your main goal? Revenue target? Learning? Building a portfolio?',
+        why: 'Every recommendation gets evaluated against your goal.',
+        example: 'Example: "$10K MRR in 6 months" or "Learn React by building a side project."',
+      });
+
+      if (hasTechStack) known.push('Tech stack is documented');
+      else missing.push({
+        id: 'tech_stack',
+        question: 'What tools and technologies are you using? (or should the agent choose?)',
+        why: 'Prevents the agent from suggesting incompatible solutions.',
+        example: 'Example: "Astro for websites, Expo for apps, Supabase for database, Vercel for hosting."',
+      });
+
+      // Memory health
+      if (report.stats.memoryFiles > 3) known.push(`${report.stats.memoryFiles} memory files — good learning history`);
+      else missing.push({
+        id: 'memory',
+        question: 'Has your agent been correcting and learning from mistakes? (This builds up over time)',
+        why: 'Without memory, the agent forgets corrections every session.',
+        example: 'Tip: After corrections, say "remember this for next time."',
+      });
+
+      // System maturity
+      if (report.stats.hooksCount > 0) known.push(`${report.stats.hooksCount} hooks — automated guardrails in place`);
+      if (report.stats.skillsCount > 0) known.push(`${report.stats.skillsCount} skills — reusable workflows defined`);
+      if (report.stats.scheduledTasksCount > 0) known.push(`${report.stats.scheduledTasksCount} scheduled tasks — automation running`);
+
+      // Build response
       const lines: string[] = [
-        `# Recommendations for ${report.persona.archetypeName}`,
-        `Persona: **${report.persona.detected.replace('_', ' ')}** | Score: **${report.collaborationScore}/100**`,
-        '',
+        `# Onboarding Assessment`,
+        ``,
+        `**Persona detected:** ${report.persona.archetypeName} (${report.persona.detected.replace('_', ' ')}, ${report.persona.confidence}% confidence)`,
+        `**Collaboration score:** ${report.collaborationScore}/100`,
+        ``,
       ];
 
-      for (const rec of recs) {
-        const icon = rec.priority === 'critical' ? '🔴' : rec.priority === 'recommended' ? '🟡' : '🟢';
-        lines.push(
-          `## ${icon} ${rec.title}`,
-          rec.description,
-          '',
-          '```markdown',
-          rec.textBlock,
-          '```',
-          `*${rec.placementHint}*`,
-          '',
-        );
+      if (known.length > 0) {
+        lines.push(`## Already configured (${known.length} items)`, '');
+        for (const k of known) lines.push(`- ✅ ${k}`);
+        lines.push('');
       }
+
+      if (missing.length > 0) {
+        lines.push(`## Gaps to fill (${missing.length} items)`, '');
+        lines.push(`Ask the user about these one at a time, conversationally. Share something about yourself (your capabilities, limitations) between questions. Don't make it feel like a form.`, '');
+        for (const m of missing) {
+          lines.push(`### ${m.id}`);
+          lines.push(`**Ask:** ${m.question}`);
+          lines.push(`**Why it matters:** ${m.why}`);
+          lines.push(`**${m.example}**`);
+          lines.push('');
+        }
+      } else {
+        lines.push('## No gaps found!', '', 'This setup looks comprehensive. Run `analyze` for detailed scoring and recommendations.');
+      }
+
+      lines.push(
+        '',
+        '## What the agent should share about itself',
+        '',
+        'Between questions, the agent should tell the user:',
+        '- "I work like a colleague with amnesia — I read my briefing (CLAUDE.md) every morning but don\'t remember yesterday"',
+        '- "I\'m good at: writing code, research, git, deploys, repetitive tasks"',
+        '- "I struggle with: knowing what YOU want without clear instructions, admitting uncertainty, stopping when I should ask"',
+        '- "The best way to correct me: be specific. \'Don\'t do X because Y\' works better than just \'no\'"',
+        '',
+        '## After the conversation',
+        '',
+        'Generate CLAUDE.md sections from the answers. Use the `analyze` tool to verify the score improved.',
+      );
 
       return { content: [{ type: 'text', text: lines.join('\n') }] };
     } catch (error) {
       return {
-        content: [{ type: 'text', text: `Suggestion generation failed: ${error instanceof Error ? error.message : String(error)}` }],
+        content: [{ type: 'text', text: `Onboarding failed: ${error instanceof Error ? error.message : String(error)}` }],
         isError: true,
       };
     }
