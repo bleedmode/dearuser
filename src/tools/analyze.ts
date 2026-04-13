@@ -79,11 +79,11 @@ export function runAnalysis(projectRoot: string): AnalysisReport {
   // 2. Parse content
   const parsed = parse(scanResult);
 
-  // 3. Detect persona
-  const persona = detectPersona(parsed, scanResult);
+  // 3. Session analysis (before scoring so it can inform scores)
+  const sessionData = analyzeSession(projectRoot);
 
-  // 4. Score categories
-  const { categories, collaborationScore } = score(parsed, scanResult);
+  // 4. Detect persona
+  const persona = detectPersona(parsed, scanResult);
 
   // 5. Analyze friction
   const frictionPatterns = analyzeFriction(parsed, scanResult);
@@ -97,8 +97,8 @@ export function runAnalysis(projectRoot: string): AnalysisReport {
   // 8. Build stats
   const stats = buildStats(parsed, scanResult);
 
-  // 9. Session analysis
-  const sessionData = analyzeSession(projectRoot);
+  // 9. Score categories (with session data for friction-based adjustments)
+  const { categories, collaborationScore } = score(parsed, scanResult, sessionData);
 
   // 10. Build wrapped data
   const wrapped = buildWrapped(stats, persona, frictionPatterns);
