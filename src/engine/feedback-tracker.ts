@@ -25,7 +25,7 @@ export interface FeedbackReport {
   history: TrackedRecommendation[];
 }
 
-const TRACKER_DIR = join(homedir(), '.agent-wrapped');
+const TRACKER_DIR = join(homedir(), '.dearuser');
 const TRACKER_FILE = join(TRACKER_DIR, 'recommendations.json');
 
 function ensureDir() {

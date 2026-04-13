@@ -1,12 +1,11 @@
-# Agent Wrapped MCP
+# Dear User
 
-MCP server that analyzes human-agent collaboration and helps improve it.
+Helps humans and AI agents understand each other better.
 
 ## What it does
 
-- **`analyze`** — Scans your CLAUDE.md, memory files, hooks, skills, sessions, and history. Produces a collaboration report with persona detection, scoring, friction analysis, and concrete recommendations.
-- **`onboard`** — Conversational onboarding that scans what exists, identifies gaps, and guides a mutual getting-to-know-you conversation between human and agent.
-- **`wrapped`** — Shareable "Spotify Wrapped"-style stats about your collaboration.
+- **`analyze`** — Scans your CLAUDE.md, memory files, hooks, skills, sessions, and history. Diagnoses collaboration problems, recommends specific tools and config, guides onboarding for gaps.
+- **`wrapped`** — Your Agent Wrapped — shareable stats about your collaboration.
 
 ## What it can help with
 
@@ -32,7 +31,7 @@ MCP server that analyzes human-agent collaboration and helps improve it.
 ## Install
 
 ```bash
-claude mcp add agent-wrapped -- npx agent-wrapped-mcp
+claude mcp add dearuser -- npx dearuser-mcp
 ```
 
 ## Usage
@@ -40,13 +39,7 @@ claude mcp add agent-wrapped -- npx agent-wrapped-mcp
 In Claude Code, ask your agent:
 
 ```
-Run agent-wrapped analyze
-```
-
-Or for onboarding:
-
-```
-Run agent-wrapped onboard
+Kør dearuser analyze
 ```
 
 ## How it works

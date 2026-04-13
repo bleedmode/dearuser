@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-// Agent Wrapped MCP Server
-// Analyzes human-agent collaboration and helps improve it
+// Dear User — MCP Server
+// Helps humans and AI agents understand each other better
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -10,8 +10,8 @@ import { runAnalysis } from './tools/analyze.js';
 import { recommendTools } from './templates/tool-catalog.js';
 
 const server = new McpServer({
-  name: 'agent-wrapped',
-  version: '0.2.0',
+  name: 'dearuser',
+  version: '1.0.0',
 });
 
 // Tool 1: analyze — full collaboration analysis
@@ -37,7 +37,7 @@ IMPORTANT — When presenting results to the user:
 
       // Format key insights as readable text
       const lines: string[] = [
-        `# Agent Wrapped — Collaboration Analysis`,
+        `# Dear User — Collaboration Analysis`,
         ``,
         `## Your Persona: ${report.persona.archetypeName}`,
         `**${report.persona.detected.replace('_', ' ')}** (${report.persona.confidence}% confidence)`,
@@ -210,7 +210,7 @@ IMPORTANT — When presenting results to the user:
 // Tool 2: wrapped — shareable collaboration stats
 server.tool(
   'wrapped',
-  'Generate your Agent Wrapped — shareable stats about your human-agent collaboration in a fun, Spotify Wrapped-style format.',
+  'Generate your Dear User — shareable stats about your human-agent collaboration in a fun, Spotify Wrapped-style format.',
   {
     projectRoot: z.string().optional().describe('Project root directory to analyze. Defaults to current working directory.'),
     format: z.enum(['text', 'json']).optional().describe('Output format. "text" for terminal display, "json" for raw data. Defaults to text.'),
@@ -282,7 +282,7 @@ server.tool(
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('Agent Wrapped MCP server running');
+  console.error('Dear User MCP server running');
 }
 
 main().catch((error) => {

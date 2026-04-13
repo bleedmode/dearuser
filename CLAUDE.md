@@ -1,13 +1,13 @@
-# Dear User (agent-wrapped-mcp)
+# Dear User (dearuser-mcp)
 
 ## Hvad er det
 Open source MCP server der hjælper mennesker og AI-agenter med at forstå hinanden bedre. Analyserer samarbejdet, identificerer problemer, leverer konkret kode/config — ikke råd.
 
 ## Navn
 - **Dear User** = produktnavn
-- **Agent Wrapped** = viral feature (shareable stats)
-- npm pakke: `agent-wrapped-mcp`
-- GitHub: `bleedmode/agent-wrapped-mcp` (privat indtil launch)
+- **Dear User** = viral feature (shareable stats)
+- npm pakke: `dearuser-mcp`
+- GitHub: `bleedmode/dearuser-mcp` (privat indtil launch)
 
 ## Arkitektur: 3 videnskilder
 
@@ -19,7 +19,7 @@ Kilde B (brugerens filer) → Diagnose
    Scanner: CLAUDE.md, memory, hooks, skills, sessions, history
    
 Kilde C (feedback loop) → Virkede det?
-   ~/.agent-wrapped/recommendations.json → tjek ved næste analyze
+   ~/.dearuser/recommendations.json → tjek ved næste analyze
 ```
 
 ## MCP Tools (2 stk)
@@ -47,12 +47,12 @@ Kilde C (feedback loop) → Virkede det?
 
 ## Sondring: meta-research vs bruger-research
 - **Meta-research** (vores produkt): problemtaksonomi, MCP landskab, industri-tracking → lever i PVS
-- **Bruger-research** (toolet udfører): scanning, diagnose, anbefalinger, feedback → lever i MCP server + ~/.agent-wrapped/
+- **Bruger-research** (toolet udfører): scanning, diagnose, anbefalinger, feedback → lever i MCP server + ~/.dearuser/
 
 ## Current state (april 2026)
 - MCP server v2 bygget og testet (session-analyse, feedback loop, agent→agent instruktioner)
 - 26 kvalitetskontrollerede kilder i research DB (quality score 31%)
-- Wrapped prototype live på poised.dk/agent-wrapped
+- Wrapped prototype live på poised.dk/dearuser
 - PVS projekt oprettet med tasks
 - Ikke publiceret til npm endnu
 - 0 brugere, 0 validering af betalingsvillighed
