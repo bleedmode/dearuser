@@ -182,7 +182,72 @@ const GAP_DEFINITIONS: GapDefinition[] = [
       team_lead: 'Team goals align everyone\'s agent toward the same outcomes',
     },
   },
+  // === Skills gaps ===
+  {
+    id: 'no_learn_skill',
+    section: 'Learning Skill (/learn)',
+    check: (_, s) => s.skillsCount === 0 || !existsSkill('learn'),
+    severity: {
+      vibe_coder: 'critical',
+      senior_dev: 'recommended',
+      indie_hacker: 'recommended',
+      venture_studio: 'critical',
+      team_lead: 'critical',
+    },
+    relevance: {
+      vibe_coder: 'Without a learn skill, corrections are lost between sessions — you\'ll repeat the same mistakes',
+      senior_dev: 'Capturing session learnings prevents architectural knowledge loss',
+      indie_hacker: 'Quick learning capture saves debugging the same issues repeatedly',
+      venture_studio: 'Cross-session learnings are the compound advantage of working with an agent over time',
+      team_lead: 'Team learnings must be captured and shared systematically',
+    },
+  },
+  {
+    id: 'no_ship_skill',
+    section: 'Shipping Skill (/ship)',
+    check: (_, s) => !existsSkill('ship'),
+    severity: {
+      vibe_coder: 'recommended',
+      senior_dev: 'nice_to_have',
+      indie_hacker: 'recommended',
+      venture_studio: 'recommended',
+      team_lead: 'nice_to_have',
+    },
+    relevance: {
+      vibe_coder: 'A ship skill bundles build+test+commit+push into one safe command — fewer things to forget',
+      senior_dev: 'You likely have your own workflow, but a ship skill standardizes it',
+      indie_hacker: 'Ship fast with one command instead of 5 manual steps',
+      venture_studio: 'Consistent shipping across all projects reduces errors',
+      team_lead: 'Standardized shipping ensures team consistency',
+    },
+  },
+  {
+    id: 'no_standup_skill',
+    section: 'Standup Skill (/standup)',
+    check: (_, s) => !existsSkill('standup'),
+    severity: {
+      vibe_coder: 'nice_to_have',
+      senior_dev: 'nice_to_have',
+      indie_hacker: 'nice_to_have',
+      venture_studio: 'recommended',
+      team_lead: 'recommended',
+    },
+    relevance: {
+      vibe_coder: 'A daily standup gives you context on where you left off',
+      senior_dev: 'Useful for multi-project context switching',
+      indie_hacker: 'Keeps you focused on what moves the needle',
+      venture_studio: 'Essential for portfolio-level overview across all projects',
+      team_lead: 'Team standup gives visibility into everyone\'s agent work',
+    },
+  },
 ];
+
+function existsSkill(name: string): boolean {
+  const { existsSync } = require('fs');
+  const { join } = require('path');
+  const { homedir } = require('os');
+  return existsSync(join(homedir(), '.claude', 'skills', name, 'SKILL.md'));
+}
 
 export function detectGaps(parsed: ParseResult, scan: ScanResult, persona: PersonaId): Gap[] {
   const gaps: Gap[] = [];
