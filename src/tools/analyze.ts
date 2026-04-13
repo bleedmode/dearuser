@@ -7,6 +7,7 @@ import { score } from '../engine/scorer.js';
 import { analyzeFriction } from '../engine/friction-analyzer.js';
 import { detectGaps } from '../engine/gap-detector.js';
 import { generateRecommendations } from '../templates/recommendations.js';
+import { analyzeSession } from '../engine/session-analyzer.js';
 import type { AnalysisReport, AnalysisStats, WrappedData } from '../types.js';
 
 function buildStats(parsed: ReturnType<typeof parse>, scanResult: ReturnType<typeof scan>): AnalysisStats {
@@ -95,11 +96,14 @@ export function runAnalysis(projectRoot: string): AnalysisReport {
   // 8. Build stats
   const stats = buildStats(parsed, scanResult);
 
-  // 9. Build wrapped data
+  // 9. Session analysis
+  const sessionData = analyzeSession(projectRoot);
+
+  // 10. Build wrapped data
   const wrapped = buildWrapped(stats, persona, frictionPatterns);
 
   return {
-    version: '1.0',
+    version: '2.0',
     generatedAt: new Date().toISOString(),
     scanRoot: projectRoot,
     persona,
@@ -110,5 +114,6 @@ export function runAnalysis(projectRoot: string): AnalysisReport {
     stats,
     recommendations,
     wrapped,
+    session: sessionData,
   };
 }
