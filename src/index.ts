@@ -50,47 +50,75 @@ IMPORTANT — When presenting results to the user:
         `### Category Scores`,
       ];
 
-      const categoryNames: Record<string, string> = {
-        roleClarity: 'Role Clarity',
-        communication: 'Communication',
-        autonomyBalance: 'Autonomy Balance',
-        qualityStandards: 'Quality Standards',
-        memoryHealth: 'Memory Health',
-        systemMaturity: 'System Maturity',
-        coverage: 'Coverage',
-      };
+      // Category scores with status labels and what's missing
+      const categoryConfig: Array<{ key: string; name: string }> = [
+        { key: 'roleClarity', name: 'Role Clarity' },
+        { key: 'communication', name: 'Communication' },
+        { key: 'autonomyBalance', name: 'Autonomy Balance' },
+        { key: 'qualityStandards', name: 'Quality Standards' },
+        { key: 'memoryHealth', name: 'Memory Health' },
+        { key: 'systemMaturity', name: 'System Maturity' },
+        { key: 'coverage', name: 'Coverage' },
+      ];
 
-      for (const [key, name] of Object.entries(categoryNames)) {
+      for (const { key, name } of categoryConfig) {
         const cat = report.categories[key as keyof typeof report.categories];
         const bar = '█'.repeat(Math.round(cat.score / 10)) + '░'.repeat(10 - Math.round(cat.score / 10));
-        lines.push(`- **${name}**: ${bar} ${cat.score}/100`);
-      }
 
-      // Friction patterns
-      if (report.frictionPatterns.length > 0) {
-        lines.push('', '## Top Friction Points');
-        for (const fp of report.frictionPatterns) {
-          lines.push(`${fp.rank}. **${fp.title}** — ${fp.description}`);
-          if (fp.evidence.length > 0) {
-            lines.push(`   Evidence: ${fp.evidence.slice(0, 2).join('; ')}`);
+        // Status label
+        let status: string;
+        if (cat.score >= 85) status = 'Strong';
+        else if (cat.score >= 70) status = 'Good';
+        else if (cat.score >= 50) status = 'Needs work';
+        else status = 'Weak — action needed';
+
+        lines.push(`- **${name}**: ${bar} ${cat.score}/100 — *${status}*`);
+
+        // Show what's missing for anything below 85
+        if (cat.score < 85 && cat.signalsMissing.length > 0) {
+          for (const missing of cat.signalsMissing.slice(0, 2)) {
+            lines.push(`  - ${missing}`);
           }
         }
       }
 
-      // Gaps
-      if (report.gaps.length > 0) {
-        lines.push('', '## Identified Gaps');
-        for (const gap of report.gaps) {
-          const icon = gap.severity === 'critical' ? '🔴' : gap.severity === 'recommended' ? '🟡' : '🟢';
-          lines.push(`- ${icon} **${gap.section}** (${gap.severity}) — ${gap.personaRelevance}`);
+      // Action items — the most important part
+      // Combine gaps + recommendations into clear action items
+      const actionItems: Array<{ priority: string; title: string; why: string; how: string }> = [];
+
+      for (const gap of report.gaps) {
+        const rec = report.recommendations.find(r =>
+          r.title.toLowerCase().includes(gap.id.replace('missing_', '').replace('no_', ''))
+        );
+
+        actionItems.push({
+          priority: gap.severity === 'critical' ? '🔴 Critical' : gap.severity === 'recommended' ? '🟡 Recommended' : '🟢 Nice to have',
+          title: gap.section,
+          why: gap.personaRelevance,
+          how: rec ? rec.textBlock : 'See recommendations below.',
+        });
+      }
+
+      if (actionItems.length > 0) {
+        lines.push('', '## What To Do (prioritized)');
+        for (const item of actionItems.slice(0, 5)) {
+          lines.push(
+            ``,
+            `### ${item.priority}: ${item.title}`,
+            `**Why:** ${item.why}`,
+            `**How:**`,
+            '```',
+            item.how,
+            '```',
+          );
         }
       }
 
-      // Top recommendations
-      if (report.recommendations.length > 0) {
-        lines.push('', '## Top Recommendations');
-        for (const rec of report.recommendations.slice(0, 3)) {
-          lines.push(``, `### ${rec.title}`, rec.description, '', '```markdown', rec.textBlock, '```', `*${rec.placementHint}*`);
+      // Friction patterns — shorter, focused
+      if (report.frictionPatterns.length > 0) {
+        lines.push('', '## Friction Patterns (from your history)');
+        for (const fp of report.frictionPatterns.slice(0, 3)) {
+          lines.push(`${fp.rank}. **${fp.title}** — ${fp.description}`);
         }
       }
 
