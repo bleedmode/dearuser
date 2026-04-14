@@ -7,6 +7,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { runAnalysis } from './tools/analyze.js';
+import { runAudit, formatAuditReport } from './tools/audit.js';
 import { recommendTools } from './templates/tool-catalog.js';
 
 const server = new McpServer({
@@ -42,12 +43,16 @@ IMPORTANT — When presenting results to the user:
   {
     projectRoot: z.string().optional().describe('Project root to analyze when scope="project". Defaults to current working directory. Ignored for scope="global".'),
     scope: z.enum(['global', 'project']).optional().describe('"global" (default) aggregates across every project in ~/.claude/projects/ — the right mode for collaboration analysis, since the human↔agent relationship spans projects. "project" narrows to a single directory.'),
+    includeGit: z.boolean().optional().describe('Scan local .git directories in observed projects for commit activity, stale repos, and revert-signal patterns. Defaults to true. Set false for faster runs or when you only want config-level insights.'),
   },
-  async ({ projectRoot, scope }) => {
+  async ({ projectRoot, scope, includeGit }) => {
     try {
       const root = projectRoot || process.cwd();
       const effectiveScope = scope || 'global';
-      const report = runAnalysis(root, effectiveScope);
+      const report = runAnalysis(root, {
+        scope: effectiveScope,
+        includeGit: includeGit !== false,
+      });
 
       // Format key insights as readable text
       const scopeBanner = report.scope === 'global'
@@ -200,6 +205,54 @@ IMPORTANT — When presenting results to the user:
         `- **${report.stats.projectsManaged}** projects managed`,
       );
 
+      // Git activity — project-level signals from local .git directories.
+      // Only show if scanning was enabled AND we found at least one repo.
+      if (report.git && report.git.totalScanned > 0) {
+        lines.push(
+          '', '## Project Activity',
+          `- **${report.git.totalScanned}** git repos scanned — **${report.git.active}** active (commits last 7 days), **${report.git.stale}** stale (60+ days)`,
+        );
+        if (report.git.reposWithRevertSignals > 0) {
+          lines.push(`- ⚠️  **${report.git.reposWithRevertSignals}** repo${report.git.reposWithRevertSignals === 1 ? '' : 's'} with "fix again" / "revert" patterns in recent commits`);
+        }
+        if (report.git.reposWithUncommittedPile > 0) {
+          lines.push(`- 📦 **${report.git.reposWithUncommittedPile}** repo${report.git.reposWithUncommittedPile === 1 ? '' : 's'} with 10+ uncommitted files`);
+        }
+
+        if (report.git.topActive.length > 0) {
+          lines.push('', '**Most active this week:**');
+          for (const r of report.git.topActive.slice(0, 3)) {
+            lines.push(`- ${r.name}: ${r.commits7d} commit${r.commits7d === 1 ? '' : 's'} last 7 days (${r.commits30d} last 30)`);
+          }
+        }
+      }
+
+      // Injection findings — static pattern-matching for prompt-injection surfaces.
+      // Only surface critical/recommended to avoid overwhelming with nice_to_have.
+      const injection = report.injection || [];
+      const importantInjection = injection.filter(i => i.severity !== 'nice_to_have');
+      if (importantInjection.length > 0) {
+        lines.push(
+          '', '## 🛡️ Injection Surfaces',
+          `Pattern-matched hooks, skills, and MCP configs for prompt-injection risks. Flagging ${importantInjection.length} item${importantInjection.length === 1 ? '' : 's'} worth a manual review — false positives are possible.`,
+          '',
+        );
+        for (const finding of importantInjection.slice(0, 5)) {
+          const label = finding.severity === 'critical' ? '🔴 Critical' : '🟡 Recommended';
+          lines.push(`### ${label}: ${finding.title}`);
+          lines.push(`**Why it matters:** ${finding.why}`);
+          lines.push('');
+          lines.push(`**In:** \`${finding.artifactPath}\``);
+          lines.push('');
+          lines.push('```');
+          lines.push(finding.excerpt);
+          lines.push('```');
+          lines.push('');
+          lines.push(`**Fix:** ${finding.recommendation}`);
+          lines.push('');
+        }
+      }
+
       // Session data
       if (report.session) {
         const s = report.session;
@@ -346,7 +399,46 @@ IMPORTANT — When presenting results to the user:
   }
 );
 
-// Tool 2: wrapped — shareable collaboration stats
+// Tool 2: audit — system coherence (vs analyze which looks at language)
+server.tool(
+  'audit',
+  `Audit your AI setup for structural incoherence. Complement to analyze: where analyze looks at collaboration language, audit looks at system architecture.
+
+Detects:
+- **Orphan scheduled jobs** — task produces output nothing reads
+- **Overlap** — skills/tasks/commands with similar purpose or same output path
+- **Missing closure** — non-scheduled producers with no downstream reader
+- **Substrate mismatch** — memory files that look like databases in disguise
+
+IMPORTANT — When presenting results:
+- Show the closure rate prominently
+- Lead with critical findings, then recommended, then nice-to-have
+- Each finding has a stable id users can reference to dismiss
+- Be careful: heuristic-based detection has some false positives — frame findings as "likely" not "definitely"`,
+  {
+    projectRoot: z.string().optional().describe('Project root. Defaults to cwd. Audit is most useful in global scope.'),
+    scope: z.enum(['global', 'project']).optional().describe('Default global.'),
+    focus: z.enum(['orphan', 'overlap', 'closure', 'substrate', 'all']).optional()
+      .describe('Narrow to one finding type, or "all" (default).'),
+  },
+  async ({ projectRoot, scope, focus }) => {
+    try {
+      const report = runAudit({
+        projectRoot: projectRoot || process.cwd(),
+        scope: scope || 'global',
+        focus: focus || 'all',
+      });
+      return { content: [{ type: 'text', text: formatAuditReport(report) }] };
+    } catch (error) {
+      return {
+        content: [{ type: 'text', text: `Audit failed: ${error instanceof Error ? error.message : String(error)}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+// Tool 3: wrapped — shareable collaboration stats
 server.tool(
   'wrapped',
   'Generate your Dear User — shareable stats about your human-agent collaboration in a fun, Spotify Wrapped-style format.',

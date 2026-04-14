@@ -129,6 +129,48 @@ function listProjectDirs(home: string): string[] {
 }
 
 /**
+ * Discover actual project roots on disk by walking conventional parent dirs
+ * one level deep. We can't reliably unflatten ~/.claude/projects/ names (both
+ * "/" and "-" collapse to "-"), so we inspect the real filesystem instead.
+ *
+ * Returns paths that contain a .claude/ directory — those are the projects
+ * where hooks and project-level settings can live.
+ */
+function discoverProjectRoots(home: string): string[] {
+  const conventionalParents = [
+    join(home, 'clawd'),
+    join(home, 'dev'),
+    join(home, 'Dev'),
+    join(home, 'projects'),
+    join(home, 'Projects'),
+    join(home, 'code'),
+    join(home, 'Code'),
+    join(home, 'src'),
+    join(home, 'work'),
+    join(home, 'Work'),
+    join(home, 'repos'),
+    join(home, 'github'),
+    join(home, 'GitHub'),
+  ];
+
+  const found = new Set<string>();
+  for (const parent of conventionalParents) {
+    if (!existsSync(parent)) continue;
+    try {
+      for (const entry of readdirSync(parent, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        const candidate = join(parent, entry.name);
+        // Has .claude/ → real project where hooks/settings can live
+        if (existsSync(join(candidate, '.claude'))) {
+          found.add(candidate);
+        }
+      }
+    } catch { /* skip unreadable */ }
+  }
+  return Array.from(found);
+}
+
+/**
  * Un-flatten "-Users-karlomacmini-clawd-poised-dk" → "/Users/karlomacmini/clawd/poised-dk".
  * We can't know where segment boundaries originally were (both "/" and "-" become "-"),
  * so we return the reconstructed path for display only — not for opening files.
@@ -202,35 +244,101 @@ function scanGlobal(): ScanResult {
     memoryFiles.push(...findMemoryFiles(join(projDir, 'memory')));
   }
 
-  const { settingsFiles, installedServers, hooksCount } = readSettingsAndMcpConfig(home, null);
+  // Settings + hooks + MCP servers: aggregate across ALL project-level
+  // .claude/settings.json files plus the global one. Previously we only
+  // read the global file, which missed hooks defined per-project.
+  const realProjectRoots = discoverProjectRoots(home);
+  const settingsAggregate = readSettingsAndMcpConfigAggregated(home, realProjectRoots);
 
   const skillsCount = countDirEntries(join(home, '.claude', 'skills'));
   const scheduledTasksCount = countDirEntries(join(home, '.claude', 'scheduled-tasks'));
   // Global custom commands live under ~/.claude/commands/; we count the skill
   // dir entries that aren't SKILL.md bundles (treat each .md as a command file).
   const commandsCount = countDirEntries(join(home, '.claude', 'commands'), /\.md$/);
-  const mcpServersCount = installedServers.length;
+  const mcpServersCount = settingsAggregate.installedServers.length;
+
+  // Prefer real discovered project roots over the flattened-name guesses.
+  // Fall back to the listProjectDirs view when no real roots are found.
+  const scanRoots = realProjectRoots.length > 0
+    ? realProjectRoots
+    : projectDirs.map(unflattenDisplay);
 
   return {
     scope: 'global',
-    scanRoots: projectDirs.map(unflattenDisplay),
+    scanRoots,
     globalClaudeMd,
     projectClaudeMd: null,
     memoryFiles,
-    settingsFiles,
-    hooksCount,
+    settingsFiles: settingsAggregate.settingsFiles,
+    hooksCount: settingsAggregate.hooksCount,
     skillsCount,
     scheduledTasksCount,
     commandsCount,
     mcpServersCount,
-    installedServers,
+    installedServers: settingsAggregate.installedServers,
     competingFormats: {
       // Competing formats are a per-project concern; skip detection in global mode.
       cursorrules: false,
       agentsMd: false,
       copilotInstructions: false,
     },
-    projectsObserved: projectDirs.length,
+    projectsObserved: Math.max(projectDirs.length, realProjectRoots.length),
+  };
+}
+
+/**
+ * Aggregate hooks + MCP servers + settings files across the global config
+ * AND every project-level .claude/ directory we discovered. This replaces
+ * readSettingsAndMcpConfig when scanning in global scope.
+ */
+function readSettingsAndMcpConfigAggregated(home: string, projectRoots: string[]) {
+  const settingsFiles: FileInfo[] = [];
+  const serverNameSet = new Set<string>();
+  let hooksCount = 0;
+
+  // Global files first
+  const globalSettingsPaths = [
+    join(home, '.claude', 'settings.json'),
+    join(home, '.claude', 'settings.local.json'),
+  ];
+  const globalMcpPaths = [join(home, '.claude', 'mcp.json')];
+
+  const allSettingsPaths = [...globalSettingsPaths];
+  const allMcpPaths = [...globalMcpPaths];
+
+  // Add each project's .claude/settings.json and .mcp.json
+  for (const root of projectRoots) {
+    allSettingsPaths.push(
+      join(root, '.claude', 'settings.json'),
+      join(root, '.claude', 'settings.local.json'),
+    );
+    allMcpPaths.push(join(root, '.mcp.json'));
+  }
+
+  for (const path of allSettingsPaths) {
+    const info = readFile(path);
+    if (!info) continue;
+    settingsFiles.push(info);
+    try {
+      const data = JSON.parse(info.content);
+      const hooks = data.hooks || {};
+      for (const event of Object.values(hooks)) {
+        if (Array.isArray(event)) hooksCount += event.length;
+      }
+      for (const n of collectServerNames(info.content)) serverNameSet.add(n);
+    } catch { /* ignore malformed */ }
+  }
+
+  for (const path of allMcpPaths) {
+    const info = readFile(path);
+    if (!info) continue;
+    for (const n of collectServerNames(info.content)) serverNameSet.add(n);
+  }
+
+  return {
+    settingsFiles,
+    installedServers: Array.from(serverNameSet),
+    hooksCount,
   };
 }
 
