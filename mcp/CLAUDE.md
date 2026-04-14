@@ -4,10 +4,12 @@
 Open source MCP server der hjælper mennesker og AI-agenter med at forstå hinanden bedre. Analyserer samarbejdet, identificerer problemer, leverer konkret kode/config — ikke råd.
 
 ## Navn
-- **Dear User** = produktnavn
-- **Dear User** = viral feature (shareable stats)
+- **Dear User** = produktnavn (brand)
+- **Dear User Analyze** = diagnose-værktøj (mcp__dearuser__analyze)
+- **Dear User Wrapped** = viral feature / shareable stats (mcp__dearuser__wrapped)
 - npm pakke: `dearuser-mcp`
-- GitHub: `bleedmode/dearuser-mcp` (privat indtil launch)
+- GitHub: `bleedmode/dearuser` (monorepo med mcp/ + web/)
+- Web: `dearuser.ai`
 
 ## Arkitektur: 3 videnskilder
 
