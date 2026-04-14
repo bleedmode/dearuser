@@ -5,7 +5,7 @@ Helps humans and AI agents understand each other better.
 ## What it does
 
 - **`analyze`** — Scans your CLAUDE.md, memory files, hooks, skills, sessions, and history. Diagnoses collaboration problems, recommends specific tools and config, guides onboarding for gaps.
-- **`wrapped`** — Your Agent Wrapped — shareable stats about your collaboration.
+- **`wrapped`** — Your Dear User Wrapped — shareable stats about your collaboration.
 
 ## What it can help with
 
