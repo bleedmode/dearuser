@@ -14,6 +14,18 @@ const server = new McpServer({
   version: '1.0.0',
 });
 
+/** Human-readable "3 days ago" / "5 weeks ago" from an ISO timestamp. */
+function daysSince(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (isNaN(then)) return 'recently';
+  const days = Math.round((Date.now() - then) / (24 * 60 * 60 * 1000));
+  if (days < 1) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 30) return `${Math.round(days / 7)} weeks ago`;
+  return `${Math.round(days / 30)} months ago`;
+}
+
 // Tool 1: analyze — full collaboration analysis
 server.tool(
   'analyze',
@@ -201,7 +213,9 @@ IMPORTANT — When presenting results to the user:
         }
       }
 
-      // Feedback loop section
+      // Feedback loop section — show which specific recommendations are
+      // pending/implemented/ignored, not just the totals. Users can't act
+      // on "1 pending" without knowing what that 1 is.
       if (report.feedback && report.feedback.totalRecommendations > 0) {
         lines.push(
           '', '## Feedback Loop',
@@ -211,6 +225,26 @@ IMPORTANT — When presenting results to the user:
         if (report.feedback.avgScoreImprovement !== null) {
           const dir = report.feedback.avgScoreImprovement >= 0 ? '+' : '';
           lines.push(`- Average score change after implementation: **${dir}${report.feedback.avgScoreImprovement}** points`);
+        }
+
+        if (report.feedback.history && report.feedback.history.length > 0) {
+          lines.push('');
+          const pending = report.feedback.history.filter(h => h.status === 'pending').slice(0, 3);
+          const implemented = report.feedback.history.filter(h => h.status === 'implemented').slice(0, 2);
+          if (pending.length > 0) {
+            lines.push('**Still pending:**');
+            for (const h of pending) {
+              const age = daysSince(h.givenAt);
+              lines.push(`- ⏳ *${h.title}* — suggested ${age}`);
+            }
+          }
+          if (implemented.length > 0) {
+            lines.push('', '**Recently implemented:**');
+            for (const h of implemented) {
+              const delta = h.scoreAtCheck !== undefined ? ` (${h.scoreAtCheck - h.scoreAtGiven >= 0 ? '+' : ''}${h.scoreAtCheck - h.scoreAtGiven} pts)` : '';
+              lines.push(`- ✅ *${h.title}*${delta}`);
+            }
+          }
         }
       }
 
@@ -227,39 +261,60 @@ IMPORTANT — When presenting results to the user:
       const toolRecs = recommendTools(problemIds, report.persona.detected, installedServers);
 
       if (toolRecs.length > 0) {
-        lines.push('', '## Recommended Tools');
+        lines.push('', '## Recommended Tools', '');
         for (const tool of toolRecs.slice(0, 5)) {
           const typeLabel = tool.type === 'mcp_server' ? 'MCP' : tool.type === 'hook' ? 'Hook' : tool.type === 'github_repo' ? 'GitHub' : 'Skill';
-          const starsStr = tool.stars ? ` (${(tool.stars / 1000).toFixed(0)}K stars)` : '';
-          lines.push(`- **${tool.name}** [${typeLabel}]${starsStr} — ${tool.description}`);
-          lines.push(`  Install: \`${tool.install.split('\n')[0]}\``);
+          const starsStr = tool.stars ? ` · ${(tool.stars / 1000).toFixed(0)}K⭐` : '';
+          lines.push(`### ${tool.name} [${typeLabel}${starsStr}]`);
+          lines.push(tool.description);
+          // Multi-line install configs get a proper code block so users can
+          // actually copy-paste the JSON/command. Previously we only showed
+          // the first line which truncated all the hook configs.
+          const install = tool.install.trim();
+          if (install.includes('\n')) {
+            lines.push('', '```', install, '```');
+          } else {
+            lines.push('', `\`${install}\``);
+          }
+          lines.push('');
         }
       }
 
-      // Onboarding gaps (if significant gaps exist)
-      const significantGaps = report.gaps.filter(g => g.severity === 'critical');
-      if (significantGaps.length > 0) {
+      // Onboarding — conversation starters for gaps the agent should learn about.
+      // Show both critical and recommended gaps so a mature setup (with only
+      // minor gaps) still gets useful prompts, not an empty section.
+      const GAP_QUESTIONS: Record<string, { ask: string; why: string }> = {
+        missing_roles: { ask: 'What is your role? Are you the coder, the product owner, or something else?', why: 'Calibrates how technical the agent should be.' },
+        missing_autonomy: { ask: 'What should the agent do without asking? What should it always ask first?', why: 'Too much autonomy → scope creep. Too little → constant interruptions.' },
+        missing_communication: { ask: 'How do you prefer communication? Language, detail level, tone?', why: 'Without this, the agent defaults to technical English.' },
+        missing_quality: { ask: 'How do you know something is done? What checks should pass?', why: 'Without quality gates, broken code gets shipped.' },
+        missing_north_star: { ask: 'What is your main goal? Revenue target, user growth, learning?', why: 'Every recommendation gets evaluated against your goal.' },
+        missing_tech_stack: { ask: 'What is your standard tech stack for new projects?', why: 'Prevents the agent from suggesting frameworks you don\'t use.' },
+        missing_learnings: { ask: 'What lesson from the last 3 months should your agent never forget?', why: 'Surfaces tacit knowledge that would otherwise stay in your head.' },
+        no_hooks: { ask: 'Should we add automated guardrails? (build check, destructive-command blocker, protected-files guard)', why: 'Hooks catch errors before they reach you.' },
+        no_memory: { ask: 'Your agent has no memory system. Want to enable it?', why: 'Without memory, corrections are forgotten every session.' },
+        no_learn_skill: { ask: 'Want a /learn skill that captures session lessons into memory automatically?', why: 'Turns every correction into persistent learning with no extra effort.' },
+        no_ship_skill: { ask: 'Want a /ship skill that bundles build + test + commit + push into one safe command?', why: 'Fewer steps to remember, fewer ways to ship broken code.' },
+        no_standup_skill: { ask: 'Want a /standup skill that gives you a daily project overview on command?', why: 'Removes the "where was I?" startup cost each morning.' },
+      };
+
+      const onboardingGaps = report.gaps.filter(g =>
+        (g.severity === 'critical' || g.severity === 'recommended') && GAP_QUESTIONS[g.id]
+      );
+
+      if (onboardingGaps.length > 0) {
         lines.push(
           '', '## Onboarding: Get to Know Each Other',
-          '', 'These areas are missing from your setup. Ask about them one at a time — like meeting a new colleague, not filling out a form.',
+          '',
+          'These areas are missing or thin in your setup. Ask one question at a time — like meeting a new colleague, not filling out a form.',
+          '',
         );
 
-        const gapQuestions: Record<string, { ask: string; why: string }> = {
-          missing_roles: { ask: 'What is your role? Are you the coder, the product owner, or something else?', why: 'Calibrates how technical the agent should be.' },
-          missing_autonomy: { ask: 'What should the agent do without asking? What should it always ask first?', why: 'Too much autonomy → scope creep. Too little → constant interruptions.' },
-          missing_communication: { ask: 'How do you prefer communication? Language, detail level, tone?', why: 'Without this, the agent defaults to technical English.' },
-          missing_quality: { ask: 'How do you know something is done? What checks should pass?', why: 'Without quality gates, broken code gets shipped.' },
-          missing_north_star: { ask: 'What is your main goal? Revenue target? Learning?', why: 'Every recommendation gets evaluated against your goal.' },
-          no_hooks: { ask: 'Should we add automated guardrails? (builds check, destructive command blocker)', why: 'Hooks catch errors before they reach you.' },
-          no_memory: { ask: 'Your agent has no memory system. Want to enable it?', why: 'Without memory, corrections are forgotten every session.' },
-        };
-
-        for (const gap of significantGaps) {
-          const q = gapQuestions[gap.id];
-          if (q) {
-            lines.push(`- **${q.ask}**`);
-            lines.push(`  *Why:* ${q.why}`);
-          }
+        for (const gap of onboardingGaps.slice(0, 6)) {
+          const q = GAP_QUESTIONS[gap.id];
+          const marker = gap.severity === 'critical' ? '🔴' : '🟡';
+          lines.push(`- ${marker} **${q.ask}**`);
+          lines.push(`  *Why:* ${q.why}`);
         }
 
         lines.push(
