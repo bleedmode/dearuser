@@ -82,44 +82,91 @@ IMPORTANT — When presenting results to the user:
         }
       }
 
-      // Action items — the most important part
-      // Combine gaps + recommendations into clear action items
-      const actionItems: Array<{ priority: string; title: string; why: string; how: string }> = [];
+      // === Action items split by audience ===
+      // Two distinct tracks: agent-changes (copy-paste into files/config) and
+      // user-changes (behavior coaching with why/how/practice). They demand
+      // different actions from the reader and must not be mixed in one list.
+      const priorityLabel = (p: string) =>
+        p === 'critical' ? '🔴 Critical' : p === 'recommended' ? '🟡 Recommended' : '🟢 Nice to have';
 
-      for (const gap of report.gaps) {
-        const rec = report.recommendations.find(r =>
-          r.title.toLowerCase().includes(gap.id.replace('missing_', '').replace('no_', ''))
+      const priorityOrder = (p: string) => (p === 'critical' ? 0 : p === 'recommended' ? 1 : 2);
+
+      const agentRecs = report.recommendations
+        .filter(r => r.audience === 'agent' || r.audience === 'both')
+        .sort((a, b) => priorityOrder(a.priority) - priorityOrder(b.priority));
+
+      const userRecs = report.recommendations
+        .filter(r => r.audience === 'user' || r.audience === 'both')
+        .sort((a, b) => priorityOrder(a.priority) - priorityOrder(b.priority));
+
+      // --- 🤖 Agent changes ---
+      if (agentRecs.length > 0) {
+        lines.push(
+          '', '## 🤖 For Your Agent',
+          '*Copy-paste these into your config. Your agent can apply them for you.*',
+          '',
         );
 
-        actionItems.push({
-          priority: gap.severity === 'critical' ? '🔴 Critical' : gap.severity === 'recommended' ? '🟡 Recommended' : '🟢 Nice to have',
-          title: gap.section,
-          why: gap.personaRelevance,
-          how: rec ? rec.textBlock : 'See recommendations below.',
-        });
-      }
+        for (const rec of agentRecs.slice(0, 5)) {
+          lines.push(`### ${priorityLabel(rec.priority)}: ${rec.title}`);
+          lines.push(`${rec.description}`);
 
-      if (actionItems.length > 0) {
-        lines.push('', '## What To Do (prioritized)');
-        for (const item of actionItems.slice(0, 5)) {
-          lines.push(
-            ``,
-            `### ${item.priority}: ${item.title}`,
-            `**Why:** ${item.why}`,
-            `**How:**`,
-            '```',
-            item.how,
-            '```',
-          );
+          if (rec.evidence.length > 0) {
+            lines.push('');
+            lines.push('**Evidence:**');
+            for (const ev of rec.evidence) {
+              const prefix = ev.kind === 'missing' ? '🔍' : ev.kind === 'quote' ? '💬' : '📊';
+              lines.push(`- ${prefix} \`${ev.source}\` — ${ev.excerpt}`);
+            }
+          }
+
+          lines.push('', `**Where:** ${rec.placementHint}`);
+          if (rec.textBlock.trim()) {
+            lines.push('', '```', rec.textBlock, '```');
+          }
+          lines.push('');
         }
       }
 
-      // Friction patterns — shorter, focused
-      if (report.frictionPatterns.length > 0) {
-        lines.push('', '## Friction Patterns (from your history)');
-        for (const fp of report.frictionPatterns.slice(0, 3)) {
-          lines.push(`${fp.rank}. **${fp.title}** — ${fp.description}`);
+      // --- 👤 User coaching ---
+      if (userRecs.length > 0) {
+        lines.push(
+          '', '## 👤 For You',
+          '*These are behavior changes. No file to edit — you\'re the one changing. One at a time works best.*',
+          '',
+        );
+
+        for (const rec of userRecs.slice(0, 3)) {
+          lines.push(`### ${priorityLabel(rec.priority)}: ${rec.title}`);
+          lines.push(`${rec.description}`);
+
+          if (rec.evidence.length > 0) {
+            lines.push('');
+            lines.push('**Evidence from your own setup:**');
+            for (const ev of rec.evidence) {
+              lines.push(`- 💬 *"${ev.excerpt}"*  — ${ev.source}`);
+            }
+          }
+
+          if (rec.why) {
+            lines.push('', `**Why it matters:** ${rec.why}`);
+          }
+          if (rec.howItLooks) {
+            lines.push('', '**How it looks when done right:**', '```', rec.howItLooks, '```');
+          }
+          if (rec.practiceStep) {
+            lines.push('', `**Practice this next time:** ${rec.practiceStep}`);
+          }
+          lines.push('');
         }
+      }
+
+      // If no recommendations in either bucket, explain that.
+      if (agentRecs.length === 0 && userRecs.length === 0) {
+        lines.push(
+          '', '## No action items',
+          'No critical gaps detected in your setup, and no friction patterns had enough evidence to recommend a behavior change. Your collaboration looks healthy on the dimensions we can see.',
+        );
       }
 
       // Stats
