@@ -171,6 +171,145 @@ export interface SessionData {
   };
 }
 
+// ============================================================================
+// Audit types — system coherence analysis
+// ============================================================================
+
+export type AuditArtifactType =
+  | 'skill'
+  | 'command'
+  | 'scheduled_task'
+  | 'hook'
+  | 'mcp_server'
+  | 'memory_file';
+
+export type AuditFindingType =
+  | 'orphan_job'
+  | 'overlap'
+  | 'missing_closure'
+  | 'substrate_mismatch';
+
+/** A thing in the user's AI stack that can produce or consume data. */
+export interface AuditArtifact {
+  id: string;                 // stable identifier: `${type}:${name}`
+  type: AuditArtifactType;
+  name: string;               // frontmatter name or dir name
+  path: string;               // absolute path to file
+  description: string;        // frontmatter description or first line of prompt
+  prompt: string;             // full prompt/content text
+  metadata: {
+    lastModified?: Date;
+    size: number;
+    frontmatter?: Record<string, string>;
+    // For memory files: count of list-like structured entries
+    entryCount?: number;
+    // For memory files: does it look like a database? (dates, IDs, structured)
+    structuredEntries?: boolean;
+  };
+}
+
+/** Directed edge in the artifact graph. */
+export interface AuditEdge {
+  from: string;              // artifact id
+  to: string;                // artifact id OR file path string
+  type: 'produces' | 'consumes' | 'references' | 'similar_to';
+  evidence: string;          // quote/path from source that justified the edge
+}
+
+export interface AuditGraph {
+  nodes: AuditArtifact[];
+  edges: AuditEdge[];
+}
+
+export interface AuditEvidence {
+  source: string;            // artifact id or file path
+  excerpt: string;
+  kind: 'path' | 'quote' | 'stat';
+}
+
+export interface AuditFinding {
+  id: string;                // stable, for feedback-tracking
+  type: AuditFindingType;
+  severity: GapSeverity;
+  title: string;
+  description: string;
+  affectedArtifacts: string[]; // artifact ids
+  evidence: AuditEvidence[];
+  recommendation: string;
+  why: string;               // why this matters (1-2 sentences)
+}
+
+export interface AuditReport {
+  version: '1.0';
+  generatedAt: string;
+  scope: Scope;
+  scanRoots: string[];
+  graph: {
+    nodeCount: number;
+    edgeCount: number;
+    byType: Record<AuditArtifactType, number>;
+    closureRate: number | null; // % of produces-edges that have a consumer; null if no produces
+  };
+  findings: AuditFinding[];
+  summary: {
+    critical: number;
+    recommended: number;
+    niceToHave: number;
+    byType: Record<AuditFindingType, number>;
+  };
+  feedback: {
+    totalTracked: number;
+    fixed: number;
+    pending: number;
+    dismissed: number;
+    history: Array<{
+      id: string;
+      title: string;
+      status: 'pending' | 'fixed' | 'dismissed';
+      firstSeenAt: string;
+      lastSeenAt: string;
+    }>;
+  };
+}
+
+// ============================================================================
+// Git scanning — local .git activity signals
+// ============================================================================
+
+export interface GitSummary {
+  totalScanned: number;
+  active: number;       // commits in last 7 days
+  stale: number;        // > 60 days since last commit
+  reposWithRevertSignals: number;
+  reposWithUncommittedPile: number; // ≥10 uncommitted files
+  topActive: Array<{ name: string; path: string; commits7d: number; commits30d: number }>;
+  topStale: Array<{ name: string; path: string; staleDays: number }>;
+}
+
+// ============================================================================
+// Injection findings — prompt-injection surfaces in hooks/skills/MCP configs
+// ============================================================================
+
+export type InjectionCategory =
+  | 'shell_unquoted_var'
+  | 'user_input_to_bash'
+  | 'eval_in_skill'
+  | 'hook_missing_set_e'
+  | 'mcp_shell_template'
+  | 'arguments_to_sensitive_cmd';
+
+export interface InjectionFinding {
+  id: string;
+  category: InjectionCategory;
+  severity: GapSeverity;
+  title: string;
+  artifactId: string;
+  artifactPath: string;
+  excerpt: string;
+  why: string;
+  recommendation: string;
+}
+
 export interface AnalysisReport {
   version: '2.0';
   generatedAt: string;
@@ -195,6 +334,10 @@ export interface AnalysisReport {
   recommendations: Recommendation[];
   wrapped: WrappedData;
   session: SessionData;
+  /** Local git activity — populated when .git scanning is enabled. */
+  git: GitSummary | null;
+  /** Prompt-injection findings from static pattern-matching of hooks/skills/MCP. */
+  injection: InjectionFinding[];
   feedback: {
     totalRecommendations: number;
     implemented: number;
