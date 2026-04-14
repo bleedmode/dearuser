@@ -86,8 +86,8 @@ export function runAnalysis(projectRoot: string): AnalysisReport {
   // 4. Detect persona
   const persona = detectPersona(parsed, scanResult);
 
-  // 5. Analyze friction
-  const frictionPatterns = analyzeFriction(parsed, scanResult);
+  // 5. Analyze friction — pass session data so correction examples contribute
+  const frictionPatterns = analyzeFriction(parsed, scanResult, sessionData);
 
   // 6. Detect gaps
   const gaps = detectGaps(parsed, scanResult, persona.detected);
