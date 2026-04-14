@@ -80,13 +80,27 @@ export interface Gap {
   personaRelevance: string;
 }
 
+export type RecommendationAudience = 'agent' | 'user' | 'both';
+
+export interface EvidenceItem {
+  source: string; // e.g. "CLAUDE.md", "feedback_danish_responses.md", "session 2026-04-14"
+  excerpt: string; // concrete quote or "missing: section X"
+  kind: 'quote' | 'missing' | 'stat';
+}
+
 export interface Recommendation {
   priority: GapSeverity;
+  audience: RecommendationAudience;
   title: string;
   description: string;
   textBlock: string;
-  target: 'global_claude_md' | 'project_claude_md' | 'settings' | 'hook' | 'skill';
+  evidence: EvidenceItem[];
+  target: 'global_claude_md' | 'project_claude_md' | 'settings' | 'hook' | 'skill' | 'behavior';
   placementHint: string;
+  // User-coaching fields (only for audience === 'user' or 'both')
+  why?: string;       // Why this hurts collaboration
+  howItLooks?: string; // How it looks when done right (example dialog)
+  practiceStep?: string; // "Try this next time" — concrete one-step exercise
 }
 
 export interface AnalysisStats {

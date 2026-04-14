@@ -1,6 +1,19 @@
 // Recommendations — persona-specific text blocks for identified gaps
+// All recommendations here are AGENT-facing: copy-paste fixes for files/config.
+// User-facing behavior recommendations live in user-coaching.ts.
 
-import type { Recommendation, PersonaId, Gap } from '../types.js';
+import type { Recommendation, PersonaId, Gap, EvidenceItem } from '../types.js';
+
+// Human-readable labels for gap IDs used in evidence messages.
+const GAP_LABELS: Record<string, string> = {
+  missing_roles: 'Roles section',
+  missing_autonomy: 'Autonomy tiers (do-yourself / ask-first / suggest-only)',
+  missing_communication: 'Communication rules',
+  missing_quality: 'Quality standards / definition of done',
+  missing_north_star: 'North Star / goal',
+  no_hooks: 'Any PostToolUse or PreToolUse hooks in .claude/settings.json',
+  no_memory: 'Memory system (~/.claude/projects/*/memory/)',
+};
 
 // Text blocks per gap × persona
 const RECOMMENDATION_BLOCKS: Record<string, Partial<Record<PersonaId, { title: string; description: string; textBlock: string; target: Recommendation['target']; placementHint: string }>>> = {
@@ -220,11 +233,25 @@ export function generateRecommendations(gaps: Gap[], persona: PersonaId): Recomm
     const block = blocks[persona] || blocks.vibe_coder;
     if (!block) continue;
 
+    // Evidence for agent-recommendations is "what's missing" — we name the absent
+    // artifact so the user can verify the claim against their own files.
+    const label = GAP_LABELS[gap.id] || gap.id.replace('missing_', '').replace('no_', '');
+    // Grammar: "No X found" reads awkward when label starts with "Any" or "A".
+    // Strip leading "Any "/"A " to keep the sentence natural.
+    const cleanLabel = label.replace(/^(Any |A )/, '');
+    const evidence: EvidenceItem[] = [{
+      source: block.target === 'settings' ? '.claude/settings.json' : 'CLAUDE.md',
+      excerpt: `No ${cleanLabel} found in your setup`,
+      kind: 'missing',
+    }];
+
     recommendations.push({
       priority: gap.severity,
+      audience: 'agent',
       title: block.title,
       description: block.description,
       textBlock: block.textBlock,
+      evidence,
       target: block.target,
       placementHint: block.placementHint,
     });

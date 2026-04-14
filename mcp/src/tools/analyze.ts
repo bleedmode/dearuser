@@ -7,6 +7,7 @@ import { score } from '../engine/scorer.js';
 import { analyzeFriction } from '../engine/friction-analyzer.js';
 import { detectGaps } from '../engine/gap-detector.js';
 import { generateRecommendations } from '../templates/recommendations.js';
+import { generateUserCoaching } from '../templates/user-coaching.js';
 import { analyzeSession } from '../engine/session-analyzer.js';
 import { trackRecommendations, checkImplementation } from '../engine/feedback-tracker.js';
 import type { AnalysisReport, AnalysisStats, WrappedData } from '../types.js';
@@ -91,8 +92,11 @@ export function runAnalysis(projectRoot: string): AnalysisReport {
   // 6. Detect gaps
   const gaps = detectGaps(parsed, scanResult, persona.detected);
 
-  // 7. Generate recommendations
-  const recommendations = generateRecommendations(gaps, persona.detected);
+  // 7. Generate recommendations — both agent-facing (file/config fixes) and
+  //    user-facing (behavior coaching based on friction patterns).
+  const agentRecs = generateRecommendations(gaps, persona.detected);
+  const userRecs = generateUserCoaching(frictionPatterns);
+  const recommendations = [...agentRecs, ...userRecs];
 
   // 8. Build stats
   const stats = buildStats(parsed, scanResult);
