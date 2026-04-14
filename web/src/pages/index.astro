@@ -1,0 +1,599 @@
+---
+// Agent Wrapped — Spotify Wrapped-style AI collaboration insights
+// Prototype with real data from Jarl + Bobby's CLAUDE.md & memory files
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agent Wrapped 2026</title>
+  <meta name="description" content="Your AI collaboration, unwrapped. See how you and your agent work together." />
+  <meta property="og:title" content="Agent Wrapped 2026" />
+  <meta property="og:description" content="Your AI collaboration, unwrapped." />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0a;
+      --text: #f5f5f5;
+      --text-dim: #888;
+      --accent-1: #8b5cf6;
+      --accent-2: #06b6d4;
+      --accent-3: #f59e0b;
+      --accent-4: #ef4444;
+      --card-bg: rgba(255,255,255,0.04);
+      --card-border: rgba(255,255,255,0.08);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* Scroll sections */
+    .section {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 60px 24px;
+      position: relative;
+      opacity: 0;
+      transform: translateY(40px);
+      transition: opacity 0.8s ease, transform 0.8s ease;
+    }
+    .section.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Intro */
+    .intro {
+      background: radial-gradient(ellipse at 50% 80%, rgba(139,92,246,0.15) 0%, transparent 60%);
+    }
+    .intro-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--accent-1);
+      margin-bottom: 24px;
+    }
+    .intro h1 {
+      font-size: clamp(2.5rem, 8vw, 5rem);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      text-align: center;
+      max-width: 700px;
+    }
+    .intro h1 span {
+      background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .intro .subtitle {
+      font-size: 1.1rem;
+      color: var(--text-dim);
+      margin-top: 24px;
+      text-align: center;
+    }
+    .scroll-hint {
+      position: absolute;
+      bottom: 40px;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      animation: bounce 2s infinite;
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(8px); }
+    }
+
+    /* Big number sections */
+    .big-number {
+      font-size: clamp(4rem, 15vw, 10rem);
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+    .big-label {
+      font-size: clamp(1rem, 3vw, 1.5rem);
+      color: var(--text-dim);
+      margin-top: 12px;
+      text-align: center;
+      max-width: 500px;
+      line-height: 1.5;
+    }
+
+    .gradient-purple { background: linear-gradient(135deg, var(--accent-1), #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .gradient-cyan { background: linear-gradient(135deg, var(--accent-2), #67e8f9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .gradient-amber { background: linear-gradient(135deg, var(--accent-3), #fcd34d); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .gradient-red { background: linear-gradient(135deg, var(--accent-4), #f87171); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+    /* Numbers section */
+    .numbers-bg {
+      background: radial-gradient(ellipse at 30% 50%, rgba(6,182,212,0.1) 0%, transparent 50%),
+                  radial-gradient(ellipse at 70% 50%, rgba(139,92,246,0.1) 0%, transparent 50%);
+    }
+
+    /* Friction section */
+    .friction-bg {
+      background: radial-gradient(ellipse at 50% 30%, rgba(245,158,11,0.1) 0%, transparent 50%);
+    }
+    .friction-list {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      margin-top: 48px;
+      max-width: 560px;
+      width: 100%;
+    }
+    .friction-item {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px 28px;
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+    .friction-rank {
+      font-size: 2rem;
+      font-weight: 900;
+      color: var(--accent-3);
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .friction-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .friction-desc {
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    /* Quote section */
+    .quote-bg {
+      background: radial-gradient(ellipse at 50% 50%, rgba(239,68,68,0.1) 0%, transparent 50%);
+    }
+    .quote {
+      font-size: clamp(1.3rem, 4vw, 2rem);
+      font-weight: 700;
+      text-align: center;
+      max-width: 600px;
+      line-height: 1.4;
+      font-style: italic;
+    }
+    .quote-attr {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      margin-top: 20px;
+      font-style: normal;
+    }
+
+    /* Autonomy section */
+    .autonomy-bg {
+      background: radial-gradient(ellipse at 50% 60%, rgba(139,92,246,0.12) 0%, transparent 50%);
+    }
+    .autonomy-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      margin-top: 48px;
+      max-width: 500px;
+      width: 100%;
+    }
+    .autonomy-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .autonomy-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .autonomy-label span:last-child {
+      color: var(--text-dim);
+    }
+    .bar-track {
+      height: 32px;
+      background: var(--card-bg);
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--card-border);
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 8px;
+      width: 0%;
+      transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .bar-purple { background: linear-gradient(90deg, var(--accent-1), #c084fc); }
+    .bar-amber { background: linear-gradient(90deg, var(--accent-3), #fcd34d); }
+    .bar-cyan { background: linear-gradient(90deg, var(--accent-2), #67e8f9); }
+
+    /* Archetype section */
+    .archetype-bg {
+      background: radial-gradient(ellipse at 40% 40%, rgba(139,92,246,0.15) 0%, transparent 40%),
+                  radial-gradient(ellipse at 60% 70%, rgba(6,182,212,0.1) 0%, transparent 40%);
+    }
+    .archetype-icon {
+      font-size: 4rem;
+      margin-bottom: 24px;
+    }
+    .archetype-name {
+      font-size: clamp(1.8rem, 5vw, 3rem);
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      text-align: center;
+      background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .archetype-desc {
+      font-size: 1rem;
+      color: var(--text-dim);
+      text-align: center;
+      max-width: 480px;
+      margin-top: 16px;
+      line-height: 1.6;
+    }
+    .archetype-traits {
+      display: flex;
+      gap: 12px;
+      margin-top: 32px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .trait {
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 100px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-dim);
+    }
+
+    /* System section */
+    .system-bg {
+      background: radial-gradient(ellipse at 50% 50%, rgba(6,182,212,0.12) 0%, transparent 50%);
+    }
+    .system-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 16px;
+      margin-top: 48px;
+      max-width: 500px;
+      width: 100%;
+    }
+    .system-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+    }
+    .system-num {
+      font-size: 2.5rem;
+      font-weight: 900;
+    }
+    .system-label {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-top: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Share card */
+    .share-bg {
+      background: radial-gradient(ellipse at 50% 50%, rgba(139,92,246,0.1) 0%, transparent 40%),
+                  radial-gradient(ellipse at 30% 80%, rgba(6,182,212,0.08) 0%, transparent 40%);
+    }
+    .share-card {
+      background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(6,182,212,0.1));
+      border: 1px solid rgba(139,92,246,0.2);
+      border-radius: 24px;
+      padding: 48px 40px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+    }
+    .share-card h2 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    .share-card .share-year {
+      font-size: 0.75rem;
+      color: var(--accent-1);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      margin-bottom: 32px;
+    }
+    .share-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+    .share-stat-num {
+      font-size: 2rem;
+      font-weight: 900;
+    }
+    .share-stat-label {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 2px;
+    }
+    .share-archetype {
+      font-size: 1rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    .share-url {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      margin-top: 24px;
+    }
+
+    .cta-text {
+      font-size: 1rem;
+      color: var(--text-dim);
+      margin-top: 32px;
+      text-align: center;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .section { padding: 40px 16px; }
+      .friction-item { flex-direction: column; gap: 8px; }
+      .share-card { padding: 32px 24px; }
+      .system-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1. Intro -->
+  <div class="section intro visible">
+    <div class="intro-badge">Your AI Collaboration</div>
+    <h1>Agent <span>Wrapped</span></h1>
+    <p class="subtitle">How you and your AI agent really work together</p>
+    <div class="scroll-hint">Scroll to explore</div>
+  </div>
+
+  <!-- 2. Corrections -->
+  <div class="section numbers-bg" data-section>
+    <div class="big-number gradient-purple" data-count="12">0</div>
+    <div class="big-label">times your agent was corrected — and remembered every single one</div>
+  </div>
+
+  <!-- 3. Memories -->
+  <div class="section" data-section>
+    <div class="big-number gradient-cyan" data-count="30">0</div>
+    <div class="big-label">memories built up over time — your agent's long-term brain</div>
+  </div>
+
+  <!-- 4. Projects -->
+  <div class="section" data-section>
+    <div class="big-number gradient-amber" data-count="7">0</div>
+    <div class="big-label">projects managed in parallel across the venture studio</div>
+  </div>
+
+  <!-- 5. Top lesson -->
+  <div class="section quote-bg" data-section>
+    <div class="big-label" style="margin-bottom: 32px; font-weight: 700; color: var(--accent-4);">Your agent's #1 lesson</div>
+    <div class="quote">"NEVER change code beyond what you were asked to change"</div>
+    <div class="quote-attr">— learned the hard way when a UI fix broke all rock identification</div>
+  </div>
+
+  <!-- 6. Friction points -->
+  <div class="section friction-bg" data-section>
+    <div class="big-label" style="font-weight: 700; color: var(--accent-3); font-size: 1.2rem;">Top Friction Points</div>
+    <div class="friction-list">
+      <div class="friction-item">
+        <div class="friction-rank">#1</div>
+        <div>
+          <div class="friction-title">Scope Creep</div>
+          <div class="friction-desc">The agent kept "improving" things it wasn't asked to touch — rewriting prompts, redesigning logos, refactoring working code</div>
+        </div>
+      </div>
+      <div class="friction-item">
+        <div class="friction-rank">#2</div>
+        <div>
+          <div class="friction-title">Lost in Translation</div>
+          <div class="friction-desc">English technical jargon when you needed Danish business language. Exit codes instead of "chef-på-kontoret" analogies</div>
+        </div>
+      </div>
+      <div class="friction-item">
+        <div class="friction-rank">#3</div>
+        <div>
+          <div class="friction-title">Manual Workarounds</div>
+          <div class="friction-desc">Suggesting one-off fixes when you wanted systems. "Can Bobby do this 100% alone next time?" is the real question</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. Autonomy split -->
+  <div class="section autonomy-bg" data-section>
+    <div class="big-label" style="font-weight: 700; color: var(--text); font-size: 1.2rem; margin-bottom: 8px;">Autonomy Split</div>
+    <div class="big-label">How much freedom does your agent have?</div>
+    <div class="autonomy-bars">
+      <div class="autonomy-row">
+        <div class="autonomy-label">
+          <span>Do it yourself</span>
+          <span>42%</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill bar-purple" data-width="42"></div>
+        </div>
+      </div>
+      <div class="autonomy-row">
+        <div class="autonomy-label">
+          <span>Ask first</span>
+          <span>37%</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill bar-amber" data-width="37"></div>
+        </div>
+      </div>
+      <div class="autonomy-row">
+        <div class="autonomy-label">
+          <span>Suggest only</span>
+          <span>21%</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill bar-cyan" data-width="21"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. Forbidden rules -->
+  <div class="section" data-section>
+    <div class="big-number gradient-red" data-count="42">0</div>
+    <div class="big-label">percent of your rules are "DON'T" rules — you've been burned before</div>
+  </div>
+
+  <!-- 9. Agent archetype -->
+  <div class="section archetype-bg" data-section>
+    <div class="big-label" style="margin-bottom: 32px; font-weight: 700; color: var(--text-dim);">Your agent archetype</div>
+    <div class="archetype-name">The Overachieving Assistant</div>
+    <div class="archetype-desc">
+      Does too much. Needs boundaries. Will refactor your entire codebase when asked to fix a typo — but also manages your git, builds your apps, and remembers every lesson learned.
+    </div>
+    <div class="archetype-traits">
+      <div class="trait">Proactive</div>
+      <div class="trait">Scope-creepy</div>
+      <div class="trait">Systems thinker</div>
+      <div class="trait">Boundary-tested</div>
+      <div class="trait">Multilingual</div>
+    </div>
+  </div>
+
+  <!-- 10. System built -->
+  <div class="section system-bg" data-section>
+    <div class="big-label" style="font-weight: 700; color: var(--text); font-size: 1.2rem; margin-bottom: 8px;">The System You Built</div>
+    <div class="big-label">Your agent doesn't just execute — it runs an OS</div>
+    <div class="system-grid">
+      <div class="system-card">
+        <div class="system-num gradient-purple" data-count="4">0</div>
+        <div class="system-label">Hooks</div>
+      </div>
+      <div class="system-card">
+        <div class="system-num gradient-cyan" data-count="3">0</div>
+        <div class="system-label">Skills</div>
+      </div>
+      <div class="system-card">
+        <div class="system-num gradient-amber" data-count="4">0</div>
+        <div class="system-label">Scheduled</div>
+      </div>
+      <div class="system-card">
+        <div class="system-num gradient-red" data-count="19">0</div>
+        <div class="system-label">Rules</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 11. Share card -->
+  <div class="section share-bg" data-section>
+    <div class="share-card">
+      <h2>Agent Wrapped</h2>
+      <div class="share-year">2026</div>
+      <div class="share-stats">
+        <div>
+          <div class="share-stat-num gradient-purple">12</div>
+          <div class="share-stat-label">Corrections</div>
+        </div>
+        <div>
+          <div class="share-stat-num gradient-cyan">30+</div>
+          <div class="share-stat-label">Memories</div>
+        </div>
+        <div>
+          <div class="share-stat-num gradient-amber">7</div>
+          <div class="share-stat-label">Projects</div>
+        </div>
+        <div>
+          <div class="share-stat-num gradient-red">42%</div>
+          <div class="share-stat-label">Don't rules</div>
+        </div>
+      </div>
+      <div class="share-archetype">The Overachieving Assistant</div>
+      <div class="share-url">agentwrapped.com</div>
+    </div>
+    <div class="cta-text">Screenshot & share your wrapped</div>
+  </div>
+
+  <script>
+    // Intersection Observer for scroll animations
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+
+          // Animate counters
+          const counters = entry.target.querySelectorAll('[data-count]');
+          counters.forEach(counter => {
+            if (counter.dataset.animated) return;
+            counter.dataset.animated = 'true';
+            const target = parseInt(counter.dataset.count);
+            const duration = 1500;
+            const start = performance.now();
+            function update(now) {
+              const elapsed = now - start;
+              const progress = Math.min(elapsed / duration, 1);
+              const eased = 1 - Math.pow(1 - progress, 3);
+              counter.textContent = Math.round(target * eased);
+              if (progress < 1) requestAnimationFrame(update);
+            }
+            requestAnimationFrame(update);
+          });
+
+          // Animate bars
+          const bars = entry.target.querySelectorAll('[data-width]');
+          bars.forEach(bar => {
+            if (bar.dataset.animated) return;
+            bar.dataset.animated = 'true';
+            setTimeout(() => {
+              bar.style.width = bar.dataset.width + '%';
+            }, 300);
+          });
+        }
+      });
+    }, { threshold: 0.3 });
+
+    document.querySelectorAll('[data-section]').forEach(section => {
+      observer.observe(section);
+    });
+  </script>
+
+</body>
+</html>
