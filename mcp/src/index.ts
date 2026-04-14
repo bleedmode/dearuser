@@ -40,16 +40,24 @@ IMPORTANT — When presenting results to the user:
 - If score categories have signals_missing, mention the top 1-2 gaps
 - Present recommendations sorted by severity (critical first)`,
   {
-    projectRoot: z.string().optional().describe('Project root directory to analyze. Defaults to current working directory.'),
+    projectRoot: z.string().optional().describe('Project root to analyze when scope="project". Defaults to current working directory. Ignored for scope="global".'),
+    scope: z.enum(['global', 'project']).optional().describe('"global" (default) aggregates across every project in ~/.claude/projects/ — the right mode for collaboration analysis, since the human↔agent relationship spans projects. "project" narrows to a single directory.'),
   },
-  async ({ projectRoot }) => {
+  async ({ projectRoot, scope }) => {
     try {
       const root = projectRoot || process.cwd();
-      const report = runAnalysis(root);
+      const effectiveScope = scope || 'global';
+      const report = runAnalysis(root, effectiveScope);
 
       // Format key insights as readable text
+      const scopeBanner = report.scope === 'global'
+        ? `*Scope: global — aggregated across ${report.projectsObserved} project${report.projectsObserved === 1 ? '' : 's'} in ~/.claude/projects/*`
+        : `*Scope: project — ${report.scanRoot}*`;
+
       const lines: string[] = [
         `# Dear User — Collaboration Analysis`,
+        ``,
+        scopeBanner,
         ``,
         `## Your Persona: ${report.persona.archetypeName}`,
         `**${report.persona.detected.replace('_', ' ')}** (${report.persona.confidence}% confidence)`,
@@ -248,7 +256,7 @@ IMPORTANT — When presenting results to the user:
         }
       }
 
-      // Tool recommendations based on detected problems
+      // Tool recommendations based on detected problems.
       const problemIds = [
         ...report.frictionPatterns.map(f => f.theme),
         ...report.gaps.map(g => g.id),
@@ -256,9 +264,10 @@ IMPORTANT — When presenting results to the user:
         ...(report.session.corrections.negationCount > 3 ? ['vague_prompts'] : []),
       ];
 
-      // Get installed MCP servers from scan
-      const installedServers: string[] = []; // TODO: extract from scan
-      const toolRecs = recommendTools(problemIds, report.persona.detected, installedServers);
+      // Installed MCP servers are now scanned from ~/.claude/mcp.json,
+      // ~/.claude/settings.json, and .mcp.json — so we don't re-recommend
+      // tools the user already has.
+      const toolRecs = recommendTools(problemIds, report.persona.detected, report.installedServers);
 
       if (toolRecs.length > 0) {
         lines.push('', '## Recommended Tools', '');
@@ -342,13 +351,14 @@ server.tool(
   'wrapped',
   'Generate your Dear User — shareable stats about your human-agent collaboration in a fun, Spotify Wrapped-style format.',
   {
-    projectRoot: z.string().optional().describe('Project root directory to analyze. Defaults to current working directory.'),
+    projectRoot: z.string().optional().describe('Project root when scope="project". Ignored for scope="global".'),
+    scope: z.enum(['global', 'project']).optional().describe('"global" (default) aggregates across all projects; "project" narrows to one directory.'),
     format: z.enum(['text', 'json']).optional().describe('Output format. "text" for terminal display, "json" for raw data. Defaults to text.'),
   },
-  async ({ projectRoot, format }) => {
+  async ({ projectRoot, scope, format }) => {
     try {
       const root = projectRoot || process.cwd();
-      const report = runAnalysis(root);
+      const report = runAnalysis(root, scope || 'global');
       const w = report.wrapped;
 
       if (format === 'json') {
@@ -359,7 +369,7 @@ server.tool(
 
       const lines: string[] = [
         `╔══════════════════════════════════════╗`,
-        `║       AGENT WRAPPED 2026             ║`,
+        `║       DEAR USER WRAPPED 2026         ║`,
         `╚══════════════════════════════════════╝`,
         ``,
         `  ${w.headlineStat.value} ${w.headlineStat.label}`,
@@ -387,7 +397,7 @@ server.tool(
         ``,
         `  Collaboration Score: ${report.collaborationScore}/100`,
         ``,
-        `  agentwrapped.com`,
+        `  dearuser.ai`,
       ];
 
       if (w.topLesson) {

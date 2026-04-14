@@ -10,7 +10,7 @@ import { generateRecommendations } from '../templates/recommendations.js';
 import { generateUserCoaching } from '../templates/user-coaching.js';
 import { analyzeSession } from '../engine/session-analyzer.js';
 import { trackRecommendations, checkImplementation } from '../engine/feedback-tracker.js';
-import type { AnalysisReport, AnalysisStats, WrappedData } from '../types.js';
+import type { AnalysisReport, AnalysisStats, WrappedData, Scope } from '../types.js';
 
 function buildStats(parsed: ReturnType<typeof parse>, scanResult: ReturnType<typeof scan>): AnalysisStats {
   const doRules = parsed.rules.filter(r => r.type === 'do_autonomously').length;
@@ -73,9 +73,10 @@ function buildWrapped(stats: AnalysisStats, persona: ReturnType<typeof detectPer
   };
 }
 
-export function runAnalysis(projectRoot: string): AnalysisReport {
-  // 1. Scan filesystem
-  const scanResult = scan(projectRoot);
+export function runAnalysis(projectRoot: string, scope: Scope = 'global'): AnalysisReport {
+  // 1. Scan filesystem — global by default. Collaboration quality is a
+  //    property of the human↔agent pair, not a single project.
+  const scanResult = scan(projectRoot, scope);
 
   // 2. Parse content
   const parsed = parse(scanResult);
@@ -118,6 +119,9 @@ export function runAnalysis(projectRoot: string): AnalysisReport {
     version: '2.0',
     generatedAt: new Date().toISOString(),
     scanRoot: projectRoot,
+    scope: scanResult.scope,
+    projectsObserved: scanResult.projectsObserved,
+    installedServers: scanResult.installedServers,
     persona,
     collaborationScore,
     categories,

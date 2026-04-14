@@ -8,7 +8,11 @@ export type FrictionTheme = 'scope_creep' | 'communication' | 'quality' | 'auton
 
 export type GapSeverity = 'critical' | 'recommended' | 'nice_to_have';
 
+export type Scope = 'global' | 'project';
+
 export interface ScanResult {
+  scope: Scope;
+  scanRoots: string[]; // Directories actually scanned — useful for provenance
   globalClaudeMd: FileInfo | null;
   projectClaudeMd: FileInfo | null;
   memoryFiles: FileInfo[];
@@ -18,7 +22,11 @@ export interface ScanResult {
   scheduledTasksCount: number;
   commandsCount: number;
   mcpServersCount: number;
+  /** Names of MCP servers the user already has installed (e.g. "context7", "playwright"). */
+  installedServers: string[];
   competingFormats: { cursorrules: boolean; agentsMd: boolean; copilotInstructions: boolean };
+  /** When scope='global': number of project directories observed in ~/.claude/projects/. */
+  projectsObserved: number;
 }
 
 export interface FileInfo {
@@ -167,6 +175,9 @@ export interface AnalysisReport {
   version: '2.0';
   generatedAt: string;
   scanRoot: string;
+  scope: Scope;
+  projectsObserved: number;
+  installedServers: string[];
   persona: PersonaResult;
   collaborationScore: number;
   categories: {
