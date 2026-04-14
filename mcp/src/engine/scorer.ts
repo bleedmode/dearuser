@@ -52,12 +52,21 @@ function scoreRoleClarity(parsed: ParseResult): CategoryScore {
   if (hasAskFirstExamples) present.push('Ask-first rules with specific examples');
   else missing.push('No specific ask-first examples — agent doesn\'t know your boundaries');
 
-  // Best practice: does the user describe their technical level?
-  const hasSkillLevel = parsed.rules.some(r =>
-    /\b(non.?technical|can'?t.?code|vibe.?cod|senior|junior|beginner|expert)\b/i.test(r.text)
-  );
-  if (hasSkillLevel) present.push('User skill level indicated');
-  else missing.push('Agent doesn\'t know your technical level — may over/under explain');
+  // Best practice: does the user describe their technical level or role?
+  // We accept either explicit skill level (senior/beginner/non-technical) OR
+  // a concrete professional role that implies skill level (CEO, founder,
+  // product owner, designer, engineer, etc.). Previously this check only
+  // matched skill-level keywords and false-negatived on users who'd
+  // defined their role clearly.
+  const allText = parsed.rules.map(r => r.text).join('\n') + '\n' +
+                  parsed.sections.map(s => s.content).join('\n');
+  const hasSkillLevel = /\b(non.?technical|can'?t.?code|vibe.?cod|senior|junior|beginner|expert|novice)\b/i.test(allText);
+  const hasRoleSignal = /\b(ceo|founder|cto|product.?owner|product.?manager|designer|engineer|developer|entrepreneur|indie.?hacker|tech.?lead|team.?lead|meta.?agent|executor)\b/i.test(allText);
+  if (hasSkillLevel || hasRoleSignal) {
+    present.push('User skill level / role indicated');
+  } else {
+    missing.push('Agent doesn\'t know your technical level or role — may over/under explain');
+  }
 
   const score = Math.round((present.length / (present.length + missing.length)) * 100);
   return { score, weight: WEIGHTS.roleClarity, signalsPresent: present, signalsMissing: missing };
