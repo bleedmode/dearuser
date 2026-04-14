@@ -1,9 +1,17 @@
-// Scanner — discovers all collaboration artifacts from filesystem
+// Scanner — discovers collaboration artifacts from filesystem.
+//
+// Two scopes:
+//   - 'project': look only at the given projectRoot and its matching
+//     ~/.claude/projects/<flattened-cwd>/ directory. Use for per-project sanity.
+//   - 'global' (default): aggregate memory, settings, and CLAUDE.md files
+//     across EVERY project the user has worked in, plus all global config.
+//     This is the right mode for collaboration analysis — it's about the
+//     human↔agent relationship, which spans projects.
 
 import { readFileSync, readdirSync, existsSync, statSync } from 'fs';
 import { join, resolve } from 'path';
 import { homedir } from 'os';
-import type { ScanResult, FileInfo } from '../types.js';
+import type { ScanResult, FileInfo, Scope } from '../types.js';
 
 function readFile(path: string): FileInfo | null {
   try {
@@ -46,99 +54,112 @@ function findMemoryFiles(dir: string): FileInfo[] {
   return files;
 }
 
-function countMcpServers(home: string, projectRoot: string): number {
-  let count = 0;
-
-  // Check ~/.claude/mcp.json
-  const globalMcp = readFile(join(home, '.claude', 'mcp.json'));
-  if (globalMcp) {
-    try {
-      const data = JSON.parse(globalMcp.content);
-      count += Object.keys(data.mcpServers || {}).length;
-    } catch { /* ignore */ }
+/**
+ * Collect MCP server names from a settings/mcp config file.
+ * Returns a set of lowercased server names so duplicates across files collapse.
+ */
+function collectServerNames(configContent: string): string[] {
+  try {
+    const data = JSON.parse(configContent);
+    const servers = data.mcpServers || {};
+    return Object.keys(servers).map(s => s.toLowerCase());
+  } catch {
+    return [];
   }
-
-  // Check .mcp.json in project
-  const projectMcp = readFile(join(projectRoot, '.mcp.json'));
-  if (projectMcp) {
-    try {
-      const data = JSON.parse(projectMcp.content);
-      count += Object.keys(data.mcpServers || {}).length;
-    } catch { /* ignore */ }
-  }
-
-  return count;
 }
 
-function countHooksFromSettings(home: string, projectRoot: string): number {
-  let count = 0;
-  const settingsPaths = [
-    join(home, '.claude', 'settings.json'),
-    join(projectRoot, '.claude', 'settings.json'),
-    join(projectRoot, '.claude', 'settings.local.json'),
-  ];
+function readSettingsAndMcpConfig(home: string, projectRoot: string | null) {
+  const settingsFiles: FileInfo[] = [];
+  const serverNameSet = new Set<string>();
+  let hooksCount = 0;
+
+  const settingsPaths = [join(home, '.claude', 'settings.json')];
+  const mcpPaths = [join(home, '.claude', 'mcp.json')];
+  if (projectRoot) {
+    settingsPaths.push(
+      join(projectRoot, '.claude', 'settings.json'),
+      join(projectRoot, '.claude', 'settings.local.json'),
+    );
+    mcpPaths.push(join(projectRoot, '.mcp.json'));
+  }
 
   for (const path of settingsPaths) {
-    const file = readFile(path);
-    if (!file) continue;
+    const info = readFile(path);
+    if (!info) continue;
+    settingsFiles.push(info);
     try {
-      const data = JSON.parse(file.content);
+      const data = JSON.parse(info.content);
+      // Count hook entries across all events
       const hooks = data.hooks || {};
       for (const event of Object.values(hooks)) {
-        if (Array.isArray(event)) count += event.length;
+        if (Array.isArray(event)) hooksCount += event.length;
       }
-    } catch { /* ignore */ }
+      // settings.json can also hold mcpServers
+      for (const n of collectServerNames(info.content)) serverNameSet.add(n);
+    } catch { /* ignore malformed */ }
   }
 
-  return count;
+  for (const path of mcpPaths) {
+    const info = readFile(path);
+    if (!info) continue;
+    for (const n of collectServerNames(info.content)) serverNameSet.add(n);
+  }
+
+  return {
+    settingsFiles,
+    installedServers: Array.from(serverNameSet),
+    hooksCount,
+  };
 }
 
-export function scan(projectRoot: string): ScanResult {
+/**
+ * List every project directory under ~/.claude/projects/. Each directory name
+ * is a flattened absolute path (e.g. -Users-karlomacmini-clawd-poised-dk).
+ */
+function listProjectDirs(home: string): string[] {
+  const base = join(home, '.claude', 'projects');
+  if (!existsSync(base)) return [];
+  try {
+    return readdirSync(base, { withFileTypes: true })
+      .filter(e => e.isDirectory())
+      .map(e => join(base, e.name));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Un-flatten "-Users-karlomacmini-clawd-poised-dk" → "/Users/karlomacmini/clawd/poised-dk".
+ * We can't know where segment boundaries originally were (both "/" and "-" become "-"),
+ * so we return the reconstructed path for display only — not for opening files.
+ */
+function unflattenDisplay(dirName: string): string {
+  return '/' + dirName.replace(/^-/, '').replace(/-/g, '/');
+}
+
+/**
+ * Project-scoped scan — look at one directory and its paired ~/.claude/projects/ entry.
+ */
+function scanProject(projectRoot: string): ScanResult {
   const home = homedir();
   const absRoot = resolve(projectRoot);
 
-  // CLAUDE.md files
   const projectClaudeMd = readFile(join(absRoot, 'CLAUDE.md'))
     || readFile(join(absRoot, 'claude.md'));
   const globalClaudeMd = readFile(join(home, '.claude', 'CLAUDE.md'));
 
-  // Memory files — check both project-specific and local memory dirs
   const memoryFiles: FileInfo[] = [];
-
-  // Global project memory (in ~/.claude/projects/)
-  // The path format encodes the project path with dashes
   const encodedPath = absRoot.replace(/\//g, '-');
-  const projectMemoryDir = join(home, '.claude', 'projects', encodedPath, 'memory');
-  memoryFiles.push(...findMemoryFiles(projectMemoryDir));
-
-  // Local memory (in .claude/memory/)
+  memoryFiles.push(...findMemoryFiles(join(home, '.claude', 'projects', encodedPath, 'memory')));
   memoryFiles.push(...findMemoryFiles(join(absRoot, '.claude', 'memory')));
 
-  // Settings files
-  const settingsFiles: FileInfo[] = [];
-  for (const path of [
-    join(home, '.claude', 'settings.json'),
-    join(absRoot, '.claude', 'settings.json'),
-    join(absRoot, '.claude', 'settings.local.json'),
-  ]) {
-    const info = readFile(path);
-    if (info) settingsFiles.push(info);
-  }
+  const { settingsFiles, installedServers, hooksCount } = readSettingsAndMcpConfig(home, absRoot);
 
-  // Count automation artifacts
-  const hooksCount = countHooksFromSettings(home, absRoot);
   const skillsCount = countDirEntries(join(home, '.claude', 'skills'));
   const scheduledTasksCount = countDirEntries(join(home, '.claude', 'scheduled-tasks'));
-  const commandsCount = countDirEntries(join(absRoot, '.claude', 'commands'), /\.md$/)
-    || (() => {
-      try {
-        return readdirSync(join(absRoot, '.claude', 'commands'))
-          .filter(f => f.endsWith('.md')).length;
-      } catch { return 0; }
-    })();
-  const mcpServersCount = countMcpServers(home, absRoot);
+  const commandsCount = countDirEntries(join(absRoot, '.claude', 'commands'), /\.md$/);
+  const mcpServersCount = installedServers.length;
 
-  // Competing formats
   const competingFormats = {
     cursorrules: existsSync(join(absRoot, '.cursorrules')),
     agentsMd: existsSync(join(absRoot, 'agents.md')) || existsSync(join(absRoot, 'AGENTS.md')),
@@ -146,6 +167,8 @@ export function scan(projectRoot: string): ScanResult {
   };
 
   return {
+    scope: 'project',
+    scanRoots: [absRoot],
     globalClaudeMd,
     projectClaudeMd,
     memoryFiles,
@@ -155,6 +178,73 @@ export function scan(projectRoot: string): ScanResult {
     scheduledTasksCount,
     commandsCount,
     mcpServersCount,
+    installedServers,
     competingFormats,
+    projectsObserved: 1,
   };
+}
+
+/**
+ * Global scan — the default. Aggregates memory and config across ALL projects
+ * in ~/.claude/projects/. CLAUDE.md is taken from the user's global file
+ * (~/.claude/CLAUDE.md); per-project CLAUDE.md files are intentionally not
+ * merged to keep the rule inventory interpretable.
+ */
+function scanGlobal(): ScanResult {
+  const home = homedir();
+
+  const globalClaudeMd = readFile(join(home, '.claude', 'CLAUDE.md'));
+
+  // Memory files: aggregate every ~/.claude/projects/<dir>/memory/*.md
+  const memoryFiles: FileInfo[] = [];
+  const projectDirs = listProjectDirs(home);
+  for (const projDir of projectDirs) {
+    memoryFiles.push(...findMemoryFiles(join(projDir, 'memory')));
+  }
+
+  const { settingsFiles, installedServers, hooksCount } = readSettingsAndMcpConfig(home, null);
+
+  const skillsCount = countDirEntries(join(home, '.claude', 'skills'));
+  const scheduledTasksCount = countDirEntries(join(home, '.claude', 'scheduled-tasks'));
+  // Global custom commands live under ~/.claude/commands/; we count the skill
+  // dir entries that aren't SKILL.md bundles (treat each .md as a command file).
+  const commandsCount = countDirEntries(join(home, '.claude', 'commands'), /\.md$/);
+  const mcpServersCount = installedServers.length;
+
+  return {
+    scope: 'global',
+    scanRoots: projectDirs.map(unflattenDisplay),
+    globalClaudeMd,
+    projectClaudeMd: null,
+    memoryFiles,
+    settingsFiles,
+    hooksCount,
+    skillsCount,
+    scheduledTasksCount,
+    commandsCount,
+    mcpServersCount,
+    installedServers,
+    competingFormats: {
+      // Competing formats are a per-project concern; skip detection in global mode.
+      cursorrules: false,
+      agentsMd: false,
+      copilotInstructions: false,
+    },
+    projectsObserved: projectDirs.length,
+  };
+}
+
+/**
+ * Unified entry point. Defaults to global scope — collaboration quality is
+ * a property of the human↔agent pair, not of any single project.
+ */
+export function scan(projectRoot?: string, scope: Scope = 'global'): ScanResult {
+  if (scope === 'project') {
+    if (!projectRoot) {
+      // Callers should always pass a root for project scope; fall back to cwd.
+      return scanProject(process.cwd());
+    }
+    return scanProject(projectRoot);
+  }
+  return scanGlobal();
 }
