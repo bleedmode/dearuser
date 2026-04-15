@@ -43,6 +43,8 @@ function emptyFindingCounts(): Record<AuditFindingType, number> {
     overlap: 0,
     missing_closure: 0,
     substrate_mismatch: 0,
+    unregistered_mcp_tool: 0,
+    unbacked_up_substrate: 0,
   };
 }
 

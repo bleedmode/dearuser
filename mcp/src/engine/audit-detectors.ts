@@ -3,6 +3,9 @@
 // Each detector is conservative about severity. A noisy audit gets ignored,
 // so we'd rather miss a finding than report a false one.
 
+import { existsSync } from 'fs';
+import { dirname, join } from 'path';
+import { homedir } from 'os';
 import type {
   AuditArtifact,
   AuditEdge,
@@ -413,11 +416,214 @@ function detectSubstrateMismatch(artifacts: AuditArtifact[]): AuditFinding[] {
 }
 
 // ============================================================================
+// Detector 5 — unregistered MCP tool references
+// ============================================================================
+
+/**
+ * Skills, tasks, commands, and hooks that call `mcp__<server>__<tool>` tools
+ * belonging to MCP servers that aren't registered in ~/.claude/mcp.json or
+ * ~/.claude/settings.json.
+ *
+ * This catches the classic silent failure: you build a local MCP server,
+ * update skills to use it, but forget to register it — skills then call
+ * non-existent tools and fail silently at every invocation.
+ *
+ * Built-in server prefixes (claude_code, ccd_*, anthropic-*) are ignored
+ * because they're provided by the harness, not user configuration.
+ */
+const BUILTIN_MCP_PREFIXES = [
+  'claude_code',
+  'claude_in_chrome',
+  'claude_preview',
+  'ccd_',
+  'computer-use',
+  'computer_use',
+  'anthropic-',
+  'anthropic_',
+  'scheduled-tasks',
+  'scheduled_tasks',
+  'mcp-registry',
+  'mcp_registry',
+];
+
+function isBuiltinMcpServer(serverName: string): boolean {
+  const lower = serverName.toLowerCase();
+  return BUILTIN_MCP_PREFIXES.some(p => lower === p || lower.startsWith(p));
+}
+
+function detectUnregisteredMcpTools(graph: AuditGraph): AuditFinding[] {
+  const findings: AuditFinding[] = [];
+
+  // Registered MCP servers (lowercased names)
+  const registered = new Set<string>();
+  for (const node of graph.nodes) {
+    if (node.type === 'mcp_server') registered.add(node.name.toLowerCase());
+  }
+
+  // Group unregistered references by (caller, server) so one skill calling 5 tools
+  // from the same missing server becomes one finding.
+  type Ref = { caller: AuditArtifact; server: string; tools: Set<string>; excerpts: string[] };
+  const refs = new Map<string, Ref>();
+
+  const pattern = /mcp__([\w-]+)__([\w-]+)/g;
+
+  for (const node of graph.nodes) {
+    // Only user-authored artifacts reference tools — mcp_server and memory_file don't.
+    if (node.type === 'mcp_server' || node.type === 'memory_file') continue;
+
+    for (const m of node.prompt.matchAll(pattern)) {
+      const server = m[1];
+      const tool = m[2];
+      const serverLower = server.toLowerCase();
+
+      if (isBuiltinMcpServer(serverLower)) continue;
+      if (registered.has(serverLower)) continue;
+
+      const key = `${node.id}|${serverLower}`;
+      let ref = refs.get(key);
+      if (!ref) {
+        ref = { caller: node, server, tools: new Set(), excerpts: [] };
+        refs.set(key, ref);
+      }
+      ref.tools.add(tool);
+      if (ref.excerpts.length < 3) ref.excerpts.push(m[0]);
+    }
+  }
+
+  for (const { caller, server, tools, excerpts } of refs.values()) {
+    const toolList = Array.from(tools).slice(0, 5);
+    const toolStr = toolList.map(t => `\`mcp__${server}__${t}\``).join(', ');
+    const more = tools.size > toolList.length ? ` (+${tools.size - toolList.length} more)` : '';
+
+    findings.push({
+      id: findingId('unregistered_mcp_tool', [caller.name, server]),
+      type: 'unregistered_mcp_tool',
+      severity: 'critical',
+      title: `"${caller.name}" calls tools from unregistered MCP server "${server}"`,
+      description: `The ${caller.type.replace('_', ' ')} references ${toolStr}${more} — but no MCP server named "${server}" is registered in \`~/.claude/mcp.json\` or \`~/.claude/settings.json\`. Every invocation fails silently.`,
+      affectedArtifacts: [caller.id],
+      evidence: excerpts.map(e => ({
+        source: caller.path,
+        excerpt: e,
+        kind: 'quote' as const,
+      })),
+      recommendation: `Either (a) register the MCP server in \`~/.claude/mcp.json\` if it exists on disk, (b) remove the tool references if the server was abandoned, or (c) rename to the correct server if you renamed it.`,
+      why: 'Unregistered MCP tool calls fail silently on every invocation. Skills appear to run but produce no effect — the exact class of failure that cost you 24 hours when pvs-mcp was built but never registered.',
+    });
+  }
+
+  return findings;
+}
+
+// ============================================================================
+// Detector 6 — unbacked-up substrate (~/.claude/ not in version control)
+// ============================================================================
+
+/**
+ * If the user's AI stack (~/.claude/skills, scheduled-tasks, memory, commands)
+ * is actively maintained but not tracked in any git repo or backup, flag it.
+ * Single-point-of-failure: mac dies, entire agent brain is gone.
+ *
+ * We detect this by checking whether the artifact's path is inside a git-tracked
+ * directory. We walk up from the artifact path looking for a `.git/` directory.
+ * If we reach $HOME without finding one, it's unbacked.
+ *
+ * Severity:
+ *   - critical if >= 10 recent artifacts (within 30 days) are unbacked
+ *   - recommended if >= 3
+ *   - otherwise skipped
+ */
+function detectUnbackedUpSubstrate(artifacts: AuditArtifact[]): AuditFinding[] {
+  // Cache git-repo lookups per directory so we don't stat the same ancestors 50 times.
+  const home = homedir();
+  const repoCache = new Map<string, boolean>();
+
+  function isInsideGitRepo(filePath: string): boolean {
+    let dir = dirname(filePath);
+    const checked: string[] = [];
+    while (dir && dir !== '/' && dir !== home) {
+      const cached = repoCache.get(dir);
+      if (cached !== undefined) {
+        // Propagate result to all ancestors we walked
+        for (const d of checked) repoCache.set(d, cached);
+        return cached;
+      }
+      checked.push(dir);
+      if (existsSync(join(dir, '.git'))) {
+        for (const d of checked) repoCache.set(d, true);
+        return true;
+      }
+      dir = dirname(dir);
+    }
+    for (const d of checked) repoCache.set(d, false);
+    return false;
+  }
+
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+
+  interface Unbacked {
+    artifact: AuditArtifact;
+    ageMs: number;
+  }
+  const unbacked: Unbacked[] = [];
+
+  for (const a of artifacts) {
+    // Only flag user-authored artifacts inside ~/.claude/, not memory_file noise from project dirs
+    if (a.type === 'mcp_server') continue;
+    if (!a.path.startsWith(join(home, '.claude'))) continue;
+
+    const lastMod = a.metadata.lastModified?.getTime() ?? 0;
+    const ageMs = now - lastMod;
+    // Only count artifacts touched in the last 30 days — stale ones are low-value to back up
+    if (ageMs > thirtyDaysMs) continue;
+
+    if (isInsideGitRepo(a.path)) continue;
+    unbacked.push({ artifact: a, ageMs });
+  }
+
+  if (unbacked.length < 3) return [];
+
+  const severity: GapSeverity = unbacked.length >= 10 ? 'critical' : 'recommended';
+
+  // Group by type for a compact summary
+  const byType = new Map<string, number>();
+  for (const u of unbacked) {
+    byType.set(u.artifact.type, (byType.get(u.artifact.type) || 0) + 1);
+  }
+  const typeSummary = Array.from(byType.entries())
+    .map(([t, n]) => `${n} ${t.replace('_', ' ')}${n === 1 ? '' : 's'}`)
+    .join(', ');
+
+  // Sample the 3 most recently modified unbacked artifacts as evidence
+  const evidenceSample = unbacked
+    .slice()
+    .sort((a, b) => a.ageMs - b.ageMs)
+    .slice(0, 3);
+
+  return [{
+    id: findingId('unbacked_up_substrate', ['home-claude']),
+    type: 'unbacked_up_substrate',
+    severity,
+    title: `${unbacked.length} recently-modified artifacts in ~/.claude/ are not version-controlled`,
+    description: `Your AI stack is actively maintained (${typeSummary} touched in the last 30 days) but \`~/.claude/\` is not inside a git repository. If this machine dies, the entire agent brain is gone.`,
+    affectedArtifacts: unbacked.map(u => u.artifact.id),
+    evidence: evidenceSample.map(u => ({
+      source: u.artifact.path,
+      excerpt: `modified ${Math.round(u.ageMs / (24 * 60 * 60 * 1000))} days ago, not in git`,
+      kind: 'stat' as const,
+    })),
+    recommendation: `Turn \`~/.claude/\` (or at minimum \`~/.claude/skills/\`, \`~/.claude/scheduled-tasks/\`, and \`~/.claude/projects/*/memory/\`) into a git repository and push to a private remote. A nightly \`git add -A && git commit -m "snapshot"\` cron is a cheap start.`,
+    why: 'High-churn config directories without backup are a classic single point of failure. When it goes, it goes with months of accumulated skills, memory, and scheduled tasks — none of which are reproducible from scratch.',
+  }];
+}
+
+// ============================================================================
 // Orchestration
 // ============================================================================
 
 export interface DetectorOptions {
-  focus?: 'orphan' | 'overlap' | 'closure' | 'substrate' | 'all';
+  focus?: 'orphan' | 'overlap' | 'closure' | 'substrate' | 'mcp_refs' | 'backup' | 'all';
 }
 
 export function runDetectors(
@@ -438,6 +644,12 @@ export function runDetectors(
   }
   if (focus === 'all' || focus === 'substrate') {
     findings.push(...detectSubstrateMismatch(graph.nodes));
+  }
+  if (focus === 'all' || focus === 'mcp_refs') {
+    findings.push(...detectUnregisteredMcpTools(graph));
+  }
+  if (focus === 'all' || focus === 'backup') {
+    findings.push(...detectUnbackedUpSubstrate(graph.nodes));
   }
 
   // Dedupe by id — one physical issue shouldn't surface twice

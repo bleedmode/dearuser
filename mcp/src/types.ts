@@ -187,7 +187,9 @@ export type AuditFindingType =
   | 'orphan_job'
   | 'overlap'
   | 'missing_closure'
-  | 'substrate_mismatch';
+  | 'substrate_mismatch'
+  | 'unregistered_mcp_tool'
+  | 'unbacked_up_substrate';
 
 /** A thing in the user's AI stack that can produce or consume data. */
 export interface AuditArtifact {
