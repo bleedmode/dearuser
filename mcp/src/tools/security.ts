@@ -21,6 +21,9 @@ import { scanSecrets } from '../engine/secret-scanner.js';
 import { detectInjection } from '../engine/injection-detector.js';
 import { detectRuleConflicts } from '../engine/rule-conflict-detector.js';
 import { runSupabaseAdvisor } from '../engine/supabase-advisor.js';
+import { runGitHubAdvisor } from '../engine/github-advisor.js';
+import { runNpmAdvisor } from '../engine/npm-advisor.js';
+import { runVercelAdvisor } from '../engine/vercel-advisor.js';
 import type {
   Scope,
   SecurityReport,
@@ -68,19 +71,29 @@ export async function runSecurity(options: SecurityOptions = {}): Promise<Securi
 
   if (!options.skipPlatformAdvisors) {
     const searchRoots = options.projectSearchRoots || [path.join(os.homedir(), 'clawd')];
-    try {
-      const supabaseResult = await runSupabaseAdvisor(searchRoots);
-      platformFindings.push(...supabaseResult.findings);
-      platformStatus.push(supabaseResult.status);
-    } catch (err) {
-      platformStatus.push({
-        platform: 'supabase',
-        status: 'error',
-        projectsScanned: 0,
-        reason: err instanceof Error ? err.message : String(err),
-      });
-    }
-    // (future: GitHub, npm, Vercel — each a separate try/catch to isolate failures)
+
+    // Run advisors in parallel — each isolated so one failure doesn't block others.
+    const advisorResults = await Promise.allSettled([
+      runSupabaseAdvisor(searchRoots),
+      runGitHubAdvisor(searchRoots),
+      runNpmAdvisor(searchRoots),
+      runVercelAdvisor(searchRoots),
+    ]);
+
+    const platforms: Array<'supabase' | 'github' | 'npm' | 'vercel'> = ['supabase', 'github', 'npm', 'vercel'];
+    advisorResults.forEach((result, i) => {
+      if (result.status === 'fulfilled') {
+        platformFindings.push(...result.value.findings);
+        platformStatus.push(result.value.status);
+      } else {
+        platformStatus.push({
+          platform: platforms[i],
+          status: 'error',
+          projectsScanned: 0,
+          reason: result.reason instanceof Error ? result.reason.message : String(result.reason),
+        });
+      }
+    });
   }
 
   // 5. Summary counts (across all finding types + platform findings)
