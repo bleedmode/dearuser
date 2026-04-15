@@ -1,14 +1,26 @@
-// security tool — orchestrates three scanners:
+// security tool — orchestrates scanners across two tiers:
+//
+// Tier A — agent setup (what only Dear User can do):
 //   1. secret-scanner   → leaked credentials in CLAUDE.md, memory, skills, settings
-//   2. injection-detector (reused from analyze) → hooks/skills using user input unsafely
+//   2. injection-detector → hooks/skills using user input unsafely
 //   3. rule-conflict-detector → CLAUDE.md rules vs hook/skill behavior divergence
+//
+// Tier B — platform advisors (orchestration, not reimplementation):
+//   4. Supabase Advisor  → RLS, policies, function search_path
+//   (future: GitHub Dependabot, npm audit, Vercel)
+//
+// Philosophy: platform advisors own their domain. We aggregate their output
+// into one unified report so users have a single security pane.
 
+import * as path from 'node:path';
+import * as os from 'node:os';
 import { scan } from '../engine/scanner.js';
 import { parse } from '../engine/parser.js';
 import { scanArtifacts } from '../engine/audit-scanner.js';
 import { scanSecrets } from '../engine/secret-scanner.js';
 import { detectInjection } from '../engine/injection-detector.js';
 import { detectRuleConflicts } from '../engine/rule-conflict-detector.js';
+import { runSupabaseAdvisor } from '../engine/supabase-advisor.js';
 import type {
   Scope,
   SecurityReport,
@@ -16,14 +28,20 @@ import type {
   InjectionFinding,
   RuleConflict,
   GapSeverity,
+  PlatformAdvisorFinding,
+  PlatformAdvisorStatus,
 } from '../types.js';
 
 export interface SecurityOptions {
   projectRoot?: string;
   scope?: Scope;
+  /** Root directories to scan for projects with platform credentials (e.g. ~/clawd). Defaults to [~/clawd]. */
+  projectSearchRoots?: string[];
+  /** Skip platform advisor tier entirely (faster, agent-setup only). */
+  skipPlatformAdvisors?: boolean;
 }
 
-export function runSecurity(options: SecurityOptions = {}): SecurityReport {
+export async function runSecurity(options: SecurityOptions = {}): Promise<SecurityReport> {
   const scope = options.scope || 'global';
   const projectRoot = options.projectRoot || process.cwd();
 
@@ -44,23 +62,47 @@ export function runSecurity(options: SecurityOptions = {}): SecurityReport {
   const injection = detectInjection(artifacts);
   const ruleConflicts = detectRuleConflicts(parsed.rules, artifacts);
 
-  // 4. Summary counts (across all three finding types)
+  // 4. Platform advisor tier — orchestrate external sources of truth
+  const platformFindings: PlatformAdvisorFinding[] = [];
+  const platformStatus: PlatformAdvisorStatus[] = [];
+
+  if (!options.skipPlatformAdvisors) {
+    const searchRoots = options.projectSearchRoots || [path.join(os.homedir(), 'clawd')];
+    try {
+      const supabaseResult = await runSupabaseAdvisor(searchRoots);
+      platformFindings.push(...supabaseResult.findings);
+      platformStatus.push(supabaseResult.status);
+    } catch (err) {
+      platformStatus.push({
+        platform: 'supabase',
+        status: 'error',
+        projectsScanned: 0,
+        reason: err instanceof Error ? err.message : String(err),
+      });
+    }
+    // (future: GitHub, npm, Vercel — each a separate try/catch to isolate failures)
+  }
+
+  // 5. Summary counts (across all finding types + platform findings)
   const allFindings: Array<{ severity: GapSeverity }> = [
     ...secrets,
     ...injection,
     ...ruleConflicts,
+    ...platformFindings,
   ];
   const critical = allFindings.filter(f => f.severity === 'critical').length;
   const recommended = allFindings.filter(f => f.severity === 'recommended').length;
   const niceToHave = allFindings.filter(f => f.severity === 'nice_to_have').length;
 
   return {
-    version: '1.0',
+    version: '1.1',
     generatedAt: new Date().toISOString(),
     scope,
     secrets,
     injection,
     ruleConflicts,
+    platformFindings,
+    platformStatus,
     summary: { critical, recommended, niceToHave },
   };
 }
@@ -70,17 +112,33 @@ export function formatSecurityReport(report: SecurityReport): string {
   const lines: string[] = [
     `# Dear User — Security Audit`,
     ``,
-    `*Scanned secrets, prompt-injection surfaces, and rule conflicts across your setup.*`,
+    `*Unified security pane: agent setup + platform advisors (Supabase, etc).*`,
     ``,
     `## Summary`,
     `- 🔴 **${report.summary.critical}** critical`,
     `- 🟡 **${report.summary.recommended}** recommended`,
     `- 🟢 **${report.summary.niceToHave}** nice-to-have`,
     ``,
+    `**Agent setup:**`,
     `- Secrets: ${report.secrets.length}`,
     `- Injection surfaces: ${report.injection.length}`,
     `- Rule conflicts: ${report.ruleConflicts.length}`,
+    ``,
+    `**Platform advisors:**`,
+    `- ${report.platformFindings.length} findings across ${report.platformStatus.length} platform(s)`,
   ];
+
+  // --- Platform status transparency ---
+  if (report.platformStatus.length > 0) {
+    lines.push(``, `### Platform coverage`, ``);
+    for (const s of report.platformStatus) {
+      const icon = s.status === 'ok' ? '✅' : s.status === 'skipped' ? '⏭️' : '❌';
+      const detail = s.status === 'ok'
+        ? `scanned ${s.projectsScanned} project(s)`
+        : s.reason || s.status;
+      lines.push(`- ${icon} **${s.platform}** — ${detail}`);
+    }
+  }
 
   // --- Secrets section — highest priority ---
   if (report.secrets.length > 0) {
@@ -135,12 +193,45 @@ export function formatSecurityReport(report: SecurityReport): string {
     }
   }
 
+  // --- Platform findings section — grouped by platform + project ---
+  if (report.platformFindings.length > 0) {
+    lines.push(``, `## 🌐 Platform Advisor Findings`, ``);
+    lines.push(`*Reported directly by the platforms themselves (Supabase Advisor, etc.) — these are authoritative, not grep-based heuristics.*`, ``);
+
+    // Group by platform then by project
+    const byPlatform = new Map<string, PlatformAdvisorFinding[]>();
+    for (const f of report.platformFindings) {
+      if (!byPlatform.has(f.platform)) byPlatform.set(f.platform, []);
+      byPlatform.get(f.platform)!.push(f);
+    }
+
+    for (const [platform, items] of byPlatform) {
+      lines.push(`### ${platform.charAt(0).toUpperCase() + platform.slice(1)}`, ``);
+      // severity sort: critical → recommended → nice_to_have
+      const sorted = [...items].sort((a, b) => {
+        const sev = (s: GapSeverity) => s === 'critical' ? 0 : s === 'recommended' ? 1 : 2;
+        return sev(a.severity) - sev(b.severity);
+      });
+      for (const f of sorted.slice(0, 20)) {
+        const marker = f.severity === 'critical' ? '🔴' : f.severity === 'recommended' ? '🟡' : '🟢';
+        lines.push(`- ${marker} **[${f.projectName}]** ${f.title} — \`${f.category}\``);
+        if (f.detail) lines.push(`  - ${f.detail}`);
+        if (f.fixUrl) lines.push(`  - Fix: ${f.fixUrl}`);
+      }
+      if (items.length > 20) {
+        lines.push(`- *…plus ${items.length - 20} more — see platform dashboard for full list.*`);
+      }
+      lines.push(``);
+    }
+  }
+
   // Empty state
-  if (report.secrets.length === 0 && report.injection.length === 0 && report.ruleConflicts.length === 0) {
+  const totalFindings = report.secrets.length + report.injection.length + report.ruleConflicts.length + report.platformFindings.length;
+  if (totalFindings === 0) {
     lines.push(
       ``,
       `## No findings`,
-      `No leaked secrets, no high-severity injection surfaces, no rule conflicts detected. Your security posture on these axes looks clean.`,
+      `No leaked secrets, injection surfaces, rule conflicts, or platform advisor issues detected. Your security posture looks clean.`,
       ``,
       `*(Absence of findings isn't proof of security. The scanner catches well-known patterns; custom risks still need manual review.)*`,
     );
