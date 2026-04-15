@@ -493,7 +493,7 @@ IMPORTANT — When presenting results:
   },
   async ({ projectRoot, scope }) => {
     try {
-      const report = runSecurity({ projectRoot, scope });
+      const report = await runSecurity({ projectRoot, scope });
       return { content: [{ type: 'text', text: formatSecurityReport(report) }] };
     } catch (error) {
       return {

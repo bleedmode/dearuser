@@ -405,13 +405,37 @@ export interface RuleConflict {
   why: string;
 }
 
+/** A finding from an external platform advisor (Supabase, GitHub, npm, Vercel). */
+export interface PlatformAdvisorFinding {
+  id: string;
+  platform: 'supabase' | 'github' | 'npm' | 'vercel';
+  projectName: string; // e.g. "bobby-tasks", "rock-identifier"
+  projectRef?: string; // platform-specific ref (Supabase project ref, GitHub repo slug, etc.)
+  severity: GapSeverity;
+  title: string;
+  category: string; // e.g. "rls_disabled", "dependabot_alert", "outdated_dep"
+  detail: string; // short explanation of the finding
+  fixUrl?: string; // direct link to platform dashboard to fix
+  recommendation: string;
+}
+
+/** Status of each platform advisor lookup. Surfaced so users know what was/wasn't scanned. */
+export interface PlatformAdvisorStatus {
+  platform: 'supabase' | 'github' | 'npm' | 'vercel';
+  status: 'ok' | 'skipped' | 'error';
+  projectsScanned: number;
+  reason?: string; // e.g. "no auth token", "API timeout"
+}
+
 export interface SecurityReport {
-  version: '1.0';
+  version: '1.1';
   generatedAt: string;
   scope: Scope;
   secrets: SecretFinding[];
   injection: InjectionFinding[];
   ruleConflicts: RuleConflict[];
+  platformFindings: PlatformAdvisorFinding[];
+  platformStatus: PlatformAdvisorStatus[];
   summary: {
     critical: number;
     recommended: number;
