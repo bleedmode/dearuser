@@ -7,6 +7,9 @@
 //
 // Flow: intro → role → goals → stack → pains → substrate → plan (done)
 
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { classifySubstrate, substrateLabel } from '../engine/substrate-advisor.js';
 import type { Substrate } from '../engine/substrate-advisor.js';
 import { getSetupTemplate, renderPlan } from '../templates/setup-templates.js';
@@ -270,6 +273,12 @@ function stepPlan(state: OnboardState, _answer: string): OnboardResult {
     substrateSummary,
   });
 
+  // Write a Dear User config template so the security tool can find projects
+  // and know where to look for tokens. Non-destructive: never overwrites an
+  // existing config.
+  const configStatus = writeConfigTemplate();
+  const fullPlan = configStatus ? `${plan}\n\n---\n\n${configStatus}` : plan;
+
   return {
     step: 'plan',
     teaching: null,
@@ -278,8 +287,123 @@ function stepPlan(state: OnboardState, _answer: string): OnboardResult {
     nextStep: null,
     state: encodeState(state),
     done: true,
-    plan,
+    plan: fullPlan,
   };
+}
+
+/**
+ * Write a starter ~/.dearuser/config.json if one doesn't already exist.
+ * Auto-detects which platforms are in the user's stack so the template
+ * contains the right placeholders. Returns a human-readable status string
+ * to append to the plan, or null if we skipped silently.
+ */
+function writeConfigTemplate(): string | null {
+  const configDir = path.join(os.homedir(), '.dearuser');
+  const configPath = path.join(configDir, 'config.json');
+
+  // Non-destructive: respect existing config
+  if (fs.existsSync(configPath)) {
+    return `## Dear User config\n\nExisting config found at \`~/.dearuser/config.json\` — left untouched.`;
+  }
+
+  // Figure out sensible default search roots — only include ones that exist
+  const candidates = ['clawd', 'code', 'projects', 'work', 'src'];
+  const searchRoots: string[] = [];
+  for (const name of candidates) {
+    const p = path.join(os.homedir(), name);
+    try {
+      if (fs.statSync(p).isDirectory()) searchRoots.push(`~/${name}`);
+    } catch { /* skip */ }
+  }
+
+  // Detect which platforms are present so we only scaffold relevant token slots
+  const detected = detectPlatforms(searchRoots.map(r => r.replace(/^~/, os.homedir())));
+  const tokens: Record<string, string> = {};
+  if (detected.has('supabase')) tokens.supabase = '';
+  if (detected.has('vercel')) tokens.vercel = '';
+
+  const config = {
+    searchRoots: searchRoots.length > 0 ? searchRoots : [`~/`],
+    ...(Object.keys(tokens).length > 0 ? { tokens } : {}),
+  };
+
+  try {
+    fs.mkdirSync(configDir, { recursive: true });
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+  } catch (err) {
+    return `## Dear User config\n\nCouldn't write \`~/.dearuser/config.json\`: ${err instanceof Error ? err.message : err}. Create it manually if you want custom search roots or tokens.`;
+  }
+
+  const lines = [
+    `## Dear User config written`,
+    ``,
+    `Created \`~/.dearuser/config.json\` with these defaults:`,
+    ``,
+    '```json',
+    JSON.stringify(config, null, 2),
+    '```',
+    ``,
+    `**Search roots** — Dear User scans these folders for projects (Supabase .env files, GitHub repos, etc.). Edit to match where your code lives.`,
+  ];
+
+  if (detected.has('supabase')) {
+    lines.push(
+      ``,
+      `**Supabase token** — fill in \`tokens.supabase\` to enable the Advisor API scan. Get one at https://supabase.com/dashboard/account/tokens (alternatively set the \`SUPABASE_ACCESS_TOKEN\` env var).`,
+    );
+  }
+  if (detected.has('vercel')) {
+    lines.push(
+      ``,
+      `**Vercel token** — fill in \`tokens.vercel\` to audit env vars. Get one at https://vercel.com/account/tokens (or set \`VERCEL_TOKEN\`).`,
+    );
+  }
+  if (detected.has('github')) {
+    lines.push(
+      ``,
+      `**GitHub** — no config needed, uses \`gh\` CLI. Run \`gh auth login\` if you haven't already.`,
+    );
+  }
+
+  return lines.join('\n');
+}
+
+/** Inspect search roots and return the set of platforms detected (by file signatures). */
+function detectPlatforms(searchRoots: string[]): Set<string> {
+  const found = new Set<string>();
+
+  function walk(dir: string, depth: number): void {
+    if (depth > 3 || found.size === 3) return; // stop early once all 3 detected
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch { return; }
+
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isFile()) {
+        if ((entry.name === '.env' || entry.name === '.env.local' || entry.name === '.env.production') && !found.has('supabase')) {
+          try {
+            if (/SUPABASE_URL\s*=/i.test(fs.readFileSync(full, 'utf-8'))) found.add('supabase');
+          } catch { /* skip */ }
+        }
+      } else if (entry.isDirectory()) {
+        if (entry.name === '.git' && !found.has('github')) {
+          try {
+            const cfg = fs.readFileSync(path.join(full, 'config'), 'utf-8');
+            if (/github\.com/.test(cfg)) found.add('github');
+          } catch { /* skip */ }
+        }
+        if (entry.name === '.vercel') found.add('vercel');
+        if (!entry.name.startsWith('.') && entry.name !== 'node_modules' && entry.name !== 'dist') {
+          walk(full, depth + 1);
+        }
+      }
+    }
+  }
+
+  for (const root of searchRoots) walk(root, 0);
+  return found;
 }
 
 // ============================================================================
