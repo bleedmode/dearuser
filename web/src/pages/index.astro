@@ -199,6 +199,18 @@
       background: rgba(139, 92, 246, 0.12);
       color: var(--accent-1);
     }
+    .feature-badge.audit {
+      background: rgba(234, 179, 8, 0.12);
+      color: #facc15;
+    }
+    .feature-badge.onboard {
+      background: rgba(34, 197, 94, 0.12);
+      color: #4ade80;
+    }
+    .feature-badge.security {
+      background: rgba(239, 68, 68, 0.12);
+      color: #f87171;
+    }
     .feature-badge.wrapped {
       background: rgba(6, 182, 212, 0.12);
       color: var(--accent-2);
@@ -387,9 +399,30 @@
   <div class="container" style="grid-column: 1 / -1; display: contents;">
     <div class="feature">
       <span class="feature-badge analyze">Analyze</span>
-      <h3>Find what's broken.</h3>
-      <p>Scans your entire setup — CLAUDE.md, memory files, hooks, skills, settings, and session history. Produces a collaboration report with persona detection, scoring across 7 categories, and prioritized, evidence-rated recommendations.</p>
+      <h3>See how you two work.</h3>
+      <p>Reads your CLAUDE.md, memory, hooks, skills, sessions, and local git activity. Returns a persona, a collaboration score, friction patterns, and proactive recommendations based on what you actually do — like "wrap this CLI you use in 12 places as an MCP server".</p>
       <div class="feature-command"><span class="fn">mcp__dearuser__analyze</span></div>
+    </div>
+
+    <div class="feature">
+      <span class="feature-badge audit">Audit</span>
+      <h3>Find the incoherence.</h3>
+      <p>Builds a graph of your stack — skills, scheduled tasks, hooks, memory — and surfaces orphan jobs (produce output nothing reads), overlapping artifacts, missing closure, and markdown files used as databases. The audit your stack needs before it breaks silently.</p>
+      <div class="feature-command"><span class="fn">mcp__dearuser__audit</span></div>
+    </div>
+
+    <div class="feature">
+      <span class="feature-badge onboard">Onboard</span>
+      <h3>Set up, guided.</h3>
+      <p>A seven-step conversation that learns about you, teaches the core concepts (code/chat/schedule/OS, the four substrates), and produces a tailored plan — CLAUDE.md starter, skill picks, hook picks, and your next three concrete steps. Built for non-technical professionals and technical power-users alike.</p>
+      <div class="feature-command"><span class="fn">mcp__dearuser__onboard</span></div>
+    </div>
+
+    <div class="feature">
+      <span class="feature-badge security">Security</span>
+      <h3>No leaked keys. No silent drift.</h3>
+      <p>Scans for leaked API keys, prompt-injection surfaces, and rule conflicts — where your CLAUDE.md says "never force-push" but a hook does it anyway. The drift you can't see is the drift that hurts.</p>
+      <div class="feature-command"><span class="fn">mcp__dearuser__security</span></div>
     </div>
 
     <div class="feature">

@@ -8,6 +8,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { runAnalysis } from './tools/analyze.js';
 import { runAudit, formatAuditReport } from './tools/audit.js';
+import { runOnboard, formatOnboardResult } from './tools/onboard.js';
+import { runSecurity, formatSecurityReport } from './tools/security.js';
 import { recommendTools } from './templates/tool-catalog.js';
 
 const server = new McpServer({
@@ -418,8 +420,8 @@ IMPORTANT — When presenting results:
   {
     projectRoot: z.string().optional().describe('Project root. Defaults to cwd. Audit is most useful in global scope.'),
     scope: z.enum(['global', 'project']).optional().describe('Default global.'),
-    focus: z.enum(['orphan', 'overlap', 'closure', 'substrate', 'all']).optional()
-      .describe('Narrow to one finding type, or "all" (default).'),
+    focus: z.enum(['orphan', 'overlap', 'closure', 'substrate', 'mcp_refs', 'backup', 'all']).optional()
+      .describe('Narrow to one finding type, or "all" (default). `mcp_refs` = tools calling unregistered MCP servers; `backup` = ~/.claude/ not in version control.'),
   },
   async ({ projectRoot, scope, focus }) => {
     try {
@@ -438,7 +440,71 @@ IMPORTANT — When presenting results:
   }
 );
 
-// Tool 3: wrapped — shareable collaboration stats
+// Tool 3: onboard — conversational setup dialog
+server.tool(
+  'onboard',
+  `Conversational setup. Walks the user through 7 steps (intro → role → goals → stack → pains → substrate → plan) and produces a tailored setup plan — tailored CLAUDE.md template, skill recommendations, hook recommendations, and next 3 steps.
+
+How to use (for the agent):
+1. First call: no arguments. The tool returns an intro question + nextStep.
+2. Present the question to the user and collect their answer.
+3. Call again with step=<nextStep from previous>, answer=<user answer>, state=<state from previous>.
+4. Continue until done=true, then show the plan.
+
+IMPORTANT: The \`state\` parameter is opaque. Pass it back verbatim. Do not parse or modify it.
+
+Good for: new users, non-technical professionals, anyone setting up Claude Code for the first time, or someone revisiting goals after a while.`,
+  {
+    step: z.string().optional().describe('Current step. Omit to start from intro.'),
+    answer: z.string().optional().describe('User answer from the previous step. Required for all steps after intro.'),
+    state: z.string().optional().describe('Opaque state blob from the previous call. Pass back unchanged.'),
+  },
+  async ({ step, answer, state }) => {
+    try {
+      const result = runOnboard({ step, answer, state });
+      return { content: [{ type: 'text', text: formatOnboardResult(result) }] };
+    } catch (error) {
+      return {
+        content: [{ type: 'text', text: `Onboard failed: ${error instanceof Error ? error.message : String(error)}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+// Tool 4: security — secrets + injection + rule-conflict scan
+server.tool(
+  'security',
+  `Security audit of your AI setup. Scans for:
+
+- **Leaked secrets** — API keys, tokens, credentials in CLAUDE.md, memory, skills, or settings
+- **Prompt-injection surfaces** — hooks/skills that pass user input to shell unsafely
+- **Rule conflicts** — CLAUDE.md says one thing but a hook/skill does another (e.g., "never force-push" but a hook runs \`git push --force\`)
+
+Presents findings sorted by severity (critical → recommended → nice-to-have). Secrets and rule conflicts are the highest-trust signals because false positives are rare; injection findings are pattern-based and may warrant manual review.
+
+IMPORTANT — When presenting results:
+- Lead with secrets (rotate any found credentials immediately)
+- Be precise about rule conflicts — show the rule AND the conflicting action
+- Don't minimize: "no findings" is a REAL signal of clean setup, not evidence of a broken scanner`,
+  {
+    projectRoot: z.string().optional().describe('Project root. Defaults to cwd.'),
+    scope: z.enum(['global', 'project']).optional().describe('Default global.'),
+  },
+  async ({ projectRoot, scope }) => {
+    try {
+      const report = runSecurity({ projectRoot, scope });
+      return { content: [{ type: 'text', text: formatSecurityReport(report) }] };
+    } catch (error) {
+      return {
+        content: [{ type: 'text', text: `Security scan failed: ${error instanceof Error ? error.message : String(error)}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+// Tool 5: wrapped — shareable collaboration stats
 server.tool(
   'wrapped',
   'Generate your Dear User — shareable stats about your human-agent collaboration in a fun, Spotify Wrapped-style format.',
@@ -507,6 +573,58 @@ server.tool(
         isError: true,
       };
     }
+  }
+);
+
+// Tool 6: help — discovery/capabilities menu
+server.tool(
+  'help',
+  `Show Dear User's capabilities to the user. Call this whenever the user asks "what can Dear User do?", "hvad kan DearUser?", "show me the options", "help", or seems uncertain about which tool fits their need. Also call proactively the first time a user mentions Dear User if they haven't used it before.
+
+When presenting: return the text verbatim. Do NOT summarize or re-wrap — the formatting is designed for direct chat display.`,
+  {},
+  async () => {
+    const text = [
+      `# 👋 Dear User — what I can do for you`,
+      ``,
+      `Dear User analyzes how you and your AI agent work together. Everything runs locally — no data leaves your machine.`,
+      ``,
+      `## 🔎 Five tools`,
+      ``,
+      `**1. \`analyze\`** — Full collaboration report`,
+      `   Scans your CLAUDE.md, memory, hooks, skills, sessions. Detects your persona, scores collaboration,`,
+      `   surfaces friction, and recommends concrete fixes.`,
+      `   → *"Analyze my collaboration with Claude"*`,
+      ``,
+      `**2. \`audit\`** — System coherence check`,
+      `   Finds structural problems: orphan scheduled jobs, dead hooks, unregistered MCP references,`,
+      `   unbacked-up substrate. Complement to analyze (architecture vs. language).`,
+      `   → *"Audit my Claude setup for structural issues"*`,
+      ``,
+      `**3. \`security\`** — Secret & injection scan`,
+      `   Looks for leaked API keys/tokens in CLAUDE.md, memory, skills, settings.`,
+      `   Finds prompt-injection surfaces and unsafe hooks.`,
+      `   → *"Scan my Claude setup for security issues"*`,
+      ``,
+      `**4. \`onboard\`** — Guided 7-step setup (for new users)`,
+      `   Conversational walkthrough: role → goals → stack → pains → substrate → plan.`,
+      `   Outputs a tailored CLAUDE.md + skill/hook recommendations.`,
+      `   → *"Onboard me to Dear User"*`,
+      ``,
+      `**5. \`wrapped\`** — Shareable stats (Spotify Wrapped style)`,
+      `   Your archetype, autonomy split, system size, top lesson — fun and delable.`,
+      `   → *"Give me my Dear User Wrapped"*`,
+      ``,
+      `## 🚀 First time?`,
+      `Start with \`onboard\` (tailors Dear User to your setup) or \`analyze\` (deep dive on current state).`,
+      ``,
+      `## 🔁 Regular use`,
+      `\`analyze\` for depth · \`wrapped\` for sharing · \`audit\` + \`security\` periodically.`,
+      ``,
+      `Learn more: dearuser.ai`,
+    ].join('\n');
+
+    return { content: [{ type: 'text', text }] };
   }
 );
 

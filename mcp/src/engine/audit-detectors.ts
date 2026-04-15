@@ -3,7 +3,7 @@
 // Each detector is conservative about severity. A noisy audit gets ignored,
 // so we'd rather miss a finding than report a false one.
 
-import { existsSync } from 'fs';
+import { existsSync, realpathSync } from 'fs';
 import { dirname, join } from 'path';
 import { homedir } from 'os';
 import type {
@@ -539,12 +539,19 @@ function detectUnbackedUpSubstrate(artifacts: AuditArtifact[]): AuditFinding[] {
   const repoCache = new Map<string, boolean>();
 
   function isInsideGitRepo(filePath: string): boolean {
-    let dir = dirname(filePath);
+    // Resolve symlinks first — ~/.claude/skills is often a symlink into a
+    // separate git-tracked directory (e.g. bobby-tasks/agents/skills).
+    let resolved: string;
+    try {
+      resolved = realpathSync(filePath);
+    } catch {
+      resolved = filePath;
+    }
+    let dir = dirname(resolved);
     const checked: string[] = [];
     while (dir && dir !== '/' && dir !== home) {
       const cached = repoCache.get(dir);
       if (cached !== undefined) {
-        // Propagate result to all ancestors we walked
         for (const d of checked) repoCache.set(d, cached);
         return cached;
       }
