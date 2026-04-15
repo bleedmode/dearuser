@@ -24,8 +24,11 @@ Kilde C (feedback loop) → Virkede det?
    ~/.dearuser/recommendations.json → tjek ved næste analyze
 ```
 
-## MCP Tools (2 stk)
-- `analyze` — scan + diagnose + anbefalinger + session-mønstre + feedback loop
+## MCP Tools (5 stk)
+- `analyze` — scan + diagnose + anbefalinger + session-mønstre + feedback loop (sprog/samarbejde)
+- `audit` — system coherence: orphan jobs, overlap, missing closure, substrate mismatch, unregistered MCP refs, unbacked-up substrate
+- `security` — secret scanning, prompt-injection surfaces, CLAUDE.md↔artefakt rule conflicts
+- `onboard` — 7-step konversationel setup wizard for nye brugere
 - `wrapped` — shareable stats (text eller JSON)
 
 ## Tech stack
@@ -53,6 +56,8 @@ Kilde C (feedback loop) → Virkede det?
 
 ## Current state (april 2026)
 - MCP server v2 bygget og testet (session-analyse, feedback loop, agent→agent instruktioner)
+- 5 tools: analyze, audit, security, onboard, wrapped
+- audit har 6 detectors (orphan, overlap, closure, substrate, mcp_refs, backup)
 - 26 kvalitetskontrollerede kilder i research DB (quality score 31%)
 - Wrapped prototype live på poised.dk/dearuser
 - PVS projekt oprettet med tasks

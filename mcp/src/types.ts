@@ -356,3 +356,66 @@ export interface AnalysisReport {
     }>;
   };
 }
+
+// ============================================================================
+// Security report — output of the `security` tool
+// ============================================================================
+
+export type SecretCategory =
+  | 'openai_key'
+  | 'anthropic_key'
+  | 'github_token'
+  | 'stripe_key'
+  | 'aws_key'
+  | 'slack_token'
+  | 'google_api_key'
+  | 'supabase_key'
+  | 'vercel_token'
+  | 'private_key'
+  | 'env_secret'
+  | 'bearer_token';
+
+export interface SecretFinding {
+  id: string;
+  category: SecretCategory;
+  severity: GapSeverity;
+  title: string;
+  location: string;
+  excerpt: string;
+  lineNumber?: number;
+  recommendation: string;
+}
+
+export type ConflictCategory =
+  | 'prohibition_violated'
+  | 'required_check_missing'
+  | 'autonomy_mismatch';
+
+export interface RuleConflict {
+  id: string;
+  category: ConflictCategory;
+  severity: GapSeverity;
+  title: string;
+  claudeMdRule: string;
+  claudeMdSource: string;
+  conflictingArtifact: string;
+  conflictingPath: string;
+  excerpt: string;
+  recommendation: string;
+  why: string;
+}
+
+export interface SecurityReport {
+  version: '1.0';
+  generatedAt: string;
+  scope: Scope;
+  secrets: SecretFinding[];
+  injection: InjectionFinding[];
+  ruleConflicts: RuleConflict[];
+  summary: {
+    critical: number;
+    recommended: number;
+    niceToHave: number;
+  };
+}
+
