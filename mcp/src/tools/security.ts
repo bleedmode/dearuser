@@ -24,6 +24,7 @@ import { runSupabaseAdvisor } from '../engine/supabase-advisor.js';
 import { runGitHubAdvisor } from '../engine/github-advisor.js';
 import { runNpmAdvisor } from '../engine/npm-advisor.js';
 import { runVercelAdvisor } from '../engine/vercel-advisor.js';
+import { loadConfig } from '../engine/config.js';
 import type {
   Scope,
   SecurityReport,
@@ -70,24 +71,37 @@ export async function runSecurity(options: SecurityOptions = {}): Promise<Securi
   const platformStatus: PlatformAdvisorStatus[] = [];
 
   if (!options.skipPlatformAdvisors) {
-    const searchRoots = options.projectSearchRoots || [path.join(os.homedir(), 'clawd')];
+    const config = loadConfig();
+    const searchRoots = options.projectSearchRoots || config.searchRoots;
+    const disabled = new Set(config.disabledAdvisors);
 
-    // Run advisors in parallel — each isolated so one failure doesn't block others.
-    const advisorResults = await Promise.allSettled([
-      runSupabaseAdvisor(searchRoots),
-      runGitHubAdvisor(searchRoots),
-      runNpmAdvisor(searchRoots),
-      runVercelAdvisor(searchRoots),
-    ]);
+    // Each advisor: either run it, or mark as "disabled by config" in status.
+    type Advisor = { name: 'supabase' | 'github' | 'npm' | 'vercel'; run: () => Promise<{ findings: PlatformAdvisorFinding[]; status: PlatformAdvisorStatus }> };
+    const advisors: Advisor[] = [
+      { name: 'supabase', run: () => runSupabaseAdvisor(searchRoots) },
+      { name: 'github',   run: () => runGitHubAdvisor(searchRoots) },
+      { name: 'npm',      run: () => runNpmAdvisor(searchRoots) },
+      { name: 'vercel',   run: () => runVercelAdvisor(searchRoots) },
+    ];
 
-    const platforms: Array<'supabase' | 'github' | 'npm' | 'vercel'> = ['supabase', 'github', 'npm', 'vercel'];
+    const advisorResults = await Promise.allSettled(
+      advisors.map(a =>
+        disabled.has(a.name)
+          ? Promise.resolve({
+              findings: [],
+              status: { platform: a.name, status: 'skipped' as const, projectsScanned: 0, reason: 'Disabled in ~/.dearuser/config.json' },
+            })
+          : a.run()
+      )
+    );
+
     advisorResults.forEach((result, i) => {
       if (result.status === 'fulfilled') {
         platformFindings.push(...result.value.findings);
         platformStatus.push(result.value.status);
       } else {
         platformStatus.push({
-          platform: platforms[i],
+          platform: advisors[i].name,
           status: 'error',
           projectsScanned: 0,
           reason: result.reason instanceof Error ? result.reason.message : String(result.reason),

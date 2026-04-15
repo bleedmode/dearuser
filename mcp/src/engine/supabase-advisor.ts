@@ -15,6 +15,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { execSync } from 'node:child_process';
+import { configSupabaseToken } from './config.js';
 import type { PlatformAdvisorFinding, PlatformAdvisorStatus, GapSeverity } from '../types.js';
 
 export interface SupabaseProject {
@@ -75,7 +76,13 @@ export function resolveSupabaseToken(): { token: string; source: string } | unde
     return { token: process.env.SUPABASE_ACCESS_TOKEN, source: 'env:SUPABASE_ACCESS_TOKEN' };
   }
 
-  // 2. 1Password CLI — internal PVS setup
+  // 2. Config file (~/.dearuser/config.json)
+  const configToken = configSupabaseToken();
+  if (configToken) {
+    return { token: configToken, source: 'config:~/.dearuser/config.json' };
+  }
+
+  // 3. 1Password CLI — internal PVS setup
   const opTokenPath = path.join(os.homedir(), '.config', 'openclaw', 'op-token');
   if (fs.existsSync(opTokenPath)) {
     try {

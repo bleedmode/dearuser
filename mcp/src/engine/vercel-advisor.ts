@@ -12,6 +12,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { execSync } from 'node:child_process';
+import { configVercelToken } from './config.js';
 import type { PlatformAdvisorFinding, PlatformAdvisorStatus, GapSeverity } from '../types.js';
 
 export interface VercelProject {
@@ -72,6 +73,10 @@ export function discoverVercelProjects(searchRoot: string): VercelProject[] {
 export function resolveVercelToken(): { token: string; source: string } | undefined {
   if (process.env.VERCEL_TOKEN) {
     return { token: process.env.VERCEL_TOKEN, source: 'env:VERCEL_TOKEN' };
+  }
+  const configToken = configVercelToken();
+  if (configToken) {
+    return { token: configToken, source: 'config:~/.dearuser/config.json' };
   }
   const opTokenPath = path.join(os.homedir(), '.config', 'openclaw', 'op-token');
   if (fs.existsSync(opTokenPath)) {
