@@ -109,6 +109,13 @@ export interface Recommendation {
   why?: string;       // Why this hurts collaboration
   howItLooks?: string; // How it looks when done right (example dialog)
   practiceStep?: string; // "Try this next time" — concrete one-step exercise
+  // Actionable: tells the presenting agent it CAN implement this, not just display it
+  actionable?: {
+    type: 'append_to_file' | 'run_command';
+    filePath?: string;   // e.g. "~/.claude/CLAUDE.md", ".claude/settings.json"
+    content?: string;    // text to append/add
+    command?: string;    // shell command to run
+  };
 }
 
 export interface AnalysisStats {

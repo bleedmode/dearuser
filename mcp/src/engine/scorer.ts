@@ -101,7 +101,7 @@ function scoreCommunication(parsed: ParseResult): CategoryScore {
   return { score, weight: WEIGHTS.communication, signalsPresent: present, signalsMissing: missing };
 }
 
-function scoreAutonomyBalance(parsed: ParseResult): CategoryScore {
+function scoreAutonomyBalance(parsed: ParseResult): CategoryScore & { intentionalAutonomy: boolean } {
   const present: string[] = [];
   const missing: string[] = [];
 
@@ -111,20 +111,40 @@ function scoreAutonomyBalance(parsed: ParseResult): CategoryScore {
   const prohibitions = parsed.rules.filter(r => r.type === 'prohibition').length;
   const total = parsed.rules.length;
 
+  // Detect intentional autonomy: user has explicit "do yourself" sections + enough do-rules
+  const intentionalAutonomy = doRules >= 3 && parsed.sections.some(s =>
+    /gør.*selv|do.*yourself|do.*autonom|without.*asking|uden.*at.*spørge/i.test(s.header || '')
+  );
+
   if (doRules > 0) present.push(`${doRules} autonomous rules`);
   else missing.push('No autonomous action rules — agent asks about everything');
 
   if (askRules > 0) present.push(`${askRules} ask-first rules`);
   else missing.push('No ask-first rules — agent guesses what needs approval');
 
-  if (suggestRules > 0) present.push(`${suggestRules} suggest-only rules`);
-  else missing.push('No suggest-only rules — agent may implement things it should only mention');
+  if (intentionalAutonomy) {
+    present.push('Explicit autonomous-operation section — high autonomy is by design, not accidental');
+    if (suggestRules === 0) {
+      // Don't penalize missing suggest-only when autonomy is intentional — just note it
+      present.push('Suggest-only tier skipped (intentional — user prefers action over discussion)');
+    }
+  } else {
+    if (suggestRules > 0) present.push(`${suggestRules} suggest-only rules`);
+    else missing.push('No suggest-only rules — agent may implement things it should only mention');
+  }
 
   // Balance check
-  let balanceScore = 30; // start lower than before
+  let balanceScore = 30;
   if (total > 0) {
-    const hasAllTiers = doRules > 0 && askRules > 0 && suggestRules > 0;
-    if (hasAllTiers) balanceScore += 25;
+    if (intentionalAutonomy) {
+      // Intentional autonomy: reward clear do + ask split (don't require suggest tier)
+      if (doRules > 0 && askRules > 0) balanceScore += 25;
+      // Extra credit: user has thought about what NOT to do autonomously
+      if (prohibitions >= 3) balanceScore += 10;
+    } else {
+      const hasAllTiers = doRules > 0 && askRules > 0 && suggestRules > 0;
+      if (hasAllTiers) balanceScore += 25;
+    }
 
     // Healthy prohibition ratio: 15-35% is ideal
     const prohibitionRatio = prohibitions / total;
@@ -152,7 +172,7 @@ function scoreAutonomyBalance(parsed: ParseResult): CategoryScore {
   }
 
   const score = Math.min(100, Math.max(0, balanceScore));
-  return { score, weight: WEIGHTS.autonomyBalance, signalsPresent: present, signalsMissing: missing };
+  return { score, weight: WEIGHTS.autonomyBalance, signalsPresent: present, signalsMissing: missing, intentionalAutonomy };
 }
 
 function scoreQualityStandards(parsed: ParseResult, scan: ScanResult): CategoryScore {
@@ -304,12 +324,17 @@ export function score(parsed: ParseResult, scan: ScanResult, session?: SessionAn
   };
 
   // Session-based adjustments: if we have session data, factor in actual friction
+  const autonomyResult = categories.autonomyBalance as CategoryScore & { intentionalAutonomy?: boolean };
   if (session) {
-    // High correction signals = lower autonomy balance score
+    // High correction signals — but reduce penalty when autonomy is intentional
+    // (corrections may be refinements, not overreach)
     if (session.corrections.negationCount > 5) {
-      categories.autonomyBalance.score = Math.max(0, categories.autonomyBalance.score - 15);
+      const penalty = autonomyResult.intentionalAutonomy ? 5 : 15;
+      categories.autonomyBalance.score = Math.max(0, categories.autonomyBalance.score - penalty);
       categories.autonomyBalance.signalsMissing.push(
-        `${session.corrections.negationCount} correction signals in recent prompts — friction is high`
+        autonomyResult.intentionalAutonomy
+          ? `${session.corrections.negationCount} correction signals — refinement friction (autonomy is intentional, so these are course-corrections, not overreach)`
+          : `${session.corrections.negationCount} correction signals in recent prompts — friction is high`
       );
     }
 

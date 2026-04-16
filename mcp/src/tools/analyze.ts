@@ -180,7 +180,11 @@ export function runAnalysis(
   const claudeMdContent = [scanResult.globalClaudeMd?.content, scanResult.projectClaudeMd?.content]
     .filter(Boolean).join('\n');
   const settingsContent = scanResult.settingsFiles.map(f => f.content).join('\n');
-  const feedback = checkImplementation(claudeMdContent, settingsContent, collaborationScore);
+  const feedback = checkImplementation(claudeMdContent, settingsContent, collaborationScore, {
+    installedServers: scanResult.installedServers,
+    skillNames: artifacts.filter(a => a.type === 'skill').map(a => a.name),
+    hooksCount: scanResult.hooksCount,
+  });
   trackRecommendations(recommendations, collaborationScore);
 
   return {

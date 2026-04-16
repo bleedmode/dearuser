@@ -6,12 +6,16 @@ export interface ToolRecommendation {
   name: string;
   type: 'mcp_server' | 'skill' | 'github_repo' | 'hook';
   description: string;
+  /** Plain-language explanation for non-technical users. Falls back to description if absent. */
+  userFriendlyDescription?: string;
+  /** Who acts: "I can install this now" / "You need to set this up yourself". */
+  whoActs?: string;
   install: string;
   stars?: number;
   url?: string;
-  solves: string[];  // problem IDs this tool addresses
-  personas: string[];  // which personas benefit most
-  lastVerified: string;  // YYYY-MM-DD
+  solves: string[];
+  personas: string[];
+  lastVerified: string;
 }
 
 export const TOOL_CATALOG: ToolRecommendation[] = [
@@ -20,6 +24,8 @@ export const TOOL_CATALOG: ToolRecommendation[] = [
     name: 'Context7',
     type: 'mcp_server',
     description: 'Fresh, version-specific library documentation. Stops hallucinated API calls.',
+    userFriendlyDescription: 'Gives your agent access to up-to-date documentation so it stops guessing at APIs and making up function names.',
+    whoActs: 'I can add this with one command — want me to?',
     install: 'claude mcp add context7 -- npx -y @upstash/context7-mcp@latest',
     stars: 52480,
     url: 'https://github.com/upstash/context7',
@@ -141,6 +147,8 @@ export const TOOL_CATALOG: ToolRecommendation[] = [
     name: 'claude-code-prompt-improver',
     type: 'github_repo',
     description: 'UserPromptSubmit hook that intercepts vague prompts and asks clarifying questions.',
+    userFriendlyDescription: 'Catches vague instructions before the agent starts working — asks you to be more specific so you get better results.',
+    whoActs: 'You need to follow the setup guide on GitHub — takes about 2 minutes.',
     install: 'See github.com/severity1/claude-code-prompt-improver for hook setup',
     stars: 1351,
     url: 'https://github.com/severity1/claude-code-prompt-improver',
@@ -152,6 +160,8 @@ export const TOOL_CATALOG: ToolRecommendation[] = [
     name: 'agnix',
     type: 'github_repo',
     description: 'Linter for CLAUDE.md, AGENTS.md, SKILL.md, hooks. 385 rules.',
+    userFriendlyDescription: 'Checks your CLAUDE.md for common mistakes and inconsistencies — like a spell-checker for your agent config.',
+    whoActs: 'I can install this globally — want me to run it?',
     install: 'npm i -g agnix',
     stars: 169,
     url: 'https://github.com/agent-sh/agnix',
@@ -165,6 +175,8 @@ export const TOOL_CATALOG: ToolRecommendation[] = [
     name: 'Destructive command blocker',
     type: 'hook',
     description: 'PreToolUse hook that blocks rm -rf, git push --force, terraform destroy, DROP TABLE.',
+    userFriendlyDescription: 'Automatically blocks dangerous commands (delete everything, force push, drop database) before they can execute.',
+    whoActs: 'I can add this to your settings now — want me to?',
     install: `Add to .claude/settings.json:
 {
   "hooks": {
@@ -185,6 +197,8 @@ export const TOOL_CATALOG: ToolRecommendation[] = [
     name: 'Auto-build after edit',
     type: 'hook',
     description: 'PostToolUse hook that runs build after every code change.',
+    userFriendlyDescription: 'Automatically builds your project after every code change — catches errors immediately instead of at deploy time.',
+    whoActs: 'I can add this to your settings now — want me to?',
     install: `Add to .claude/settings.json:
 {
   "hooks": {
