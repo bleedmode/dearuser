@@ -10,6 +10,7 @@ import { generateRecommendations } from '../templates/recommendations.js';
 import { generateUserCoaching } from '../templates/user-coaching.js';
 import { analyzeSession } from '../engine/session-analyzer.js';
 import { trackRecommendations, checkImplementation } from '../engine/feedback-tracker.js';
+import { insertAgentRun, insertScoreHistory } from '../engine/db.js';
 import { scanGitRepos } from '../engine/git-scanner.js';
 import type { GitScanResult } from '../engine/git-scanner.js';
 import { scanArtifacts } from '../engine/audit-scanner.js';
@@ -192,7 +193,32 @@ export function runAnalysis(
     skillNames: artifacts.filter(a => a.type === 'skill').map(a => a.name),
     hooksCount: scanResult.hooksCount,
   });
-  trackRecommendations(recommendations, collaborationScore);
+
+  // 15. Persist to SQLite — agent run + score history + recommendations
+  let agentRunId: string | undefined;
+  try {
+    agentRunId = insertAgentRun({
+      toolName: 'analyze',
+      summary: `Score: ${collaborationScore}/100 — ${persona.archetypeName}`,
+      score: collaborationScore,
+      status: 'success',
+    });
+
+    const catScores: Record<string, number> = {};
+    for (const [key, cat] of Object.entries(categories)) {
+      catScores[key] = cat.score;
+    }
+    insertScoreHistory({
+      scope: scanResult.scope,
+      score: collaborationScore,
+      persona: persona.detected,
+      categoryScores: catScores,
+    });
+  } catch {
+    // DB write failure should never break the analysis
+  }
+
+  trackRecommendations(recommendations, collaborationScore, agentRunId);
 
   return {
     version: '2.0',
@@ -656,7 +682,7 @@ function formatLintFindings(report: AnalysisReport, plain: boolean): string[] {
 
   if (!lint || lint.totalFindings === 0) return lines;
 
-  const label = plain ? 'Instruction Quality' : 'CLAUDE.md Lint';
+  const label = plain ? 'Prompt & Config Quality' : 'Prompt & Config Quality';
   lines.push('', `## ${label}`);
 
   if (plain) {
