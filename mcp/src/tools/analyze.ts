@@ -441,7 +441,6 @@ function formatToolRecs(report: AnalysisReport): string[] {
 
   const toolRecs = recommendTools(problemIds, report.persona.detected, report.installedServers, {
     installedSkills: report.installedSkills,
-    hasLintFindings: report.lint.totalFindings > 0,
   });
 
   if (toolRecs.length > 0) {
