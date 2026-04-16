@@ -15,7 +15,10 @@ import type { GitScanResult } from '../engine/git-scanner.js';
 import { scanArtifacts } from '../engine/audit-scanner.js';
 import { detectInjection } from '../engine/injection-detector.js';
 import { generateProactiveRecommendations } from '../engine/proactive-recommender.js';
+import { recommendTools } from '../templates/tool-catalog.js';
 import type { AnalysisReport, AnalysisStats, WrappedData, Scope, GitSummary } from '../types.js';
+
+export type AnalyzeFormat = 'text' | 'detailed' | 'json';
 
 function buildStats(parsed: ReturnType<typeof parse>, scanResult: ReturnType<typeof scan>): AnalysisStats {
   const doRules = parsed.rules.filter(r => r.type === 'do_autonomously').length;
@@ -207,4 +210,470 @@ export function runAnalysis(
     injection,
     feedback,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Formatting
+// ---------------------------------------------------------------------------
+
+/** Human-readable "3 days ago" / "5 weeks ago" from an ISO timestamp. */
+function daysSince(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (isNaN(then)) return 'recently';
+  const days = Math.round((Date.now() - then) / (24 * 60 * 60 * 1000));
+  if (days < 1) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 30) return `${Math.round(days / 7)} weeks ago`;
+  return `${Math.round(days / 30)} months ago`;
+}
+
+const priorityLabel = (p: string) =>
+  p === 'critical' ? '🔴 Critical' : p === 'recommended' ? '🟡 Recommended' : '🟢 Nice to have';
+
+const priorityOrder = (p: string) => (p === 'critical' ? 0 : p === 'recommended' ? 1 : 2);
+
+// -- Shared sections used by both text and detailed --------------------------
+
+/** Persona + score header — identical in both formats. */
+function formatHeader(report: AnalysisReport): string[] {
+  const scopeBanner = report.scope === 'global'
+    ? `*Scope: global — aggregated across ${report.projectsObserved} project${report.projectsObserved === 1 ? '' : 's'} in ~/.claude/projects/*`
+    : `*Scope: project — ${report.scanRoot}*`;
+
+  return [
+    `# Dear User — Collaboration Analysis`,
+    ``,
+    scopeBanner,
+    ``,
+    `## Your Persona: ${report.persona.archetypeName}`,
+    `**${report.persona.detected.replace('_', ' ')}** (${report.persona.confidence}% confidence)`,
+    report.persona.archetypeDescription,
+    ``,
+    `**Traits:** ${report.persona.traits.join(', ')}`,
+    ``,
+    `## Collaboration Score: ${report.collaborationScore}/100`,
+    ``,
+  ];
+}
+
+/** Category score bars with human-friendly or technical signal labels. */
+function formatCategories(report: AnalysisReport, plain: boolean): string[] {
+  const lines: string[] = ['### Category Scores'];
+
+  // Plain-language translations for vibe coders
+  const plainSignal: Record<string, string> = {
+    'Roles section exists': 'Your agent knows who does what',
+    'Specific role definitions (not generic)': 'Roles are clearly defined',
+    'Scope boundaries defined': 'Clear boundaries on what the agent can do',
+    'Ask-first rules with specific examples': 'Your agent knows when to check with you',
+    'User skill level / role indicated': 'Your agent knows your skill level',
+    'Language preference set': 'Language preference set',
+    'Verbosity preference set': 'Communication style defined',
+    'Tone/style guidance': 'Tone and style preferences set',
+    'Uncertainty handling defined': 'Your agent knows what to do when unsure',
+    'Feedback mechanism defined': 'Feedback loop is active',
+    'Testing strategy mentioned': 'Testing approach defined',
+    'Build/lint verification': 'Build checks in place',
+    'Definition of done exists': 'Clear "done" criteria',
+    'Sensitive file protection': 'Sensitive files are protected',
+    'No custom commands': 'No shortcuts set up yet',
+    'No destructive command protection — rm -rf, force push, terraform destroy are unblocked':
+      'Your agent can delete files or force-push without asking — consider adding a safety check',
+    'Project architecture — not documented':
+      "Your agent doesn't know how your project is structured",
+  };
+
+  // Translate signal counts in signals to plain language
+  const translateSignal = (sig: string): string => {
+    if (!plain) return sig;
+    // Check exact match first
+    if (plainSignal[sig]) return plainSignal[sig];
+    // Pattern-based translations
+    if (/^\d+ autonomous rules$/.test(sig)) return sig.replace(/(\d+) autonomous rules/, '$1 things your agent does without asking');
+    if (/^\d+ ask-first rules$/.test(sig)) return sig.replace(/(\d+) ask-first rules/, '$1 things it always checks with you first');
+    if (/^\d+ hooks$/.test(sig)) return sig.replace(/(\d+) hooks/, '$1 automatic checks running');
+    if (/^\d+ skills$/.test(sig)) return sig.replace(/(\d+) skills/, '$1 skills available');
+    if (/^\d+ scheduled tasks$/.test(sig)) return sig.replace(/(\d+) scheduled tasks/, '$1 automated tasks running');
+    if (/^\d+ memory files/.test(sig)) return sig.replace(/(\d+) memory files/, '$1 things your agent remembers');
+    if (/^\d+ feedback memories/.test(sig)) return sig.replace(/(\d+) feedback memories/, '$1 corrections your agent learned from');
+    if (/correction signals/.test(sig)) return sig.replace(/correction signals/, 'times you corrected your agent');
+    if (/hooks configured/.test(sig)) return sig.replace(/hooks configured/, 'automatic checks running');
+    if (/MCP servers/.test(sig)) return sig.replace(/MCP servers/, 'tools connected');
+    // Intentional autonomy explanation — simplify
+    if (sig.includes('Explicit autonomous-operation section')) return 'High autonomy is intentional — your agent acts independently by design';
+    if (sig.includes('Suggest-only tier skipped')) return 'Your agent acts rather than just suggesting';
+    if (sig.includes('Healthy prohibition ratio')) return 'Good balance of permissions and restrictions';
+    if (sig.includes('Rules are specific enough')) return 'Rules are clear enough to follow';
+    return sig;
+  };
+
+  const categoryConfig: Array<{ key: string; name: string; plainName?: string }> = [
+    { key: 'roleClarity', name: 'Role Clarity', plainName: 'Who Does What' },
+    { key: 'communication', name: 'Communication', plainName: 'Communication' },
+    { key: 'autonomyBalance', name: 'Autonomy Balance', plainName: 'Independence' },
+    { key: 'qualityStandards', name: 'Quality Standards', plainName: 'Quality Checks' },
+    { key: 'memoryHealth', name: 'Memory Health', plainName: 'Memory' },
+    { key: 'systemMaturity', name: 'System Maturity', plainName: 'Automation' },
+    { key: 'coverage', name: 'Coverage', plainName: 'Setup Completeness' },
+  ];
+
+  for (const { key, name, plainName } of categoryConfig) {
+    const cat = report.categories[key as keyof typeof report.categories];
+    const bar = '█'.repeat(Math.round(cat.score / 10)) + '░'.repeat(10 - Math.round(cat.score / 10));
+
+    let status: string;
+    if (cat.score >= 85) status = 'Strong';
+    else if (cat.score >= 70) status = 'Good';
+    else if (cat.score >= 50) status = 'Needs work';
+    else status = 'Weak — action needed';
+
+    const displayName = plain && plainName ? plainName : name;
+    lines.push(`- **${displayName}**: ${bar} ${cat.score}/100 — *${status}*`);
+
+    if (cat.signalsPresent.length > 0) {
+      for (const present of cat.signalsPresent.slice(0, 2)) {
+        lines.push(`  - ✓ ${translateSignal(present)}`);
+      }
+    }
+
+    if (cat.score < 100 && cat.signalsMissing.length > 0) {
+      for (const missing of cat.signalsMissing.slice(0, 2)) {
+        lines.push(`  - → ${translateSignal(missing)}`);
+      }
+    }
+  }
+
+  return lines;
+}
+
+/** Recommendations split by audience. */
+function formatRecommendations(report: AnalysisReport): string[] {
+  const lines: string[] = [];
+
+  const agentRecs = report.recommendations
+    .filter(r => r.audience === 'agent' || r.audience === 'both')
+    .sort((a, b) => priorityOrder(a.priority) - priorityOrder(b.priority));
+
+  const userRecs = report.recommendations
+    .filter(r => r.audience === 'user' || r.audience === 'both')
+    .sort((a, b) => priorityOrder(a.priority) - priorityOrder(b.priority));
+
+  if (agentRecs.length > 0) {
+    lines.push(
+      '', '## 🤖 For Your Agent',
+      '*Copy-paste these into your config. Your agent can apply them for you.*',
+      '',
+    );
+
+    for (const rec of agentRecs.slice(0, 5)) {
+      lines.push(`### ${priorityLabel(rec.priority)}: ${rec.title}`);
+      lines.push(`${rec.description}`);
+
+      if (rec.evidence.length > 0) {
+        lines.push('', '**Evidence:**');
+        for (const ev of rec.evidence) {
+          const prefix = ev.kind === 'missing' ? '🔍' : ev.kind === 'quote' ? '💬' : '📊';
+          lines.push(`- ${prefix} \`${ev.source}\` — ${ev.excerpt}`);
+        }
+      }
+
+      lines.push('', `**Where:** ${rec.placementHint}`);
+      if (rec.textBlock.trim()) {
+        lines.push('', '```', rec.textBlock, '```');
+      }
+      lines.push('');
+    }
+  }
+
+  if (userRecs.length > 0) {
+    lines.push(
+      '', '## 👤 For You',
+      '*These are behavior changes. No file to edit — you\'re the one changing. One at a time works best.*',
+      '',
+    );
+
+    for (const rec of userRecs.slice(0, 3)) {
+      lines.push(`### ${priorityLabel(rec.priority)}: ${rec.title}`);
+      lines.push(`${rec.description}`);
+
+      if (rec.evidence.length > 0) {
+        lines.push('', '**Evidence from your own setup:**');
+        for (const ev of rec.evidence) {
+          lines.push(`- 💬 *"${ev.excerpt}"*  — ${ev.source}`);
+        }
+      }
+
+      if (rec.why) lines.push('', `**Why it matters:** ${rec.why}`);
+      if (rec.howItLooks) lines.push('', '**How it looks when done right:**', '```', rec.howItLooks, '```');
+      if (rec.practiceStep) lines.push('', `**Practice this next time:** ${rec.practiceStep}`);
+      if (rec.actionable) lines.push('', `**Actionable:** I can apply this for you — just say "yes, add it".`);
+      lines.push('');
+    }
+  }
+
+  if (agentRecs.length === 0 && userRecs.length === 0) {
+    lines.push(
+      '', '## No action items',
+      'No critical gaps detected in your setup, and no friction patterns had enough evidence to recommend a behavior change. Your collaboration looks healthy on the dimensions we can see.',
+    );
+  }
+
+  return lines;
+}
+
+/** Tool recommendations section. */
+function formatToolRecs(report: AnalysisReport): string[] {
+  const lines: string[] = [];
+
+  const problemIds = [
+    ...report.frictionPatterns.map(f => f.theme),
+    ...report.gaps.map(g => g.id),
+    ...(report.stats.hooksCount === 0 ? ['no_build_verification', 'destructive_commands', 'safety'] : []),
+    ...(report.session.corrections.negationCount > 3 ? ['vague_prompts'] : []),
+  ];
+
+  const toolRecs = recommendTools(problemIds, report.persona.detected, report.installedServers);
+
+  if (toolRecs.length > 0) {
+    lines.push('', '## Recommended Tools', '');
+    lines.push('*These tools address specific problems found in your setup. I can install most of them for you — just say which ones you want.*', '');
+    for (const tool of toolRecs.slice(0, 5)) {
+      const typeLabel = tool.type === 'mcp_server' ? 'MCP' : tool.type === 'hook' ? 'Hook' : tool.type === 'github_repo' ? 'GitHub' : 'Skill';
+      const starsStr = tool.stars ? ` · ${(tool.stars / 1000).toFixed(0)}K⭐` : '';
+      lines.push(`### ${tool.name} [${typeLabel}${starsStr}]`);
+      lines.push(tool.userFriendlyDescription || tool.description);
+      if (tool.whoActs) lines.push('', `**${tool.whoActs}**`);
+      const install = tool.install.trim();
+      if (install.includes('\n')) {
+        lines.push('', '```', install, '```');
+      } else {
+        lines.push('', `\`${install}\``);
+      }
+      lines.push('');
+    }
+  }
+
+  return lines;
+}
+
+/** Onboarding gap questions. */
+function formatOnboardingGaps(report: AnalysisReport): string[] {
+  const lines: string[] = [];
+
+  const GAP_QUESTIONS: Record<string, { ask: string; why: string }> = {
+    missing_roles: { ask: 'What is your role? Are you the coder, the product owner, or something else?', why: 'Calibrates how technical the agent should be.' },
+    missing_autonomy: { ask: 'What should the agent do without asking? What should it always ask first?', why: 'Too much autonomy → scope creep. Too little → constant interruptions.' },
+    missing_communication: { ask: 'How do you prefer communication? Language, detail level, tone?', why: 'Without this, the agent defaults to technical English.' },
+    missing_quality: { ask: 'How do you know something is done? What checks should pass?', why: 'Without quality gates, broken code gets shipped.' },
+    missing_north_star: { ask: 'What is your main goal? Revenue target, user growth, learning?', why: 'Every recommendation gets evaluated against your goal.' },
+    missing_tech_stack: { ask: 'What is your standard tech stack for new projects?', why: 'Prevents the agent from suggesting frameworks you don\'t use.' },
+    missing_learnings: { ask: 'What lesson from the last 3 months should your agent never forget?', why: 'Surfaces tacit knowledge that would otherwise stay in your head.' },
+    no_hooks: { ask: 'Should we add automated guardrails? (build check, destructive-command blocker, protected-files guard)', why: 'Catches errors before they reach you.' },
+    no_memory: { ask: 'Your agent has no memory system. Want to enable it?', why: 'Without memory, corrections are forgotten every session.' },
+    no_learn_skill: { ask: 'Want a /learn skill that captures session lessons into memory automatically?', why: 'Turns every correction into persistent learning with no extra effort.' },
+    no_ship_skill: { ask: 'Want a /ship skill that bundles build + test + commit + push into one safe command?', why: 'Fewer steps to remember, fewer ways to ship broken code.' },
+    no_standup_skill: { ask: 'Want a /standup skill that gives you a daily project overview on command?', why: 'Removes the "where was I?" startup cost each morning.' },
+  };
+
+  const onboardingGaps = report.gaps.filter(g =>
+    (g.severity === 'critical' || g.severity === 'recommended') && GAP_QUESTIONS[g.id]
+  );
+
+  if (onboardingGaps.length > 0) {
+    lines.push(
+      '', '## Onboarding: Get to Know Each Other',
+      '',
+      'These areas are missing or thin in your setup. Ask one question at a time — like meeting a new colleague, not filling out a form.',
+      '',
+    );
+
+    for (const gap of onboardingGaps.slice(0, 6)) {
+      const q = GAP_QUESTIONS[gap.id];
+      const marker = gap.severity === 'critical' ? '🔴' : '🟡';
+      lines.push(`- ${marker} **${q.ask}**`);
+      lines.push(`  *Why:* ${q.why}`);
+    }
+
+    lines.push(
+      '',
+      '*Tip: The agent should also tell you about itself: "I work like a colleague with amnesia — I read my briefing every morning but don\'t remember yesterday. The best way to correct me: be specific."*'
+    );
+  }
+
+  return lines;
+}
+
+// -- Detailed-only sections --------------------------------------------------
+
+/** Stats — technical metrics for power users. */
+function formatStats(report: AnalysisReport): string[] {
+  const s = report.stats;
+  const rulesCtx = s.totalRules < 5 ? ' (sparse — most setups have 10-30)' : s.totalRules > 50 ? ' (extensive — well-documented)' : '';
+  const memCtx = s.memoryFiles === 0 ? ' (your agent forgets everything between sessions)'
+    : s.memoryFiles < 5 ? ' (minimal — consider adding project-specific memories)'
+    : s.memoryFiles > 20 ? ' (thorough knowledge base — most users have 5-10)' : '';
+  const fbCtx = s.feedbackMemories === 0 ? ' — no correction loop active'
+    : s.feedbackMemories > 5 ? ` — strong learning loop: ${s.feedbackMemories} corrections remembered` : '';
+  const hookCtx = s.hooksCount === 0 ? ' (no automated guardrails)' : s.hooksCount > 3 ? ' (solid automation layer)' : '';
+
+  return [
+    '', '## Stats',
+    `- **${s.totalRules}** rules${rulesCtx} (${s.doRules} autonomous, ${s.askRules} ask-first, ${s.suggestRules} suggest-only, ${s.prohibitionRules} prohibitions)`,
+    `- **${s.memoryFiles}** memory files${memCtx} (${s.feedbackMemories} feedback${fbCtx})`,
+    `- **${s.totalLearnings}** learnings documented`,
+    `- **${s.hooksCount}** hooks${hookCtx}, **${s.skillsCount}** skills, **${s.scheduledTasksCount}** scheduled tasks`,
+    `- **${s.mcpServersCount}** MCP servers connected`,
+    `- **${s.projectsManaged}** projects managed`,
+  ];
+}
+
+/** Git activity section. */
+function formatGitActivity(report: AnalysisReport): string[] {
+  const lines: string[] = [];
+  if (!report.git || report.git.totalScanned === 0) return lines;
+
+  lines.push(
+    '', '## Project Activity',
+    `- **${report.git.totalScanned}** git repos scanned — **${report.git.active}** active (commits last 7 days), **${report.git.stale}** stale (60+ days)`,
+  );
+  if (report.git.reposWithRevertSignals > 0) {
+    lines.push(`- ⚠️  **${report.git.reposWithRevertSignals}** repo${report.git.reposWithRevertSignals === 1 ? '' : 's'} with "fix again" / "revert" patterns in recent commits`);
+  }
+  if (report.git.reposWithUncommittedPile > 0) {
+    lines.push(`- 📦 **${report.git.reposWithUncommittedPile}** repo${report.git.reposWithUncommittedPile === 1 ? '' : 's'} with 10+ uncommitted files`);
+  }
+
+  if (report.git.topActive.length > 0) {
+    lines.push('', '**Most active this week:**');
+    for (const r of report.git.topActive.slice(0, 3)) {
+      lines.push(`- ${r.name}: ${r.commits7d} commit${r.commits7d === 1 ? '' : 's'} last 7 days (${r.commits30d} last 30)`);
+    }
+  }
+
+  return lines;
+}
+
+/** Injection findings section. */
+function formatInjection(report: AnalysisReport): string[] {
+  const lines: string[] = [];
+  const injection = report.injection || [];
+  const importantInjection = injection.filter(i => i.severity !== 'nice_to_have');
+  if (importantInjection.length === 0) return lines;
+
+  lines.push(
+    '', '## 🛡️ Injection Surfaces',
+    `Pattern-matched hooks, skills, and MCP configs for prompt-injection risks. Flagging ${importantInjection.length} item${importantInjection.length === 1 ? '' : 's'} worth a manual review — false positives are possible.`,
+    '',
+  );
+  for (const finding of importantInjection.slice(0, 5)) {
+    const label = finding.severity === 'critical' ? '🔴 Critical' : '🟡 Recommended';
+    lines.push(`### ${label}: ${finding.title}`);
+    lines.push(`**Why it matters:** ${finding.why}`);
+    lines.push('', `**In:** \`${finding.artifactPath}\``, '', '```', finding.excerpt, '```', '');
+    lines.push(`**Fix:** ${finding.recommendation}`, '');
+  }
+
+  return lines;
+}
+
+/** Session patterns section. */
+function formatSessionPatterns(report: AnalysisReport): string[] {
+  const lines: string[] = [];
+  if (!report.session) return lines;
+
+  const s = report.session;
+  lines.push(
+    '', '## Session Patterns',
+    `- **${s.stats.totalSessions}** total sessions (**${s.stats.sessionsLast30Days}** last 30 days)`,
+    `- **${s.promptPatterns.totalPrompts}** prompts analyzed (avg length: ${s.promptPatterns.avgPromptLength} chars)`,
+    `- **${s.promptPatterns.shortPrompts}** short prompts (<20 chars) — may indicate vague instructions`,
+    `- **${s.corrections.negationCount}** correction signals detected ("nej", "stop", "wrong", etc.)`,
+    `- **${s.corrections.frustrationSignals}** frustration signals ("why did you", "again", "still wrong")`,
+    `- **${s.promptPatterns.clearCommands}** /clear commands — context resets`,
+  );
+
+  if (s.corrections.examples.length > 0) {
+    lines.push('', 'Recent correction examples:');
+    for (const ex of s.corrections.examples.slice(0, 3)) {
+      lines.push(`  - "${ex}"`);
+    }
+  }
+
+  return lines;
+}
+
+/** Feedback loop section. */
+function formatFeedbackLoop(report: AnalysisReport): string[] {
+  const lines: string[] = [];
+  if (!report.feedback || report.feedback.totalRecommendations === 0) return lines;
+
+  lines.push(
+    '', '## Feedback Loop',
+    `- **${report.feedback.totalRecommendations}** previous recommendations tracked`,
+    `- **${report.feedback.implemented}** implemented, **${report.feedback.ignored}** ignored, **${report.feedback.pending}** pending`,
+  );
+  if (report.feedback.avgScoreImprovement !== null) {
+    const dir = report.feedback.avgScoreImprovement >= 0 ? '+' : '';
+    lines.push(`- Average score change after implementation: **${dir}${report.feedback.avgScoreImprovement}** points`);
+  }
+
+  if (report.feedback.history && report.feedback.history.length > 0) {
+    lines.push('');
+    const pending = report.feedback.history.filter(h => h.status === 'pending').slice(0, 3);
+    const implemented = report.feedback.history.filter(h => h.status === 'implemented').slice(0, 2);
+    if (pending.length > 0) {
+      lines.push('**Still pending:**');
+      for (const h of pending) {
+        const age = daysSince(h.givenAt);
+        lines.push(`- ⏳ *${h.title}* — suggested ${age}`);
+      }
+    }
+    if (implemented.length > 0) {
+      lines.push('', '**Recently implemented:**');
+      for (const h of implemented) {
+        const delta = h.scoreAtCheck !== undefined ? ` (${h.scoreAtCheck - h.scoreAtGiven >= 0 ? '+' : ''}${h.scoreAtCheck - h.scoreAtGiven} pts)` : '';
+        lines.push(`- ✅ *${h.title}*${delta}`);
+      }
+    }
+  }
+
+  return lines;
+}
+
+// -- Public formatter --------------------------------------------------------
+
+/**
+ * Format an AnalysisReport as a string.
+ *
+ * - "text" (default): concise, plain-language report for non-technical users.
+ * - "detailed": full technical report with stats, session patterns, injection findings.
+ * - "json": raw JSON for programmatic use.
+ */
+export function formatAnalyzeReport(report: AnalysisReport, format: AnalyzeFormat = 'text'): string {
+  if (format === 'json') {
+    return JSON.stringify(report, null, 2);
+  }
+
+  const isDetailed = format === 'detailed';
+  const lines: string[] = [
+    ...formatHeader(report),
+    ...formatCategories(report, !isDetailed),
+    ...formatRecommendations(report),
+  ];
+
+  if (isDetailed) {
+    // Detailed-only sections: stats, git, injection, sessions, feedback loop
+    lines.push(...formatStats(report));
+    lines.push(...formatGitActivity(report));
+    lines.push(...formatInjection(report));
+    lines.push(...formatSessionPatterns(report));
+    lines.push(...formatFeedbackLoop(report));
+  }
+
+  // Tool recommendations and onboarding gaps — in both formats
+  lines.push(...formatToolRecs(report));
+  lines.push(...formatOnboardingGaps(report));
+
+  return lines.join('\n');
 }
