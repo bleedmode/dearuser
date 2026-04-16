@@ -366,6 +366,8 @@ export interface AnalysisReport {
   scope: Scope;
   projectsObserved: number;
   installedServers: string[];
+  /** Skill names discovered in ~/.claude/skills/ — used for dedup in recommendations. */
+  installedSkills: string[];
   persona: PersonaResult;
   collaborationScore: number;
   categories: {
