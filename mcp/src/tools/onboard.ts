@@ -5,8 +5,17 @@
 // the user, collects the answer, and calls this tool again with the step name,
 // the answer, and the same state blob.
 //
-// Flow (v2): intro → goals → stack-pains → substrate → plan (5 steps)
-// Backwards compat: old step names (role, stack, pains) still accepted.
+// Flow (v3 — Lovable-friendly, not developer-jargon):
+//   intro → work → data → cadence → plan
+//
+// Audience: people who work with data (Excel, Sheets, Notion, Airtable) and
+// want AI to do their repetitive tasks smarter — NOT developers configuring
+// CLAUDE.md by hand. We parse role/stack/substrate in the background; the
+// user never sees those words.
+//
+// Backwards compat: old step names (role, goals, stack, pains, stack-pains,
+// substrate) are still accepted and routed to the closest v3 step so older
+// clients and saved state blobs keep working.
 
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -14,27 +23,41 @@ import * as path from 'node:path';
 import { classifySubstrate, substrateLabel } from '../engine/substrate-advisor.js';
 import type { Substrate } from '../engine/substrate-advisor.js';
 import { scan } from '../engine/scanner.js';
-import { getSetupTemplate, renderPlan, renderClaudeMdPreview } from '../templates/setup-templates.js';
+import { getSetupTemplate, renderPlan } from '../templates/setup-templates.js';
 import type { Role } from '../templates/setup-templates.js';
 
 export type OnboardStep =
   | 'intro'
-  | 'role'       // backwards compat
-  | 'goals'
-  | 'stack'      // backwards compat
-  | 'pains'      // backwards compat
-  | 'stack-pains'
-  | 'substrate'
-  | 'plan';
+  | 'work'
+  | 'data'
+  | 'cadence'
+  | 'plan'
+  // Backwards compat — map onto the closest v3 step:
+  | 'role'         // → intro
+  | 'goals'        // → work
+  | 'stack'        // → data
+  | 'pains'        // → data
+  | 'stack-pains'  // → data
+  | 'substrate';   // → cadence
 
 export interface OnboardState {
   version: 1;
+  /** Parsed from the Q1 free-text answer — hidden from the user. */
   role: Role | null;
-  goals: string | null;
-  stack: string[];
+  /** Q1 raw answer — what the user does day-to-day. */
+  work: string | null;
+  /** Q2 raw answer — what repeats and wastes time. */
   pains: string | null;
-  substrateDescription: string | null;
+  /** AI tools detected from Q2/Q3 text (chatgpt, claude, cursor, ...). */
+  stack: string[];
+  /** Q3 raw answer — where their data lives today. */
+  dataDescription: string | null;
+  /** Substrate we chose FOR them based on Q3 — hidden from the user. */
   decidedSubstrate: Substrate | null;
+  /** Q4 parts — cadence ('daily'/'weekly'/'on-demand'/'event') + audience. */
+  cadence: 'daily' | 'weekly' | 'on-demand' | 'event' | null;
+  audience: 'self' | 'team' | 'customers' | null;
+  /** Raw history for auditability. */
   answers: Record<string, string>;
   /** Detected existing setup (populated on first call). */
   existingSetup?: {
@@ -42,7 +65,6 @@ export interface OnboardState {
     hasMemory: boolean;
     skillCount: number;
     hookCount: number;
-    summary: string;
   } | null;
 }
 
@@ -73,11 +95,13 @@ function freshState(): OnboardState {
   return {
     version: 1,
     role: null,
-    goals: null,
-    stack: [],
+    work: null,
     pains: null,
-    substrateDescription: null,
+    stack: [],
+    dataDescription: null,
     decidedSubstrate: null,
+    cadence: null,
+    audience: null,
     answers: {},
   };
 }
@@ -90,26 +114,38 @@ function decodeState(blob: string | undefined): OnboardState {
   if (!blob) return freshState();
   try {
     const parsed = JSON.parse(Buffer.from(blob, 'base64').toString('utf-8'));
-    if (parsed && parsed.version === 1) return parsed;
+    if (parsed && parsed.version === 1) {
+      // Migrate older state shapes (v2 had `goals` + `substrateDescription`)
+      return {
+        ...freshState(),
+        ...parsed,
+        work: parsed.work ?? parsed.goals ?? null,
+        dataDescription: parsed.dataDescription ?? parsed.substrateDescription ?? null,
+        cadence: parsed.cadence ?? null,
+        audience: parsed.audience ?? null,
+      };
+    }
   } catch { /* fall through */ }
   return freshState();
 }
 
 // ============================================================================
-// Answer parsing
+// Answer parsing — role, stack, cadence, audience
 // ============================================================================
 
 /**
- * Parse a role answer. Order matters: check "don't code" signals BEFORE
- * "manage" (a non-coder CEO often says "I manage people/projects"; that
- * shouldn't override the explicit non-coder claim).
+ * Parse a role answer from Q1 free text. We don't ask the user to pick a
+ * role — we infer it from what they describe doing. Order matters: check
+ * non-coder signals before "manage" (a non-coder CEO often says "I manage
+ * people/projects"; that shouldn't override the explicit non-coder claim).
  */
 function parseRole(answer: string): Role {
   const a = answer.toLowerCase();
 
-  // Strong non-coder signals first
+  // Strong non-coder signals first — English and Danish
   if (/don'?t code|do not code|non.?coder|never code|no code|not a (?:coder|developer|programmer|engineer)/.test(a)) return 'non_coder';
-  if (/\b(lawyer|ceo|cfo|coo|executive|founder|investor|doctor|accountant|designer)\b/.test(a) && !/i\s+(?:also\s+)?(?:write|code|develop)/.test(a)) return 'non_coder';
+  if (/koder ikke|kan ikke kode|programmerer ikke|ikke.*(?:udvikler|programm\u00f8r|coder)|jeg er ikke.*tekn/.test(a)) return 'non_coder';
+  if (/\b(lawyer|ceo|cfo|coo|executive|founder|investor|doctor|accountant|designer|consultant|marketer|sales|hr|recruiter|teacher|advokat|direkt\u00f8r|stifter|konsulent|markedsf\u00f8ring|s\u00e6lger|l\u00e6rer|l\u00e6ge|revisor|iv\u00e6rks\u00e6tter|venture studio)\b/.test(a) && !/i\s+(?:also\s+)?(?:write|code|develop)|jeg.*(?:skriver|bygger|koder)\s+kode/.test(a)) return 'non_coder';
 
   // Strong coder signals
   if (/i\s+(?:write|ship|build|deploy)\s+code|coder|developer|engineer|programm/.test(a)) return 'coder';
@@ -117,200 +153,205 @@ function parseRole(answer: string): Role {
   // Occasional — explicitly sometimes-code / mixed
   if (/occasional|sometimes code|manage (?:people|engineers|devs)|product manager|tech lead|cto|staff/.test(a)) return 'occasional';
 
-  // Fall-back: mentions "code" positively → coder; mentions "help me" with no code signal → non-coder;
-  // otherwise split-role → occasional
+  // Data-centric work without code mention → non_coder (Lovable segment default)
+  if (/excel|sheets?|notion|airtable|spreadsheet|report|data|crm|email|document|customer|client|sales|marketing/.test(a) && !/\bcode\b/.test(a)) return 'non_coder';
+
+  // Fall-back
   if (/\bcode\b/.test(a)) return 'occasional';
   if (/help me|assist me|work with|my work/.test(a)) return 'non_coder';
   return 'occasional';
 }
 
-/** Parse stack inventory — free text. */
+/** Parse AI tool inventory from free text — runs across Q2+Q3 answers. */
 function parseStack(answer: string): string[] {
   const a = answer.toLowerCase();
   const known = [
     'chatgpt', 'claude', 'claude code', 'cursor', 'windsurf', 'aider',
     'copilot', 'gemini', 'mcp', 'openclaw', 'continue', 'zed',
+    'lovable', 'bolt', 'v0', 'replit',
   ];
   return known.filter(tool => a.includes(tool));
 }
 
+/** Parse Q4 cadence answer. */
+function parseCadence(answer: string): OnboardState['cadence'] {
+  const a = answer.toLowerCase();
+  if (/daily|hver morgen|hver dag|every morning|each day|om morgenen/.test(a)) return 'daily';
+  if (/weekly|hver uge|every week|om ugen|sunday|monday/.test(a)) return 'weekly';
+  if (/when (?:something|it) happens|hver gang|event|trigger|n\u00e5r der sker/.test(a)) return 'event';
+  if (/on.?demand|kun n\u00e5r|only when|when i ask|n\u00e5r jeg (?:beder|sp\u00f8rger)/.test(a)) return 'on-demand';
+  // Default: on-demand is the safest (no autonomous side effects).
+  return 'on-demand';
+}
+
+/** Parse Q4 audience answer. */
+function parseAudience(answer: string): OnboardState['audience'] {
+  const a = answer.toLowerCase();
+  if (/customer|kunde|client|user/.test(a)) return 'customers';
+  if (/team|colleague|kollega|coworker|boss|chef|manager|department|afdeling/.test(a)) return 'team';
+  return 'self';
+}
+
 // ============================================================================
-// Step handlers — each takes (state, answer) and returns an OnboardResult
+// Step handlers
 // ============================================================================
 
 /**
- * Step 1 (merged intro+role): Project scan + role question.
- * First call (no answer): scan project, show welcome + role question.
- * Second call (with answer): parse role, advance to goals.
+ * Step 1 (intro): Project scan happens silently; ask Q1.
+ *
+ * We DO NOT tell the user "I can see you already have 69 memory files, 11
+ * skills, 1 hook" — that is meaningless to the Lovable audience and reads as
+ * jargon. The scan data is kept in state for later use by the plan step.
  */
 function stepIntro(state: OnboardState, answer: string): OnboardResult {
-  // First call — no answer yet, show welcome + role question
+  // First call — no answer yet, silent scan + Q1
   if (!answer) {
-    // Project scan — detect what's already configured
     try {
       const scanResult = scan(process.cwd(), 'global');
-      const hasClaudeMd = scanResult.globalClaudeMd !== null || scanResult.projectClaudeMd !== null;
-      const hasMemory = scanResult.memoryFiles.length > 0;
-      const skillCount = scanResult.skillsCount ?? 0;
-      const hookCount = scanResult.hooksCount ?? 0;
-      const parts: string[] = [];
-      if (hasClaudeMd) parts.push('a CLAUDE.md');
-      if (hasMemory) parts.push(`${scanResult.memoryFiles.length} memory file(s)`);
-      if (skillCount > 0) parts.push(`${skillCount} skill(s)`);
-      if (hookCount > 0) parts.push(`${hookCount} hook(s)`);
       state.existingSetup = {
-        hasClaudeMd,
-        hasMemory,
-        skillCount,
-        hookCount,
-        summary: parts.length > 0 ? `I can see you already have ${parts.join(', ')} configured.` : '',
+        hasClaudeMd: scanResult.globalClaudeMd !== null || scanResult.projectClaudeMd !== null,
+        hasMemory: scanResult.memoryFiles.length > 0,
+        skillCount: scanResult.skillsCount ?? 0,
+        hookCount: scanResult.hooksCount ?? 0,
       };
     } catch {
       state.existingSetup = null;
     }
 
-    const setupLine = state.existingSetup?.summary
-      ? `\n\n${state.existingSetup.summary} I\'ll build on what you have.\n`
-      : '\n';
-
     return {
       step: 'intro',
-      teaching: `Welcome — I'll spend about 3 minutes learning about you, then produce a tailored setup plan.${setupLine}\nAnswer in your own words; there are no wrong answers.`,
-      question: 'Which best describes you?',
-      options: [
-        'I write code regularly',
-        'I code occasionally, or manage people who do',
-        'I don\'t code but I want to use AI seriously',
-      ],
-      nextStep: 'goals',
+      teaching: `Hej — jeg vil lære dig at kende, så jeg kan foreslå hvordan AI bedst hjælper dig.\n\nDet tager 4 små spørgsmål. Ingen forkerte svar.`,
+      question: 'Hvad arbejder du med til daglig? Hvilken slags arbejde tager mest af din tid?',
+      options: [],
+      // Stay in 'intro' so the next call parses Q1's answer (role). Only
+      // after parseRole do we advance to 'work'.
+      nextStep: 'intro',
       state: encodeState(state),
       done: false,
       plan: null,
     };
   }
 
-  // Second call — parse role, show teaching, advance to goals
+  // Second call — parse role silently, advance to work (Q2)
   const role = parseRole(answer);
   state.role = role;
-  state.answers.role = answer;
-
-  const teaching = (() => {
-    switch (role) {
-      case 'coder':
-        return 'There are four ways AI shows up in code work:\n\n- **Chat**: one-off questions, pair-thinking\n- **Code agents**: Claude Code / Cursor / etc. — an editor that can edit\n- **Schedule**: recurring jobs (nightly research, daily standups, alerts)\n- **OS-level**: your own stack with memory, skills, hooks\n\nA coder typically starts with code agents + gradually adds schedule and OS when friction builds.';
-      case 'occasional':
-        return 'Four ways AI can help product/mixed roles:\n\n- **Chat**: quick research, summarising, email drafting\n- **Code agents**: for the times you do edit code or configs\n- **Schedule**: daily briefings, weekly summaries, monitoring\n- **OS-level**: tying it together so nothing gets forgotten\n\nThe highest-leverage move is usually the OS-level piece — having memory and standing context so you don\'t re-explain yourself.';
-      case 'non_coder':
-        return 'Four ways to put AI to work without coding:\n\n- **Chat**: the default experience — ChatGPT, Claude.ai — quick tasks\n- **Workflows**: Zapier, Make, or Claude-as-assistant for repeat tasks\n- **Schedule**: daily/weekly reports delivered to you\n- **Documents**: AI that reads your Notion, Google Drive, emails\n\nYou want to think less about tools and more about *jobs to be done*. What should AI do that you currently do manually, badly, or not at all?';
-    }
-  })();
+  state.work = answer.trim();
+  state.answers.intro = answer;
 
   return {
     step: 'intro',
-    teaching,
-    question: 'What\'s the single most important thing you want AI to help you with?',
+    teaching: `Tak. Nu er det lettere at gætte hvad der frustrerer dig.`,
+    question: 'Hvad laver du igen og igen som føles som spildt tid? Små ting tæller — fx at kopiere data fra ét sted til et andet, skrive samme slags email, eller opdatere den samme oversigt hver uge. Nævn 1-3.',
     options: [],
-    nextStep: 'goals',
+    nextStep: 'work',
     state: encodeState(state),
     done: false,
     plan: null,
   };
 }
 
-function stepGoals(state: OnboardState, answer: string): OnboardResult {
-  // Handle skip option
+/**
+ * Step 2 (work → pains): Record Q2, ask Q3 about where data lives.
+ *
+ * We collect AI-stack mentions in the background from this answer (many
+ * users mention "I already use ChatGPT for..." here).
+ */
+function stepWork(state: OnboardState, answer: string): OnboardResult {
+  // Allow explicit skip
   if (/skip|just.*template|spring over/i.test(answer)) {
-    state.goals = null;
-    state.answers.goals = '(skipped)';
-    // Jump directly to plan with defaults
+    state.answers.work = '(skipped)';
     return stepPlan(state, 'skip');
   }
 
-  state.goals = answer.trim();
-  state.answers.goals = answer;
-
-  // Show CLAUDE.md preview based on role + goals
-  const preview = state.role ? renderClaudeMdPreview(state.role, state.goals) : null;
-
-  return {
-    step: 'goals',
-    teaching: preview ? `### Preview of your CLAUDE.md so far\n\n\`\`\`markdown\n${preview}\n\`\`\`` : null,
-    question: 'Two quick things:\n\n1. Which AI tools do you already use? (list them, or say "none")\n2. What\'s most frustrating about working with AI today?',
-    options: [
-      'Skip — just give me a template based on my role',
-    ],
-    nextStep: 'stack-pains',
-    state: encodeState(state),
-    done: false,
-    plan: null,
-  };
-}
-
-/** Combined stack + pains step — asks both in one question. */
-function stepStackPains(state: OnboardState, answer: string): OnboardResult {
-  // Handle skip
-  if (/skip|just.*template|spring over/i.test(answer)) {
-    state.answers['stack-pains'] = '(skipped)';
-    return stepPlan(state, 'skip');
-  }
-
-  // Parse stack from the full answer (keyword matching)
-  state.stack = parseStack(answer);
-  // Store the full answer as pains (overlap with stack detection is fine)
   state.pains = answer.trim();
-  state.answers['stack-pains'] = answer;
+  state.answers.work = answer;
+  // Collect stack mentions opportunistically
+  const detected = parseStack(answer);
+  if (detected.length > 0) {
+    state.stack = Array.from(new Set([...state.stack, ...detected]));
+  }
 
   return {
-    step: 'stack-pains',
-    teaching: 'Four places your data can live — picking the right one prevents pain later:\n\n- **Rules** (CLAUDE.md): how the agent should behave, read every session\n- **Memory** (memory files): lessons, feedback, narrative learnings\n- **Documents** (Notion, Google Docs): formatted content humans also read\n- **Database** (SQLite, Supabase): structured lists that grow and get queried\n\nPicking "markdown" for everything is the most common mistake — it works at 5 entries, collapses at 50.',
-    question: 'What data are you accumulating (or want to) that the agent should help with? Describe it in your own words — what does each entry look like, how fast does it grow, who reads it?',
+    step: 'work',
+    teaching: null,
+    question: 'Hvor har du dine vigtigste ting liggende i dag? Excel, Google Sheets, Notion, Airtable, email, dokumenter — eller mest i hovedet? Skriv bare kort hvor det er, og hvor meget der er.',
     options: [],
-    nextStep: 'substrate',
+    nextStep: 'data',
     state: encodeState(state),
     done: false,
     plan: null,
   };
 }
 
-function stepSubstrate(state: OnboardState, answer: string): OnboardResult {
-  state.substrateDescription = answer.trim();
-  state.answers.substrate = answer;
+/**
+ * Step 3 (data): Record Q3, classify substrate SILENTLY, ask Q4.
+ *
+ * The old flow had a teaching block here explaining "rules vs memory vs
+ * documents vs database". That is developer jargon and doesn't belong in
+ * the user-facing copy. We run classifySubstrate() in the background and
+ * use the result in the plan step.
+ */
+function stepData(state: OnboardState, answer: string): OnboardResult {
+  if (/skip|just.*template|spring over/i.test(answer)) {
+    state.answers.data = '(skipped)';
+    return stepPlan(state, 'skip');
+  }
 
-  const recommendation = classifySubstrate(state.substrateDescription);
-  state.decidedSubstrate = recommendation.primary;
+  state.dataDescription = answer.trim();
+  state.answers.data = answer;
+  // More stack mentions may appear here too
+  const detected = parseStack(answer);
+  if (detected.length > 0) {
+    state.stack = Array.from(new Set([...state.stack, ...detected]));
+  }
 
-  const confidenceLabel = recommendation.confidence === 'high'
-    ? 'Strong match'
-    : recommendation.confidence === 'medium'
-      ? 'Good fit'
-      : 'Best guess — consider the secondary option too';
-
-  const teaching = [
-    `**Recommended substrate:** ${substrateLabel(recommendation.primary)}`,
-    ``,
-    `**${confidenceLabel}.** ${recommendation.why}`,
-    ``,
-    `**Example for your case:**`,
-    recommendation.example,
-    ``,
-    `**What to avoid:** ${recommendation.antiPattern}`,
-    ``,
-    `**How to apply:**`,
-    ...recommendation.stepsToApply.map((s, i) => `${i + 1}. ${s}`),
-  ].join('\n');
+  // Classify substrate silently — user never sees the word "substrate"
+  try {
+    const recommendation = classifySubstrate(state.dataDescription);
+    state.decidedSubstrate = recommendation.primary;
+  } catch {
+    state.decidedSubstrate = null;
+  }
 
   return {
-    step: 'substrate',
-    teaching,
-    question: 'Ready for your tailored setup plan? (yes/no — or tell me what to adjust first)',
-    options: ['Yes, show the plan', 'Let me reconsider the substrate'],
-    nextStep: 'plan',
+    step: 'data',
+    teaching: null,
+    question: 'To sidste ting:\n\n1. **Hvor tit skal din assistent arbejde for dig?** Hver morgen give dig overblik? En gang om ugen opsummere? Kun når du selv spørger? Eller hver gang der sker noget (ny email, ny linje i et ark)?\n\n2. **Hvem skal se resultaterne?** Kun dig? Dine kollegaer? Dine kunder?',
+    options: [
+      'Hver morgen — og det er kun til mig',
+      'Hver uge — til mig og mit team',
+      'Kun når jeg selv spørger',
+    ],
+    nextStep: 'cadence',
     state: encodeState(state),
     done: false,
     plan: null,
   };
 }
 
+/**
+ * Step 4 (cadence): Record Q4 answers (cadence + audience), advance to plan.
+ */
+function stepCadence(state: OnboardState, answer: string): OnboardResult {
+  if (/skip|just.*template|spring over/i.test(answer)) {
+    state.answers.cadence = '(skipped)';
+    return stepPlan(state, 'skip');
+  }
+
+  state.cadence = parseCadence(answer);
+  state.audience = parseAudience(answer);
+  state.answers.cadence = answer;
+
+  return stepPlan(state, answer);
+}
+
+/**
+ * Step 5 (plan): Produce tailored setup plan.
+ *
+ * In v3 we also write cadence + audience into ~/.dearuser/config.json so
+ * downstream tools (scorer, recommender, security) can read them — this is
+ * the "onboarding as pipeline-input" principle from memory.
+ */
 function stepPlan(state: OnboardState, _answer: string): OnboardResult {
   const role = state.role || 'occasional';
   const template = getSetupTemplate(role);
@@ -320,21 +361,27 @@ function stepPlan(state: OnboardState, _answer: string): OnboardResult {
     : null;
 
   const plan = renderPlan(template, {
-    goals: state.goals,
+    goals: state.work,           // Q1 work → "goals" slot in the template renderer
     pains: state.pains,
     substrateSummary,
   });
 
-  // Write a Dear User config template so the security tool can find projects
-  // and know where to look for tokens. Non-destructive: never overwrites an
-  // existing config.
-  const configStatus = writeConfigTemplate();
-  const fullPlan = configStatus ? `${plan}\n\n---\n\n${configStatus}` : plan;
+  // Write Dear User config. Also includes cadence + audience so pipeline
+  // consumers (scorer, recommender, security) can personalise.
+  const configStatus = writeConfigTemplate(state);
+
+  // Cadence hint — if the user wanted daily/weekly, tell them about scheduled tasks.
+  const cadenceHint = renderCadenceHint(state);
+
+  const parts = [plan];
+  if (cadenceHint) parts.push(cadenceHint);
+  if (configStatus) parts.push(configStatus);
+  const fullPlan = parts.join('\n\n---\n\n');
 
   return {
     step: 'plan',
     teaching: null,
-    question: 'Your plan is ready. Work through the 3 next-steps in order — small changes compound.',
+    question: 'Din plan er klar. Arbejd gennem de 3 næste-skridt i rækkefølge — små ændringer bygger ovenpå hinanden.',
     options: [],
     nextStep: null,
     state: encodeState(state),
@@ -344,21 +391,95 @@ function stepPlan(state: OnboardState, _answer: string): OnboardResult {
 }
 
 /**
- * Write a starter ~/.dearuser/config.json if one doesn't already exist.
- * Auto-detects which platforms are in the user's stack so the template
- * contains the right placeholders. Returns a human-readable status string
- * to append to the plan, or null if we skipped silently.
+ * Turn the user's cadence + audience answer into a concrete next-step hint.
+ * For Lovable-segment users, "scheduled task" needs to be explained in
+ * plain language — not as a cron spec.
  */
-function writeConfigTemplate(): string | null {
+function renderCadenceHint(state: OnboardState): string | null {
+  if (!state.cadence) return null;
+
+  const lines: string[] = ['## Hvordan din assistent arbejder for dig'];
+
+  switch (state.cadence) {
+    case 'daily':
+      lines.push(
+        '',
+        'Du vil have et dagligt overblik. Det gøres bedst med en **scheduled task** — en opgave der kører automatisk hver morgen.',
+        '',
+        'Næste skridt: bed Claude om at oprette en "morning brief" scheduled task. Fx: *"Opret en scheduled task der hver morgen kl 8 opsummerer [dine projekter/tasks/data]"*.',
+      );
+      break;
+    case 'weekly':
+      lines.push(
+        '',
+        'Du vil have en ugentlig opsummering. Det gøres bedst med en **scheduled task** der kører én gang om ugen.',
+        '',
+        'Næste skridt: bed Claude om at oprette en "weekly wrap" scheduled task. Fx: *"Opret en scheduled task der hver fredag kl 16 opsummerer ugens [data/fremskridt]"*.',
+      );
+      break;
+    case 'event':
+      lines.push(
+        '',
+        'Du vil have at assistenten reagerer når noget sker. Det gøres bedst med **hooks** — handlinger der trigges automatisk ved bestemte events.',
+        '',
+        'Næste skridt: bed Claude om at konfigurere hooks. Fx: *"Sæt en hook op så jeg får en notifikation hver gang der kommer en ny række i [dit ark/system]"*.',
+      );
+      break;
+    case 'on-demand':
+      lines.push(
+        '',
+        'Du vil have kontrollen — assistenten arbejder kun når du beder om det. Ingen automation behøves.',
+        '',
+        'Næste skridt: brug chat direkte når du har et spørgsmål. Din setup er klar nu.',
+      );
+      break;
+  }
+
+  if (state.audience === 'team' || state.audience === 'customers') {
+    lines.push(
+      '',
+      state.audience === 'team'
+        ? '**Dit team skal kunne se resultatet:** vi sender outputs til en delt markdown-fil eller Notion-side — bed Claude om at sætte det op som del af din scheduled task.'
+        : '**Dine kunder skal kunne se resultatet:** det kræver en lille web-side eller PDF-export. Bed Claude om at foreslå den simpleste løsning baseret på hvad du har i forvejen.',
+    );
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Write a starter ~/.dearuser/config.json if one doesn't already exist.
+ * v3 adds cadence + audience + role so downstream tools (scorer, recommender,
+ * security) can personalise — the "onboarding as pipeline-input" principle.
+ */
+function writeConfigTemplate(state: OnboardState): string | null {
   const configDir = path.join(os.homedir(), '.dearuser');
   const configPath = path.join(configDir, 'config.json');
 
-  // Non-destructive: respect existing config
+  const preferences = {
+    role: state.role,
+    cadence: state.cadence,
+    audience: state.audience,
+    substrate: state.decidedSubstrate,
+    stack: state.stack,
+  };
+
+  // If config exists, merge preferences (non-destructive on other fields)
   if (fs.existsSync(configPath)) {
-    return `## Dear User config\n\nExisting config found at \`~/.dearuser/config.json\` — left untouched.`;
+    try {
+      const existing = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      const merged = {
+        ...existing,
+        preferences: { ...(existing.preferences || {}), ...preferences },
+      };
+      fs.writeFileSync(configPath, JSON.stringify(merged, null, 2) + '\n', 'utf-8');
+      return `## Indstillinger gemt\n\nDine svar er tilføjet til \`~/.dearuser/config.json\` — andre tools (diagnose, security) bruger dem til at give mere relevante anbefalinger.`;
+    } catch {
+      return `## Indstillinger\n\nEksisterende config fundet i \`~/.dearuser/config.json\` — kunne ikke læse den, så dine svar er ikke gemt. Det påvirker ikke planen ovenfor.`;
+    }
   }
 
-  // Figure out sensible default search roots — only include ones that exist
+  // New config — include search roots and token placeholders for detected platforms
   const candidates = ['clawd', 'code', 'projects', 'work', 'src'];
   const searchRoots: string[] = [];
   for (const name of candidates) {
@@ -368,7 +489,6 @@ function writeConfigTemplate(): string | null {
     } catch { /* skip */ }
   }
 
-  // Detect which platforms are present so we only scaffold relevant token slots
   const detected = detectPlatforms(searchRoots.map(r => r.replace(/^~/, os.homedir())));
   const tokens: Record<string, string> = {};
   if (detected.has('supabase')) tokens.supabase = '';
@@ -376,6 +496,7 @@ function writeConfigTemplate(): string | null {
 
   const config = {
     searchRoots: searchRoots.length > 0 ? searchRoots : [`~/`],
+    preferences,
     ...(Object.keys(tokens).length > 0 ? { tokens } : {}),
   };
 
@@ -383,37 +504,25 @@ function writeConfigTemplate(): string | null {
     fs.mkdirSync(configDir, { recursive: true });
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
   } catch (err) {
-    return `## Dear User config\n\nCouldn't write \`~/.dearuser/config.json\`: ${err instanceof Error ? err.message : err}. Create it manually if you want custom search roots or tokens.`;
+    return `## Indstillinger\n\nKunne ikke skrive \`~/.dearuser/config.json\`: ${err instanceof Error ? err.message : err}. Det påvirker ikke planen ovenfor.`;
   }
 
   const lines = [
-    `## Dear User config written`,
+    `## Indstillinger gemt`,
     ``,
-    `Created \`~/.dearuser/config.json\` with these defaults:`,
-    ``,
-    '```json',
-    JSON.stringify(config, null, 2),
-    '```',
-    ``,
-    `**Search roots** — Dear User scans these folders for projects (Supabase .env files, GitHub repos, etc.). Edit to match where your code lives.`,
+    `Dine svar er gemt i \`~/.dearuser/config.json\`. Andre tools (diagnose, security) bruger dem til at give mere relevante anbefalinger.`,
   ];
 
   if (detected.has('supabase')) {
     lines.push(
       ``,
-      `**Supabase token** — fill in \`tokens.supabase\` to enable the Advisor API scan. Get one at https://supabase.com/dashboard/account/tokens (alternatively set the \`SUPABASE_ACCESS_TOKEN\` env var).`,
+      `**Supabase-adgang (valgfrit):** Hvis du vil have sikkerhedstjek af din Supabase, tilføj en token i \`tokens.supabase\`. Hent en på https://supabase.com/dashboard/account/tokens.`,
     );
   }
   if (detected.has('vercel')) {
     lines.push(
       ``,
-      `**Vercel token** — fill in \`tokens.vercel\` to audit env vars. Get one at https://vercel.com/account/tokens (or set \`VERCEL_TOKEN\`).`,
-    );
-  }
-  if (detected.has('github')) {
-    lines.push(
-      ``,
-      `**GitHub** — no config needed, uses \`gh\` CLI. Run \`gh auth login\` if you haven't already.`,
+      `**Vercel-adgang (valgfrit):** Hvis du vil have tjek af dine Vercel-miljøvariabler, tilføj en token i \`tokens.vercel\`. Hent en på https://vercel.com/account/tokens.`,
     );
   }
 
@@ -425,7 +534,7 @@ function detectPlatforms(searchRoots: string[]): Set<string> {
   const found = new Set<string>();
 
   function walk(dir: string, depth: number): void {
-    if (depth > 3 || found.size === 3) return; // stop early once all 3 detected
+    if (depth > 3 || found.size === 3) return;
     let entries: fs.Dirent[];
     try {
       entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -474,23 +583,45 @@ export function runOnboard(input: OnboardInput): OnboardResult {
   const answer = input.answer || '';
 
   switch (currentStep) {
-    case 'intro':      return stepIntro(state, answer);
-    case 'role':       return stepIntro(state, answer);   // backwards compat: old role → intro with answer
-    case 'goals':      return stepGoals(state, answer);
-    case 'stack':      return stepStackPains(state, answer); // backwards compat
-    case 'pains':      return stepStackPains(state, answer); // backwards compat
-    case 'stack-pains': return stepStackPains(state, answer);
-    case 'substrate':  return stepSubstrate(state, answer);
-    case 'plan':       return stepPlan(state, answer);
+    case 'intro':       return stepIntro(state, answer);
+    case 'work':        return stepWork(state, answer);
+    case 'data':        return stepData(state, answer);
+    case 'cadence':     return stepCadence(state, answer);
+    case 'plan':        return stepPlan(state, answer);
+    // Backwards compat — route old step names to the closest v3 step:
+    case 'role':        return stepIntro(state, answer);
+    case 'goals':       return stepWork(state, answer);
+    case 'stack':       return stepWork(state, answer);
+    case 'pains':       return stepWork(state, answer);
+    case 'stack-pains': return stepWork(state, answer);
+    case 'substrate':   return stepCadence(state, answer);
     default:
-      // Unknown step — reset to intro
       return stepIntro(freshState(), '');
   }
 }
 
 function stepNumber(step: OnboardStep): number {
-  const map: Record<string, number> = { intro: 1, role: 1, goals: 2, stack: 3, pains: 3, 'stack-pains': 3, substrate: 4, plan: 5 };
+  const map: Record<string, number> = {
+    intro: 1, role: 1,
+    work: 2, goals: 2,
+    data: 3, stack: 3, pains: 3, 'stack-pains': 3,
+    cadence: 4, substrate: 4,
+    plan: 5,
+  };
   return map[step] || 1;
+}
+
+/**
+ * Label-number for "trin X af 5". In the intro step we ask TWO questions
+ * back-to-back (Q1 then Q2 after role parse), so the label should reflect
+ * the question being asked — use nextStep when available.
+ */
+function labelNumber(result: OnboardResult): number {
+  if (result.done) return 5;
+  if (result.nextStep && result.nextStep !== result.step) {
+    return stepNumber(result.nextStep);
+  }
+  return stepNumber(result.step);
 }
 
 /** Format an OnboardResult as markdown for the MCP client. */
@@ -501,7 +632,7 @@ export function formatOnboardResult(result: OnboardResult): string {
     return result.plan;
   }
 
-  lines.push(`*Onboard — step ${stepNumber(result.step)} of 5${result.nextStep ? ` → ${result.nextStep}` : ''}*`);
+  lines.push(`*Onboard — trin ${labelNumber(result)} af 5*`);
   lines.push('');
 
   if (result.teaching) {
@@ -511,7 +642,7 @@ export function formatOnboardResult(result: OnboardResult): string {
     lines.push('');
   }
 
-  lines.push(`**Q: ${result.question}**`);
+  lines.push(`**${result.question}**`);
 
   if (result.options.length > 0) {
     lines.push('');
@@ -519,7 +650,7 @@ export function formatOnboardResult(result: OnboardResult): string {
       lines.push(`${i + 1}. ${result.options[i]}`);
     }
     lines.push('');
-    lines.push('*(Or answer freely — whichever is more natural.)*');
+    lines.push('*(Eller svar frit — det der føles mest naturligt.)*');
   }
 
   lines.push('');
