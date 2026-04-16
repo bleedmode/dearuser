@@ -319,6 +319,46 @@ export interface InjectionFinding {
   recommendation: string;
 }
 
+// ============================================================================
+// Lint findings — CLAUDE.md quality checks
+// ============================================================================
+
+export type LintCheckId =
+  | 'generic_filler'
+  | 'weak_imperative'
+  | 'negative_only'
+  | 'file_too_long'
+  | 'broken_file_ref'
+  | 'broken_markdown_link'
+  | 'hardcoded_user_path'
+  | 'stale_tool_ref'
+  | 'redundant_stack_info'
+  | 'buried_critical_rule'
+  | 'duplicate_rule'
+  | 'long_section_no_headers'
+  | 'empty_section'
+  | 'ambiguous_rule'
+  | 'missing_rationale';
+
+export interface LintFinding {
+  id: string;
+  check: LintCheckId;
+  severity: GapSeverity;
+  title: string;
+  description: string;
+  file: string;
+  line?: number;
+  excerpt: string;
+  fix?: string;
+}
+
+export interface LintSummary {
+  totalChecks: number;
+  totalFindings: number;
+  bySeverity: { critical: number; recommended: number; nice_to_have: number };
+  byCheck: Partial<Record<LintCheckId, number>>;
+}
+
 export interface AnalysisReport {
   version: '2.0';
   generatedAt: string;
@@ -347,6 +387,8 @@ export interface AnalysisReport {
   git: GitSummary | null;
   /** Prompt-injection findings from static pattern-matching of hooks/skills/MCP. */
   injection: InjectionFinding[];
+  /** CLAUDE.md lint findings — instruction quality checks. */
+  lint: LintSummary & { findings: LintFinding[] };
   feedback: {
     totalRecommendations: number;
     implemented: number;

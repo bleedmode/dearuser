@@ -74,7 +74,10 @@ function readSettingsAndMcpConfig(home: string, projectRoot: string | null) {
   let hooksCount = 0;
 
   const settingsPaths = [join(home, '.claude', 'settings.json')];
-  const mcpPaths = [join(home, '.claude', 'mcp.json')];
+  const mcpPaths = [
+    join(home, '.claude.json'),
+    join(home, '.claude', 'mcp.json'),
+  ];
   if (projectRoot) {
     settingsPaths.push(
       join(projectRoot, '.claude', 'settings.json'),

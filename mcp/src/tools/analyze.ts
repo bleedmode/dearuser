@@ -16,7 +16,8 @@ import { scanArtifacts } from '../engine/audit-scanner.js';
 import { detectInjection } from '../engine/injection-detector.js';
 import { generateProactiveRecommendations } from '../engine/proactive-recommender.js';
 import { recommendTools } from '../templates/tool-catalog.js';
-import type { AnalysisReport, AnalysisStats, WrappedData, Scope, GitSummary } from '../types.js';
+import { lintClaudeMd } from '../engine/lint-checks.js';
+import type { AnalysisReport, AnalysisStats, WrappedData, Scope, GitSummary, LintSummary, LintFinding } from '../types.js';
 
 export type AnalyzeFormat = 'text' | 'detailed' | 'json';
 
@@ -150,13 +151,16 @@ export function runAnalysis(
     ? scanGitRepos(scanResult.scanRoots)
     : null;
 
-  // 8. Artifact discovery (reused from audit) + injection detection
+  // 8. Lint CLAUDE.md for instruction quality issues
+  const lint = lintClaudeMd(scanResult, parsed);
+
+  // 9. Artifact discovery (reused from audit) + injection detection
   //    These are cheap reads — we always do them in analyze now so the
   //    "proactive" recs have a real surface to reason about.
   const artifacts = scanArtifacts();
   const injection = detectInjection(artifacts);
 
-  // 9. Generate recommendations — three tracks now:
+  // 10. Generate recommendations — three tracks now:
   //    (a) agent-facing gap fills (file/config fixes)
   //    (b) user-facing behavior coaching (from friction patterns)
   //    (c) proactive pattern-based (from repeated CLIs, stale repos, /clear
@@ -170,16 +174,16 @@ export function runAnalysis(
   });
   const recommendations = [...agentRecs, ...userRecs, ...proactiveRecs];
 
-  // 10. Build stats
+  // 11. Build stats
   const stats = buildStats(parsed, scanResult);
 
-  // 11. Score categories (with session data for friction-based adjustments)
+  // 12. Score categories (with session data for friction-based adjustments)
   const { categories, collaborationScore } = score(parsed, scanResult, sessionData);
 
-  // 12. Build wrapped data
+  // 13. Build wrapped data
   const wrapped = buildWrapped(stats, persona, frictionPatterns);
 
-  // 13. Feedback loop — check previous recommendations + track new ones
+  // 14. Feedback loop — check previous recommendations + track new ones
   const claudeMdContent = [scanResult.globalClaudeMd?.content, scanResult.projectClaudeMd?.content]
     .filter(Boolean).join('\n');
   const settingsContent = scanResult.settingsFiles.map(f => f.content).join('\n');
@@ -208,6 +212,7 @@ export function runAnalysis(
     session: sessionData,
     git: git ? buildGitSummary(git) : null,
     injection,
+    lint: { ...lint.summary, findings: lint.findings },
     feedback,
   };
 }
@@ -641,6 +646,53 @@ function formatFeedbackLoop(report: AnalysisReport): string[] {
   return lines;
 }
 
+/** Lint findings — CLAUDE.md quality issues. */
+function formatLintFindings(report: AnalysisReport, plain: boolean): string[] {
+  const lines: string[] = [];
+  const lint = report.lint;
+
+  if (!lint || lint.totalFindings === 0) return lines;
+
+  const label = plain ? 'Instruction Quality' : 'CLAUDE.md Lint';
+  lines.push('', `## ${label}`);
+
+  if (plain) {
+    lines.push(`Found **${lint.totalFindings}** issue${lint.totalFindings === 1 ? '' : 's'} in your instructions file that could confuse your agent.`);
+  } else {
+    lines.push(`**${lint.totalChecks}** checks ran — **${lint.totalFindings}** finding${lint.totalFindings === 1 ? '' : 's'}` +
+      ` (${lint.bySeverity.critical} critical, ${lint.bySeverity.recommended} recommended, ${lint.bySeverity.nice_to_have} nice-to-have)`);
+  }
+  lines.push('');
+
+  const severityLabel = (s: string) =>
+    s === 'critical' ? '🔴' : s === 'recommended' ? '🟡' : '🟢';
+
+  // In text mode: show max 8, grouped by severity
+  // In detailed mode: show all
+  const maxFindings = plain ? 8 : lint.findings.length;
+  const shown = lint.findings.slice(0, maxFindings);
+
+  for (const f of shown) {
+    const loc = f.line ? `:${f.line}` : '';
+    lines.push(`${severityLabel(f.severity)} **${f.title}**`);
+    if (!plain) {
+      const shortPath = f.file.replace(/.*\.claude\//, '~/.claude/').replace(/.*\/clawd\//, '~/clawd/');
+      lines.push(`  *${shortPath}${loc}*`);
+    }
+    lines.push(`  ${f.description}`);
+    if (f.fix) {
+      lines.push(`  → Fix: ${f.fix}`);
+    }
+    lines.push('');
+  }
+
+  if (lint.totalFindings > maxFindings) {
+    lines.push(`*…and ${lint.totalFindings - maxFindings} more. Run with format="detailed" to see all.*`);
+  }
+
+  return lines;
+}
+
 // -- Public formatter --------------------------------------------------------
 
 /**
@@ -659,6 +711,7 @@ export function formatAnalyzeReport(report: AnalysisReport, format: AnalyzeForma
   const lines: string[] = [
     ...formatHeader(report),
     ...formatCategories(report, !isDetailed),
+    ...formatLintFindings(report, !isDetailed),
     ...formatRecommendations(report),
   ];
 
