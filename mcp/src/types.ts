@@ -317,6 +317,7 @@ export interface InjectionFinding {
   excerpt: string;
   why: string;
   recommendation: string;
+  owaspCategory?: OwaspAgenticCategory;
 }
 
 // ============================================================================
@@ -324,21 +325,63 @@ export interface InjectionFinding {
 // ============================================================================
 
 export type LintCheckId =
+  // A. Instruction Quality (14)
   | 'generic_filler'
   | 'weak_imperative'
   | 'negative_only'
+  | 'ambiguous_rule'
+  | 'missing_rationale'
+  | 'buried_critical_rule'
+  | 'duplicate_rule'
+  | 'rule_contradiction'
+  | 'escape_hatch_missing'
+  | 'compound_instruction'
+  | 'naked_conditional'
+  | 'mental_note'
+  | 'ambiguous_pronoun'
+  | 'compressible_padding'
+  // B. Document Structure (9)
   | 'file_too_long'
+  | 'long_section_no_headers'
+  | 'empty_section'
+  | 'redundant_stack_info'
+  | 'readme_overlap'
+  | 'unclosed_code_block'
+  | 'section_balance'
+  | 'missing_update_date'
+  | 'priority_signal_missing'
+  // C. References & Paths (7)
   | 'broken_file_ref'
   | 'broken_markdown_link'
   | 'hardcoded_user_path'
   | 'stale_tool_ref'
-  | 'redundant_stack_info'
-  | 'buried_critical_rule'
-  | 'duplicate_rule'
-  | 'long_section_no_headers'
-  | 'empty_section'
-  | 'ambiguous_rule'
-  | 'missing_rationale';
+  | 'stale_tool_ref_reverse'
+  | 'dead_command_ref'
+  | 'wrong_abstraction'
+  // D. Memory Quality (6)
+  | 'memory_stale'
+  | 'memory_orphan'
+  | 'memory_index_orphan'
+  | 'memory_too_large'
+  | 'memory_duplicate'
+  | 'memory_missing_frontmatter'
+  // E. Hook Quality (5)
+  | 'hook_dangerous_command'
+  | 'hook_missing_condition'
+  | 'hook_unquoted_variable'
+  | 'hook_no_timeout'
+  | 'hook_stale_tool_ref'
+  // F. Skill Quality (5)
+  | 'skill_missing_frontmatter'
+  | 'skill_vague_name'
+  | 'skill_prompt_too_short'
+  | 'skill_unrestricted_bash'
+  | 'skill_dangerous_name_no_guard'
+  // G. Completeness (4)
+  | 'missing_verification'
+  | 'missing_error_handling'
+  | 'missing_handoff_protocol'
+  | 'cognitive_blueprint_gap';
 
 export interface LintFinding {
   id: string;
@@ -409,6 +452,22 @@ export interface AnalysisReport {
 }
 
 // ============================================================================
+// OWASP Agentic AI Top 10 (2025/2026)
+// ============================================================================
+
+export type OwaspAgenticCategory =
+  | 'ASI-01'   // Agent Goal Hijack
+  | 'ASI-02'   // Insecure Tool Design
+  | 'ASI-03'   // Identity & Privilege Abuse
+  | 'ASI-04'   // Insecure Supply Chain
+  | 'ASI-05'   // Tool Misuse
+  | 'ASI-06'   // Memory & Context Poisoning
+  | 'ASI-07'   // Insecure Inter-Agent Communication
+  | 'ASI-08'   // Cascading Failures
+  | 'ASI-09'   // Human-Agent Trust Exploitation
+  | 'ASI-10';  // Rogue Agents
+
+// ============================================================================
 // Security report — output of the `security` tool
 // ============================================================================
 
@@ -435,6 +494,7 @@ export interface SecretFinding {
   excerpt: string;
   lineNumber?: number;
   recommendation: string;
+  owaspCategory?: OwaspAgenticCategory;
 }
 
 export type ConflictCategory =
@@ -454,6 +514,7 @@ export interface RuleConflict {
   excerpt: string;
   recommendation: string;
   why: string;
+  owaspCategory?: OwaspAgenticCategory;
 }
 
 /** A finding from an external platform advisor (Supabase, GitHub, npm, Vercel). */
@@ -468,6 +529,21 @@ export interface PlatformAdvisorFinding {
   detail: string; // short explanation of the finding
   fixUrl?: string; // direct link to platform dashboard to fix
   recommendation: string;
+  owaspCategory?: OwaspAgenticCategory;
+}
+
+/** A finding for a known CVE in Claude Code configuration. */
+export interface CveFinding {
+  id: string;
+  cveId: string;
+  cvssScore: number;
+  severity: GapSeverity;
+  title: string;
+  description: string;
+  location: string;
+  excerpt: string;
+  owaspCategory: OwaspAgenticCategory;
+  recommendation: string;
 }
 
 /** Status of each platform advisor lookup. Surfaced so users know what was/wasn't scanned. */
@@ -479,12 +555,13 @@ export interface PlatformAdvisorStatus {
 }
 
 export interface SecurityReport {
-  version: '1.1';
+  version: '1.2';
   generatedAt: string;
   scope: Scope;
   secrets: SecretFinding[];
   injection: InjectionFinding[];
   ruleConflicts: RuleConflict[];
+  cveFindings: CveFinding[];
   platformFindings: PlatformAdvisorFinding[];
   platformStatus: PlatformAdvisorStatus[];
   summary: {
@@ -492,5 +569,6 @@ export interface SecurityReport {
     recommended: number;
     niceToHave: number;
   };
+  owaspSummary: Partial<Record<OwaspAgenticCategory, number>>;
 }
 

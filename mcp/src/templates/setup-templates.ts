@@ -9,6 +9,7 @@ export interface SetupTemplate {
   claudeMdSections: Array<{ heading: string; body: string }>;
   suggestedSkills: Array<{ name: string; why: string; install: string }>;
   suggestedHooks: Array<{ name: string; why: string; where: string }>;
+  maintenanceRoutines: Array<{ name: string; frequency: string; why: string; how: string }>;
   nextSteps: string[];
 }
 
@@ -87,6 +88,26 @@ const CODER_TEMPLATE: SetupTemplate = {
   ],
   suggestedSkills: [COMMON_SKILLS.dearuser, COMMON_SKILLS.ship, COMMON_SKILLS.learn, COMMON_SKILLS.standup],
   suggestedHooks: [COMMON_HOOKS.buildCheck, COMMON_HOOKS.destructiveCommandGuard],
+  maintenanceRoutines: [
+    {
+      name: '/dearuser-security',
+      frequency: 'Weekly (or after adding new dependencies)',
+      why: 'Catches leaked secrets in CLAUDE.md/memory and vulnerable dependencies before they become incidents.',
+      how: 'Run `/dearuser-security` — takes 30 seconds, shows only real problems.',
+    },
+    {
+      name: '/dearuser-audit',
+      frequency: 'Monthly (or after adding skills/hooks)',
+      why: 'Orphan scheduled tasks, overlapping skills, and dead hooks pile up quietly. Audit finds structural drift.',
+      how: 'Run `/dearuser-audit` — review findings, dismiss false positives, fix real ones.',
+    },
+    {
+      name: '/dearuser-analyze',
+      frequency: 'After major CLAUDE.md changes or when collaboration feels off',
+      why: 'Tracks your collaboration score over time. Spots friction patterns and checks if past recommendations worked.',
+      how: 'Run `/dearuser-analyze` — compare your score to last run, act on new recommendations.',
+    },
+  ],
   nextSteps: [
     'Install the Dear User skills — copy skills/ from the repo into ~/.claude/skills/ so /dearuser-analyze always works',
     'Create ~/.claude/CLAUDE.md with the sections above filled in',
@@ -115,6 +136,20 @@ const OCCASIONAL_TEMPLATE: SetupTemplate = {
   ],
   suggestedSkills: [COMMON_SKILLS.dearuser, COMMON_SKILLS.standup, COMMON_SKILLS.learn, COMMON_SKILLS.research],
   suggestedHooks: [COMMON_HOOKS.protectedFiles],
+  maintenanceRoutines: [
+    {
+      name: '/dearuser-security',
+      frequency: 'Weekly',
+      why: 'Checks for leaked API keys or passwords in your config files. Quick and worth it.',
+      how: 'Run `/dearuser-security` — if it finds nothing, great. If it does, fix immediately.',
+    },
+    {
+      name: '/dearuser-analyze',
+      frequency: 'Every 2 weeks (or when things feel stuck)',
+      why: 'Measures how well your AI collaboration is working and suggests concrete improvements.',
+      how: 'Run `/dearuser-analyze` — focus on the top recommendation and try it for a week.',
+    },
+  ],
   nextSteps: [
     'Install the Dear User skills — copy skills/ from the repo into ~/.claude/skills/ so /dearuser-analyze always works',
     'Create ~/.claude/CLAUDE.md — keep it under 200 lines',
@@ -143,6 +178,20 @@ const NON_CODER_TEMPLATE: SetupTemplate = {
   ],
   suggestedSkills: [COMMON_SKILLS.dearuser, COMMON_SKILLS.research, COMMON_SKILLS.learn],
   suggestedHooks: [COMMON_HOOKS.protectedFiles],
+  maintenanceRoutines: [
+    {
+      name: '/dearuser-security',
+      frequency: 'Monthly',
+      why: 'Makes sure no passwords or API keys accidentally ended up in your AI config files.',
+      how: 'Run `/dearuser-security` — plain language report, no tech knowledge needed.',
+    },
+    {
+      name: '/dearuser-analyze',
+      frequency: 'Monthly (or when collaboration feels off)',
+      why: 'Checks if your setup is working well and suggests improvements in plain language.',
+      how: 'Run `/dearuser-analyze` — try the top suggestion, ignore the rest until next month.',
+    },
+  ],
   nextSteps: [
     'Install the Dear User skills — copy skills/ from the repo into ~/.claude/skills/ so /dearuser-analyze always works',
     'Create a CLAUDE.md — start with the 4 sections above, edit as you learn what you want',
@@ -213,6 +262,41 @@ export function renderPlan(
       lines.push('');
     }
   }
+
+  if (template.maintenanceRoutines.length > 0) {
+    lines.push('## Keeping it healthy', '');
+    lines.push('Your setup isn\'t "set and forget" — a quick check-up catches problems early.', '');
+    for (const routine of template.maintenanceRoutines) {
+      lines.push(`### ${routine.name}`);
+      lines.push(`**When:** ${routine.frequency}`);
+      lines.push(`**Why:** ${routine.why}`);
+      lines.push(`**How:** ${routine.how}`);
+      lines.push('');
+    }
+  }
+
+  lines.push('## Your dashboard', '');
+  lines.push('Dear User includes a local dashboard at http://localhost:7700.');
+  lines.push('Start it any time with `/dashboard` — no accounts, no cloud, just your data.');
+  lines.push('');
+  lines.push('The dashboard shows:');
+  lines.push('- **Score history** — how your collaboration improves over time');
+  lines.push('- **Agent runs** — when each tool ran and what it found');
+  lines.push('- **Recommendations** — which are pending, which you implemented');
+  lines.push('');
+
+  lines.push('## Version control your config (recommended)', '');
+  lines.push('Your AI setup (CLAUDE.md, memory files, skills) is valuable — treat it like code.');
+  lines.push('');
+  lines.push('If your project is in a git repo, your setup is already versioned.');
+  lines.push('Consider also tracking your global config:');
+  lines.push('');
+  lines.push('```bash');
+  lines.push('cd ~/.dearuser && git init && echo "*.db\\n*.db-wal\\n*.db-shm" >> .gitignore && git add -A && git commit -m "Initial Dear User config"');
+  lines.push('```');
+  lines.push('');
+  lines.push('The database file (dearuser.db) stays local — only config and migrations go in git.');
+  lines.push('');
 
   lines.push('## Environment', '');
   lines.push('Add this to your shell profile (`~/.zshrc` or `~/.bashrc`) so MCP tools load immediately:');
