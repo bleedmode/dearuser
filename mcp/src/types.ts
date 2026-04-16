@@ -416,7 +416,7 @@ export interface RuleConflict {
 export interface PlatformAdvisorFinding {
   id: string;
   platform: 'supabase' | 'github' | 'npm' | 'vercel';
-  projectName: string; // e.g. "bobby-tasks", "rock-identifier"
+  projectName: string; // e.g. "pvs", "rock-identifier"
   projectRef?: string; // platform-specific ref (Supabase project ref, GitHub repo slug, etc.)
   severity: GapSeverity;
   title: string;

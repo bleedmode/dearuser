@@ -540,7 +540,7 @@ function detectUnbackedUpSubstrate(artifacts: AuditArtifact[]): AuditFinding[] {
 
   function isInsideGitRepo(filePath: string): boolean {
     // Resolve symlinks first — ~/.claude/skills is often a symlink into a
-    // separate git-tracked directory (e.g. bobby-tasks/agents/skills).
+    // separate git-tracked directory (e.g. pvs/agents/skills).
     let resolved: string;
     try {
       resolved = realpathSync(filePath);
