@@ -41,7 +41,9 @@ IMPORTANT — When presenting results to the user:
 - NEVER combine multiple recommendations into a single claim
 - Show the collaboration score prominently
 - If score categories have signals_missing, mention the top 1-2 gaps
-- Present recommendations sorted by severity (critical first)`,
+- Present recommendations sorted by severity (critical first)
+- When a recommendation has an "Actionable" marker, offer to implement it: "Want me to add this now?" — ask first, then apply on confirmation
+- Tool recommendations with a "whoActs" line indicate whether you (the agent) can install it or the user needs to act — present accordingly`,
   {
     projectRoot: z.string().optional().describe('Project root to analyze when scope="project". Defaults to current working directory. Ignored for scope="global".'),
     scope: z.enum(['global', 'project']).optional().describe('"global" (default) aggregates across every project in ~/.claude/projects/ — the right mode for collaboration analysis, since the human↔agent relationship spans projects. "project" narrows to a single directory.'),
@@ -92,7 +94,6 @@ IMPORTANT — When presenting results to the user:
         const cat = report.categories[key as keyof typeof report.categories];
         const bar = '█'.repeat(Math.round(cat.score / 10)) + '░'.repeat(10 - Math.round(cat.score / 10));
 
-        // Status label
         let status: string;
         if (cat.score >= 85) status = 'Strong';
         else if (cat.score >= 70) status = 'Good';
@@ -101,10 +102,17 @@ IMPORTANT — When presenting results to the user:
 
         lines.push(`- **${name}**: ${bar} ${cat.score}/100 — *${status}*`);
 
-        // Show what's missing for anything below 85
-        if (cat.score < 85 && cat.signalsMissing.length > 0) {
+        // Always show evidence (why this score) — up to 2 present signals
+        if (cat.signalsPresent.length > 0) {
+          for (const present of cat.signalsPresent.slice(0, 2)) {
+            lines.push(`  - ✓ ${present}`);
+          }
+        }
+
+        // Always show what's missing (what gets it to 100) — unless score IS 100
+        if (cat.score < 100 && cat.signalsMissing.length > 0) {
           for (const missing of cat.signalsMissing.slice(0, 2)) {
-            lines.push(`  - ${missing}`);
+            lines.push(`  - → ${missing}`);
           }
         }
       }
@@ -184,6 +192,9 @@ IMPORTANT — When presenting results to the user:
           if (rec.practiceStep) {
             lines.push('', `**Practice this next time:** ${rec.practiceStep}`);
           }
+          if (rec.actionable) {
+            lines.push('', `**Actionable:** I can apply this for you — just say "yes, add it".`);
+          }
           lines.push('');
         }
       }
@@ -196,15 +207,24 @@ IMPORTANT — When presenting results to the user:
         );
       }
 
-      // Stats
+      // Stats with contextual framing
+      const s = report.stats;
+      const rulesCtx = s.totalRules < 5 ? ' (sparse — most setups have 10-30)' : s.totalRules > 50 ? ' (extensive — well-documented)' : '';
+      const memCtx = s.memoryFiles === 0 ? ' (your agent forgets everything between sessions)'
+        : s.memoryFiles < 5 ? ' (minimal — consider adding project-specific memories)'
+        : s.memoryFiles > 20 ? ' (thorough knowledge base — most users have 5-10)' : '';
+      const fbCtx = s.feedbackMemories === 0 ? ' — no correction loop active'
+        : s.feedbackMemories > 5 ? ` — strong learning loop: ${s.feedbackMemories} corrections remembered` : '';
+      const hookCtx = s.hooksCount === 0 ? ' (no automated guardrails)' : s.hooksCount > 3 ? ' (solid automation layer)' : '';
+
       lines.push(
         '', '## Stats',
-        `- **${report.stats.totalRules}** rules (${report.stats.doRules} autonomous, ${report.stats.askRules} ask-first, ${report.stats.suggestRules} suggest-only, ${report.stats.prohibitionRules} prohibitions)`,
-        `- **${report.stats.memoryFiles}** memory files (${report.stats.feedbackMemories} feedback)`,
-        `- **${report.stats.totalLearnings}** learnings documented`,
-        `- **${report.stats.hooksCount}** hooks, **${report.stats.skillsCount}** skills, **${report.stats.scheduledTasksCount}** scheduled tasks`,
-        `- **${report.stats.mcpServersCount}** MCP servers connected`,
-        `- **${report.stats.projectsManaged}** projects managed`,
+        `- **${s.totalRules}** rules${rulesCtx} (${s.doRules} autonomous, ${s.askRules} ask-first, ${s.suggestRules} suggest-only, ${s.prohibitionRules} prohibitions)`,
+        `- **${s.memoryFiles}** memory files${memCtx} (${s.feedbackMemories} feedback${fbCtx})`,
+        `- **${s.totalLearnings}** learnings documented`,
+        `- **${s.hooksCount}** hooks${hookCtx}, **${s.skillsCount}** skills, **${s.scheduledTasksCount}** scheduled tasks`,
+        `- **${s.mcpServersCount}** MCP servers connected`,
+        `- **${s.projectsManaged}** projects managed`,
       );
 
       // Git activity — project-level signals from local .git directories.
@@ -326,14 +346,17 @@ IMPORTANT — When presenting results to the user:
 
       if (toolRecs.length > 0) {
         lines.push('', '## Recommended Tools', '');
+        lines.push('*These tools address specific problems found in your setup. I can install most of them for you — just say which ones you want.*', '');
         for (const tool of toolRecs.slice(0, 5)) {
           const typeLabel = tool.type === 'mcp_server' ? 'MCP' : tool.type === 'hook' ? 'Hook' : tool.type === 'github_repo' ? 'GitHub' : 'Skill';
           const starsStr = tool.stars ? ` · ${(tool.stars / 1000).toFixed(0)}K⭐` : '';
           lines.push(`### ${tool.name} [${typeLabel}${starsStr}]`);
-          lines.push(tool.description);
-          // Multi-line install configs get a proper code block so users can
-          // actually copy-paste the JSON/command. Previously we only showed
-          // the first line which truncated all the hook configs.
+          // User-friendly description first, technical description as fallback
+          lines.push(tool.userFriendlyDescription || tool.description);
+          if (tool.whoActs) {
+            lines.push('', `**${tool.whoActs}**`);
+          }
+          // Install details in code block
           const install = tool.install.trim();
           if (install.includes('\n')) {
             lines.push('', '```', install, '```');
