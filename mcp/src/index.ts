@@ -6,418 +6,73 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { runAnalysis } from './tools/analyze.js';
+import { runAnalysis, formatAnalyzeReport } from './tools/analyze.js';
+import type { AnalyzeFormat } from './tools/analyze.js';
 import { runAudit, formatAuditReport } from './tools/audit.js';
 import { runOnboard, formatOnboardResult } from './tools/onboard.js';
 import { runSecurity, formatSecurityReport } from './tools/security.js';
-import { recommendTools } from './templates/tool-catalog.js';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Read version from package.json at startup
+let PKG_VERSION = '1.0.0';
+try {
+  const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
+  PKG_VERSION = pkg.version;
+} catch { /* fallback to hardcoded */ }
 
 const server = new McpServer({
   name: 'dearuser',
-  version: '1.0.0',
+  version: PKG_VERSION,
 });
-
-/** Human-readable "3 days ago" / "5 weeks ago" from an ISO timestamp. */
-function daysSince(iso: string): string {
-  const then = new Date(iso).getTime();
-  if (isNaN(then)) return 'recently';
-  const days = Math.round((Date.now() - then) / (24 * 60 * 60 * 1000));
-  if (days < 1) return 'today';
-  if (days === 1) return 'yesterday';
-  if (days < 7) return `${days} days ago`;
-  if (days < 30) return `${Math.round(days / 7)} weeks ago`;
-  return `${Math.round(days / 30)} months ago`;
-}
 
 // Tool 1: analyze — full collaboration analysis
 server.tool(
   'analyze',
   `Analyze your human-agent collaboration. Scans CLAUDE.md, memory files, hooks, skills, and more to produce a collaboration report with persona detection, scoring, friction analysis, and recommendations.
 
-IMPORTANT — When presenting results to the user:
-- ALWAYS show the evidence rating (A/B/C/D) for each claim
-- ALWAYS show the caveat for each recommendation
-- NEVER present D-rated sources as "findings" — say "one practitioner reports..."
-- NEVER combine multiple recommendations into a single claim
-- Show the collaboration score prominently
-- If score categories have signals_missing, mention the top 1-2 gaps
-- Present recommendations sorted by severity (critical first)
-- When a recommendation has an "Actionable" marker, offer to implement it: "Want me to add this now?" — ask first, then apply on confirmation
-- Tool recommendations with a "whoActs" line indicate whether you (the agent) can install it or the user needs to act — present accordingly`,
+Returns a pre-formatted markdown report. Use the format parameter to control detail level:
+- "text" (default): concise, plain-language report designed for non-technical users
+- "detailed": full technical report with stats, session patterns, injection findings, feedback loop
+- "json": raw structured data for programmatic use
+
+Everything runs locally — no data leaves the machine, no API keys needed, files are only read (never modified).
+
+When a recommendation has an "Actionable" marker, offer to implement it — ask first, then apply on confirmation.
+Tool recommendations with a "whoActs" line indicate whether you (the agent) can install it or the user needs to act — present accordingly.`,
   {
     projectRoot: z.string().optional().describe('Project root to analyze when scope="project". Defaults to current working directory. Ignored for scope="global".'),
-    scope: z.enum(['global', 'project']).optional().describe('"global" (default) aggregates across every project in ~/.claude/projects/ — the right mode for collaboration analysis, since the human↔agent relationship spans projects. "project" narrows to a single directory.'),
-    includeGit: z.boolean().optional().describe('Scan local .git directories in observed projects for commit activity, stale repos, and revert-signal patterns. Defaults to true. Set false for faster runs or when you only want config-level insights.'),
+    scope: z.enum(['global', 'project']).optional().describe('"global" (default) aggregates across every project in ~/.claude/projects/. "project" narrows to a single directory.'),
+    includeGit: z.boolean().optional().describe('Scan local .git directories for commit activity, stale repos, and revert-signal patterns. Defaults to true. Set false for faster runs.'),
+    format: z.enum(['text', 'detailed', 'json']).optional().describe('"text" (default): concise plain-language report. "detailed": full technical report with stats, sessions, injection findings. "json": raw structured data.'),
   },
-  async ({ projectRoot, scope, includeGit }) => {
+  async ({ projectRoot, scope, includeGit, format }) => {
     try {
       const root = projectRoot || process.cwd();
       const effectiveScope = scope || 'global';
+      const effectiveFormat: AnalyzeFormat = format || 'text';
       const report = runAnalysis(root, {
         scope: effectiveScope,
         includeGit: includeGit !== false,
       });
 
-      // Format key insights as readable text
-      const scopeBanner = report.scope === 'global'
-        ? `*Scope: global — aggregated across ${report.projectsObserved} project${report.projectsObserved === 1 ? '' : 's'} in ~/.claude/projects/*`
-        : `*Scope: project — ${report.scanRoot}*`;
-
-      const lines: string[] = [
-        `# Dear User — Collaboration Analysis`,
-        ``,
-        scopeBanner,
-        ``,
-        `## Your Persona: ${report.persona.archetypeName}`,
-        `**${report.persona.detected.replace('_', ' ')}** (${report.persona.confidence}% confidence)`,
-        report.persona.archetypeDescription,
-        ``,
-        `**Traits:** ${report.persona.traits.join(', ')}`,
-        ``,
-        `## Collaboration Score: ${report.collaborationScore}/100`,
-        ``,
-        `### Category Scores`,
-      ];
-
-      // Category scores with status labels and what's missing
-      const categoryConfig: Array<{ key: string; name: string }> = [
-        { key: 'roleClarity', name: 'Role Clarity' },
-        { key: 'communication', name: 'Communication' },
-        { key: 'autonomyBalance', name: 'Autonomy Balance' },
-        { key: 'qualityStandards', name: 'Quality Standards' },
-        { key: 'memoryHealth', name: 'Memory Health' },
-        { key: 'systemMaturity', name: 'System Maturity' },
-        { key: 'coverage', name: 'Coverage' },
-      ];
-
-      for (const { key, name } of categoryConfig) {
-        const cat = report.categories[key as keyof typeof report.categories];
-        const bar = '█'.repeat(Math.round(cat.score / 10)) + '░'.repeat(10 - Math.round(cat.score / 10));
-
-        let status: string;
-        if (cat.score >= 85) status = 'Strong';
-        else if (cat.score >= 70) status = 'Good';
-        else if (cat.score >= 50) status = 'Needs work';
-        else status = 'Weak — action needed';
-
-        lines.push(`- **${name}**: ${bar} ${cat.score}/100 — *${status}*`);
-
-        // Always show evidence (why this score) — up to 2 present signals
-        if (cat.signalsPresent.length > 0) {
-          for (const present of cat.signalsPresent.slice(0, 2)) {
-            lines.push(`  - ✓ ${present}`);
-          }
-        }
-
-        // Always show what's missing (what gets it to 100) — unless score IS 100
-        if (cat.score < 100 && cat.signalsMissing.length > 0) {
-          for (const missing of cat.signalsMissing.slice(0, 2)) {
-            lines.push(`  - → ${missing}`);
-          }
-        }
-      }
-
-      // === Action items split by audience ===
-      // Two distinct tracks: agent-changes (copy-paste into files/config) and
-      // user-changes (behavior coaching with why/how/practice). They demand
-      // different actions from the reader and must not be mixed in one list.
-      const priorityLabel = (p: string) =>
-        p === 'critical' ? '🔴 Critical' : p === 'recommended' ? '🟡 Recommended' : '🟢 Nice to have';
-
-      const priorityOrder = (p: string) => (p === 'critical' ? 0 : p === 'recommended' ? 1 : 2);
-
-      const agentRecs = report.recommendations
-        .filter(r => r.audience === 'agent' || r.audience === 'both')
-        .sort((a, b) => priorityOrder(a.priority) - priorityOrder(b.priority));
-
-      const userRecs = report.recommendations
-        .filter(r => r.audience === 'user' || r.audience === 'both')
-        .sort((a, b) => priorityOrder(a.priority) - priorityOrder(b.priority));
-
-      // --- 🤖 Agent changes ---
-      if (agentRecs.length > 0) {
-        lines.push(
-          '', '## 🤖 For Your Agent',
-          '*Copy-paste these into your config. Your agent can apply them for you.*',
-          '',
-        );
-
-        for (const rec of agentRecs.slice(0, 5)) {
-          lines.push(`### ${priorityLabel(rec.priority)}: ${rec.title}`);
-          lines.push(`${rec.description}`);
-
-          if (rec.evidence.length > 0) {
-            lines.push('');
-            lines.push('**Evidence:**');
-            for (const ev of rec.evidence) {
-              const prefix = ev.kind === 'missing' ? '🔍' : ev.kind === 'quote' ? '💬' : '📊';
-              lines.push(`- ${prefix} \`${ev.source}\` — ${ev.excerpt}`);
-            }
-          }
-
-          lines.push('', `**Where:** ${rec.placementHint}`);
-          if (rec.textBlock.trim()) {
-            lines.push('', '```', rec.textBlock, '```');
-          }
-          lines.push('');
-        }
-      }
-
-      // --- 👤 User coaching ---
-      if (userRecs.length > 0) {
-        lines.push(
-          '', '## 👤 For You',
-          '*These are behavior changes. No file to edit — you\'re the one changing. One at a time works best.*',
-          '',
-        );
-
-        for (const rec of userRecs.slice(0, 3)) {
-          lines.push(`### ${priorityLabel(rec.priority)}: ${rec.title}`);
-          lines.push(`${rec.description}`);
-
-          if (rec.evidence.length > 0) {
-            lines.push('');
-            lines.push('**Evidence from your own setup:**');
-            for (const ev of rec.evidence) {
-              lines.push(`- 💬 *"${ev.excerpt}"*  — ${ev.source}`);
-            }
-          }
-
-          if (rec.why) {
-            lines.push('', `**Why it matters:** ${rec.why}`);
-          }
-          if (rec.howItLooks) {
-            lines.push('', '**How it looks when done right:**', '```', rec.howItLooks, '```');
-          }
-          if (rec.practiceStep) {
-            lines.push('', `**Practice this next time:** ${rec.practiceStep}`);
-          }
-          if (rec.actionable) {
-            lines.push('', `**Actionable:** I can apply this for you — just say "yes, add it".`);
-          }
-          lines.push('');
-        }
-      }
-
-      // If no recommendations in either bucket, explain that.
-      if (agentRecs.length === 0 && userRecs.length === 0) {
-        lines.push(
-          '', '## No action items',
-          'No critical gaps detected in your setup, and no friction patterns had enough evidence to recommend a behavior change. Your collaboration looks healthy on the dimensions we can see.',
-        );
-      }
-
-      // Stats with contextual framing
-      const s = report.stats;
-      const rulesCtx = s.totalRules < 5 ? ' (sparse — most setups have 10-30)' : s.totalRules > 50 ? ' (extensive — well-documented)' : '';
-      const memCtx = s.memoryFiles === 0 ? ' (your agent forgets everything between sessions)'
-        : s.memoryFiles < 5 ? ' (minimal — consider adding project-specific memories)'
-        : s.memoryFiles > 20 ? ' (thorough knowledge base — most users have 5-10)' : '';
-      const fbCtx = s.feedbackMemories === 0 ? ' — no correction loop active'
-        : s.feedbackMemories > 5 ? ` — strong learning loop: ${s.feedbackMemories} corrections remembered` : '';
-      const hookCtx = s.hooksCount === 0 ? ' (no automated guardrails)' : s.hooksCount > 3 ? ' (solid automation layer)' : '';
-
-      lines.push(
-        '', '## Stats',
-        `- **${s.totalRules}** rules${rulesCtx} (${s.doRules} autonomous, ${s.askRules} ask-first, ${s.suggestRules} suggest-only, ${s.prohibitionRules} prohibitions)`,
-        `- **${s.memoryFiles}** memory files${memCtx} (${s.feedbackMemories} feedback${fbCtx})`,
-        `- **${s.totalLearnings}** learnings documented`,
-        `- **${s.hooksCount}** hooks${hookCtx}, **${s.skillsCount}** skills, **${s.scheduledTasksCount}** scheduled tasks`,
-        `- **${s.mcpServersCount}** MCP servers connected`,
-        `- **${s.projectsManaged}** projects managed`,
-      );
-
-      // Git activity — project-level signals from local .git directories.
-      // Only show if scanning was enabled AND we found at least one repo.
-      if (report.git && report.git.totalScanned > 0) {
-        lines.push(
-          '', '## Project Activity',
-          `- **${report.git.totalScanned}** git repos scanned — **${report.git.active}** active (commits last 7 days), **${report.git.stale}** stale (60+ days)`,
-        );
-        if (report.git.reposWithRevertSignals > 0) {
-          lines.push(`- ⚠️  **${report.git.reposWithRevertSignals}** repo${report.git.reposWithRevertSignals === 1 ? '' : 's'} with "fix again" / "revert" patterns in recent commits`);
-        }
-        if (report.git.reposWithUncommittedPile > 0) {
-          lines.push(`- 📦 **${report.git.reposWithUncommittedPile}** repo${report.git.reposWithUncommittedPile === 1 ? '' : 's'} with 10+ uncommitted files`);
-        }
-
-        if (report.git.topActive.length > 0) {
-          lines.push('', '**Most active this week:**');
-          for (const r of report.git.topActive.slice(0, 3)) {
-            lines.push(`- ${r.name}: ${r.commits7d} commit${r.commits7d === 1 ? '' : 's'} last 7 days (${r.commits30d} last 30)`);
-          }
-        }
-      }
-
-      // Injection findings — static pattern-matching for prompt-injection surfaces.
-      // Only surface critical/recommended to avoid overwhelming with nice_to_have.
-      const injection = report.injection || [];
-      const importantInjection = injection.filter(i => i.severity !== 'nice_to_have');
-      if (importantInjection.length > 0) {
-        lines.push(
-          '', '## 🛡️ Injection Surfaces',
-          `Pattern-matched hooks, skills, and MCP configs for prompt-injection risks. Flagging ${importantInjection.length} item${importantInjection.length === 1 ? '' : 's'} worth a manual review — false positives are possible.`,
-          '',
-        );
-        for (const finding of importantInjection.slice(0, 5)) {
-          const label = finding.severity === 'critical' ? '🔴 Critical' : '🟡 Recommended';
-          lines.push(`### ${label}: ${finding.title}`);
-          lines.push(`**Why it matters:** ${finding.why}`);
-          lines.push('');
-          lines.push(`**In:** \`${finding.artifactPath}\``);
-          lines.push('');
-          lines.push('```');
-          lines.push(finding.excerpt);
-          lines.push('```');
-          lines.push('');
-          lines.push(`**Fix:** ${finding.recommendation}`);
-          lines.push('');
-        }
-      }
-
-      // Session data
-      if (report.session) {
-        const s = report.session;
-        lines.push(
-          '', '## Session Patterns',
-          `- **${s.stats.totalSessions}** total sessions (**${s.stats.sessionsLast30Days}** last 30 days)`,
-          `- **${s.promptPatterns.totalPrompts}** prompts analyzed (avg length: ${s.promptPatterns.avgPromptLength} chars)`,
-          `- **${s.promptPatterns.shortPrompts}** short prompts (<20 chars) — may indicate vague instructions`,
-          `- **${s.corrections.negationCount}** correction signals detected ("nej", "stop", "wrong", etc.)`,
-          `- **${s.corrections.frustrationSignals}** frustration signals ("why did you", "again", "still wrong")`,
-          `- **${s.promptPatterns.clearCommands}** /clear commands — context resets`,
-        );
-
-        if (s.corrections.examples.length > 0) {
-          lines.push('', 'Recent correction examples:');
-          for (const ex of s.corrections.examples.slice(0, 3)) {
-            lines.push(`  - "${ex}"`);
-          }
-        }
-      }
-
-      // Feedback loop section — show which specific recommendations are
-      // pending/implemented/ignored, not just the totals. Users can't act
-      // on "1 pending" without knowing what that 1 is.
-      if (report.feedback && report.feedback.totalRecommendations > 0) {
-        lines.push(
-          '', '## Feedback Loop',
-          `- **${report.feedback.totalRecommendations}** previous recommendations tracked`,
-          `- **${report.feedback.implemented}** implemented, **${report.feedback.ignored}** ignored, **${report.feedback.pending}** pending`,
-        );
-        if (report.feedback.avgScoreImprovement !== null) {
-          const dir = report.feedback.avgScoreImprovement >= 0 ? '+' : '';
-          lines.push(`- Average score change after implementation: **${dir}${report.feedback.avgScoreImprovement}** points`);
-        }
-
-        if (report.feedback.history && report.feedback.history.length > 0) {
-          lines.push('');
-          const pending = report.feedback.history.filter(h => h.status === 'pending').slice(0, 3);
-          const implemented = report.feedback.history.filter(h => h.status === 'implemented').slice(0, 2);
-          if (pending.length > 0) {
-            lines.push('**Still pending:**');
-            for (const h of pending) {
-              const age = daysSince(h.givenAt);
-              lines.push(`- ⏳ *${h.title}* — suggested ${age}`);
-            }
-          }
-          if (implemented.length > 0) {
-            lines.push('', '**Recently implemented:**');
-            for (const h of implemented) {
-              const delta = h.scoreAtCheck !== undefined ? ` (${h.scoreAtCheck - h.scoreAtGiven >= 0 ? '+' : ''}${h.scoreAtCheck - h.scoreAtGiven} pts)` : '';
-              lines.push(`- ✅ *${h.title}*${delta}`);
-            }
-          }
-        }
-      }
-
-      // Tool recommendations based on detected problems.
-      const problemIds = [
-        ...report.frictionPatterns.map(f => f.theme),
-        ...report.gaps.map(g => g.id),
-        ...(report.stats.hooksCount === 0 ? ['no_build_verification', 'destructive_commands', 'safety'] : []),
-        ...(report.session.corrections.negationCount > 3 ? ['vague_prompts'] : []),
-      ];
-
-      // Installed MCP servers are now scanned from ~/.claude/mcp.json,
-      // ~/.claude/settings.json, and .mcp.json — so we don't re-recommend
-      // tools the user already has.
-      const toolRecs = recommendTools(problemIds, report.persona.detected, report.installedServers);
-
-      if (toolRecs.length > 0) {
-        lines.push('', '## Recommended Tools', '');
-        lines.push('*These tools address specific problems found in your setup. I can install most of them for you — just say which ones you want.*', '');
-        for (const tool of toolRecs.slice(0, 5)) {
-          const typeLabel = tool.type === 'mcp_server' ? 'MCP' : tool.type === 'hook' ? 'Hook' : tool.type === 'github_repo' ? 'GitHub' : 'Skill';
-          const starsStr = tool.stars ? ` · ${(tool.stars / 1000).toFixed(0)}K⭐` : '';
-          lines.push(`### ${tool.name} [${typeLabel}${starsStr}]`);
-          // User-friendly description first, technical description as fallback
-          lines.push(tool.userFriendlyDescription || tool.description);
-          if (tool.whoActs) {
-            lines.push('', `**${tool.whoActs}**`);
-          }
-          // Install details in code block
-          const install = tool.install.trim();
-          if (install.includes('\n')) {
-            lines.push('', '```', install, '```');
-          } else {
-            lines.push('', `\`${install}\``);
-          }
-          lines.push('');
-        }
-      }
-
-      // Onboarding — conversation starters for gaps the agent should learn about.
-      // Show both critical and recommended gaps so a mature setup (with only
-      // minor gaps) still gets useful prompts, not an empty section.
-      const GAP_QUESTIONS: Record<string, { ask: string; why: string }> = {
-        missing_roles: { ask: 'What is your role? Are you the coder, the product owner, or something else?', why: 'Calibrates how technical the agent should be.' },
-        missing_autonomy: { ask: 'What should the agent do without asking? What should it always ask first?', why: 'Too much autonomy → scope creep. Too little → constant interruptions.' },
-        missing_communication: { ask: 'How do you prefer communication? Language, detail level, tone?', why: 'Without this, the agent defaults to technical English.' },
-        missing_quality: { ask: 'How do you know something is done? What checks should pass?', why: 'Without quality gates, broken code gets shipped.' },
-        missing_north_star: { ask: 'What is your main goal? Revenue target, user growth, learning?', why: 'Every recommendation gets evaluated against your goal.' },
-        missing_tech_stack: { ask: 'What is your standard tech stack for new projects?', why: 'Prevents the agent from suggesting frameworks you don\'t use.' },
-        missing_learnings: { ask: 'What lesson from the last 3 months should your agent never forget?', why: 'Surfaces tacit knowledge that would otherwise stay in your head.' },
-        no_hooks: { ask: 'Should we add automated guardrails? (build check, destructive-command blocker, protected-files guard)', why: 'Hooks catch errors before they reach you.' },
-        no_memory: { ask: 'Your agent has no memory system. Want to enable it?', why: 'Without memory, corrections are forgotten every session.' },
-        no_learn_skill: { ask: 'Want a /learn skill that captures session lessons into memory automatically?', why: 'Turns every correction into persistent learning with no extra effort.' },
-        no_ship_skill: { ask: 'Want a /ship skill that bundles build + test + commit + push into one safe command?', why: 'Fewer steps to remember, fewer ways to ship broken code.' },
-        no_standup_skill: { ask: 'Want a /standup skill that gives you a daily project overview on command?', why: 'Removes the "where was I?" startup cost each morning.' },
-      };
-
-      const onboardingGaps = report.gaps.filter(g =>
-        (g.severity === 'critical' || g.severity === 'recommended') && GAP_QUESTIONS[g.id]
-      );
-
-      if (onboardingGaps.length > 0) {
-        lines.push(
-          '', '## Onboarding: Get to Know Each Other',
-          '',
-          'These areas are missing or thin in your setup. Ask one question at a time — like meeting a new colleague, not filling out a form.',
-          '',
-        );
-
-        for (const gap of onboardingGaps.slice(0, 6)) {
-          const q = GAP_QUESTIONS[gap.id];
-          const marker = gap.severity === 'critical' ? '🔴' : '🟡';
-          lines.push(`- ${marker} **${q.ask}**`);
-          lines.push(`  *Why:* ${q.why}`);
-        }
-
-        lines.push(
-          '',
-          '*Tip: The agent should also tell you about itself: "I work like a colleague with amnesia — I read my briefing every morning but don\'t remember yesterday. The best way to correct me: be specific."*'
-        );
-      }
-
       return {
         content: [
-          { type: 'text', text: lines.join('\n') },
+          { type: 'text', text: formatAnalyzeReport(report, effectiveFormat) },
         ],
       };
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const hint = msg.includes('EACCES') ? ' Check file permissions on ~/.claude/.'
+        : msg.includes('ENOENT') ? ' The specified path does not exist — try omitting projectRoot to use the current directory.'
+        : msg.includes('EISDIR') ? ' A directory was found where a file was expected — your ~/.claude/ layout may be unusual.'
+        : ' Try running with scope="project" to narrow the scan, or check that ~/.claude/ exists.';
       return {
-        content: [{ type: 'text', text: `Analysis failed: ${error instanceof Error ? error.message : String(error)}` }],
+        content: [{ type: 'text', text: `Analysis failed: ${msg}${hint}` }],
         isError: true,
       };
     }
@@ -435,13 +90,18 @@ Detects:
 - **Missing closure** — non-scheduled producers with no downstream reader
 - **Substrate mismatch** — memory files that look like databases in disguise
 
+What this tool does NOT do:
+- Does NOT fix problems — it identifies them for you to decide
+- Does NOT delete or modify any files, skills, or hooks
+- Does NOT contact external services — pure local filesystem analysis
+
 IMPORTANT — When presenting results:
 - Show the closure rate prominently
 - Lead with critical findings, then recommended, then nice-to-have
 - Each finding has a stable id users can reference to dismiss
 - Be careful: heuristic-based detection has some false positives — frame findings as "likely" not "definitely"`,
   {
-    projectRoot: z.string().optional().describe('Project root. Defaults to cwd. Audit is most useful in global scope.'),
+    projectRoot: z.string().optional().describe('Project root (e.g., "/Users/me/my-project"). Defaults to cwd. Audit is most useful in global scope.'),
     scope: z.enum(['global', 'project']).optional().describe('Default global.'),
     focus: z.enum(['orphan', 'overlap', 'closure', 'substrate', 'mcp_refs', 'backup', 'all']).optional()
       .describe('Narrow to one finding type, or "all" (default). `mcp_refs` = tools calling unregistered MCP servers; `backup` = ~/.claude/ not in version control.'),
@@ -455,8 +115,12 @@ IMPORTANT — When presenting results:
       });
       return { content: [{ type: 'text', text: formatAuditReport(report) }] };
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const hint = msg.includes('EACCES') ? ' Check file permissions on ~/.claude/.'
+        : msg.includes('ENOENT') ? ' The specified path does not exist — try omitting projectRoot.'
+        : ' Try running with focus="orphan" to narrow the scan.';
       return {
-        content: [{ type: 'text', text: `Audit failed: ${error instanceof Error ? error.message : String(error)}` }],
+        content: [{ type: 'text', text: `Audit failed: ${msg}${hint}` }],
         isError: true,
       };
     }
@@ -476,19 +140,28 @@ How to use (for the agent):
 
 IMPORTANT: The \`state\` parameter is opaque. Pass it back verbatim. Do not parse or modify it.
 
+What this tool does NOT do:
+- Does NOT write files automatically — it produces a plan for the user/agent to apply
+- Does NOT require prior Claude Code experience — designed for first-time users
+- Does NOT collect or transmit any answers — state is a local opaque blob passed between calls
+
 Good for: new users, non-technical professionals, anyone setting up Claude Code for the first time, or someone revisiting goals after a while.`,
   {
-    step: z.string().optional().describe('Current step. Omit to start from intro.'),
-    answer: z.string().optional().describe('User answer from the previous step. Required for all steps after intro.'),
-    state: z.string().optional().describe('Opaque state blob from the previous call. Pass back unchanged.'),
+    step: z.string().optional().describe('Current step (e.g., "role", "goals", "stack"). Omit to start from intro.'),
+    answer: z.string().optional().describe('User answer from the previous step (e.g., "I\'m a solo developer building SaaS products"). Required for all steps after intro.'),
+    state: z.string().optional().describe('Opaque state blob from the previous call. Pass back unchanged — do not parse or modify.'),
   },
   async ({ step, answer, state }) => {
     try {
       const result = runOnboard({ step, answer, state });
       return { content: [{ type: 'text', text: formatOnboardResult(result) }] };
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const hint = msg.includes('step') ? ' Valid steps: intro, role, goals, stack, pains, substrate, plan. Omit step to start fresh.'
+        : msg.includes('state') ? ' The state blob may be corrupted — omit the state parameter to restart onboarding.'
+        : ' Try calling onboard with no arguments to start a fresh session.';
       return {
-        content: [{ type: 'text', text: `Onboard failed: ${error instanceof Error ? error.message : String(error)}` }],
+        content: [{ type: 'text', text: `Onboard failed: ${msg}${hint}` }],
         isError: true,
       };
     }
@@ -506,21 +179,32 @@ server.tool(
 
 Presents findings sorted by severity (critical → recommended → nice-to-have). Secrets and rule conflicts are the highest-trust signals because false positives are rare; injection findings are pattern-based and may warrant manual review.
 
+What this tool does NOT do:
+- Does NOT access your passwords, keychains, or browser saved credentials
+- Does NOT send findings to any external service — everything stays local
+- Does NOT auto-rotate or revoke credentials — it reports, you act
+- Does NOT scan source code repositories — only your agent config files (~/.claude/, memory, skills, hooks)
+
 IMPORTANT — When presenting results:
 - Lead with secrets (rotate any found credentials immediately)
 - Be precise about rule conflicts — show the rule AND the conflicting action
 - Don't minimize: "no findings" is a REAL signal of clean setup, not evidence of a broken scanner`,
   {
-    projectRoot: z.string().optional().describe('Project root. Defaults to cwd.'),
-    scope: z.enum(['global', 'project']).optional().describe('Default global.'),
+    projectRoot: z.string().optional().describe('Project root (e.g., "/Users/me/my-project"). Defaults to cwd.'),
+    scope: z.enum(['global', 'project']).optional().describe('"global" (default) scans ~/.claude/ agent setup; "project" scans a single directory.'),
   },
   async ({ projectRoot, scope }) => {
     try {
       const report = await runSecurity({ projectRoot, scope });
       return { content: [{ type: 'text', text: formatSecurityReport(report) }] };
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const hint = msg.includes('EACCES') ? ' Check file permissions on ~/.claude/ and your project directory.'
+        : msg.includes('ENOENT') ? ' The specified path does not exist — try omitting projectRoot.'
+        : msg.includes('timeout') || msg.includes('ETIMEDOUT') ? ' A platform advisor timed out — the scan still covers agent-setup security.'
+        : ' Try running with scope="project" to narrow the scan.';
       return {
-        content: [{ type: 'text', text: `Security scan failed: ${error instanceof Error ? error.message : String(error)}` }],
+        content: [{ type: 'text', text: `Security scan failed: ${msg}${hint}` }],
         isError: true,
       };
     }
@@ -530,11 +214,16 @@ IMPORTANT — When presenting results:
 // Tool 5: wrapped — shareable collaboration stats
 server.tool(
   'wrapped',
-  'Generate your Dear User — shareable stats about your human-agent collaboration in a fun, Spotify Wrapped-style format.',
+  `Generate your Dear User — shareable stats about your human-agent collaboration in a fun, Spotify Wrapped-style format.
+
+What this tool does NOT do:
+- Does NOT share anything automatically — it generates text you can copy/paste if you choose
+- Does NOT access external accounts or profiles
+- Does NOT store or upload the generated stats anywhere`,
   {
-    projectRoot: z.string().optional().describe('Project root when scope="project". Ignored for scope="global".'),
+    projectRoot: z.string().optional().describe('Project root when scope="project" (e.g., "/Users/me/my-project"). Ignored for scope="global".'),
     scope: z.enum(['global', 'project']).optional().describe('"global" (default) aggregates across all projects; "project" narrows to one directory.'),
-    format: z.enum(['text', 'json']).optional().describe('Output format. "text" for terminal display, "json" for raw data. Defaults to text.'),
+    format: z.enum(['text', 'json']).optional().describe('Output format. "text" (default) for terminal-friendly ASCII art, "json" for raw analysis data.'),
   },
   async ({ projectRoot, scope, format }) => {
     try {
@@ -591,8 +280,12 @@ server.tool(
 
       return { content: [{ type: 'text', text: lines.join('\n') }] };
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const hint = msg.includes('EACCES') ? ' Check file permissions on ~/.claude/.'
+        : msg.includes('ENOENT') ? ' The specified path does not exist — try omitting projectRoot.'
+        : ' Try running with format="json" for raw data, or scope="project" to narrow the scan.';
       return {
-        content: [{ type: 'text', text: `Wrapped generation failed: ${error instanceof Error ? error.message : String(error)}` }],
+        content: [{ type: 'text', text: `Wrapped generation failed: ${msg}${hint}` }],
         isError: true,
       };
     }
@@ -603,6 +296,10 @@ server.tool(
 server.tool(
   'help',
   `Show Dear User's capabilities to the user. Call this whenever the user asks "what can Dear User do?", "hvad kan DearUser?", "show me the options", "help", or seems uncertain about which tool fits their need. Also call proactively the first time a user mentions Dear User if they haven't used it before.
+
+What this tool does NOT do:
+- Does NOT run any analysis — it only describes what Dear User can do
+- Does NOT access or read any user files
 
 When presenting: return the text verbatim. Do NOT summarize or re-wrap — the formatting is designed for direct chat display.`,
   {},
@@ -635,7 +332,7 @@ When presenting: return the text verbatim. Do NOT summarize or re-wrap — the f
       `   → *"Onboard me to Dear User"*`,
       ``,
       `**5. \`wrapped\`** — Shareable stats (Spotify Wrapped style)`,
-      `   Your archetype, autonomy split, system size, top lesson — fun and delable.`,
+      `   Your archetype, autonomy split, system size, top lesson — fun and shareable.`,
       `   → *"Give me my Dear User Wrapped"*`,
       ``,
       `## 🚀 First time?`,
@@ -644,7 +341,7 @@ When presenting: return the text verbatim. Do NOT summarize or re-wrap — the f
       `## 🔁 Regular use`,
       `\`analyze\` for depth · \`wrapped\` for sharing · \`audit\` + \`security\` periodically.`,
       ``,
-      `Learn more: dearuser.ai`,
+      `v${PKG_VERSION} · Learn more: dearuser.ai`,
     ].join('\n');
 
     return { content: [{ type: 'text', text }] };
