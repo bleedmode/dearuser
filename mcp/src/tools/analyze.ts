@@ -201,6 +201,7 @@ export function runAnalysis(
     scope: scanResult.scope,
     projectsObserved: scanResult.projectsObserved,
     installedServers: scanResult.installedServers,
+    installedSkills: artifacts.filter(a => a.type === 'skill').map(a => a.name),
     persona,
     collaborationScore,
     categories,
@@ -438,7 +439,10 @@ function formatToolRecs(report: AnalysisReport): string[] {
     ...(report.session.corrections.negationCount > 3 ? ['vague_prompts'] : []),
   ];
 
-  const toolRecs = recommendTools(problemIds, report.persona.detected, report.installedServers);
+  const toolRecs = recommendTools(problemIds, report.persona.detected, report.installedServers, {
+    installedSkills: report.installedSkills,
+    hasLintFindings: report.lint.totalFindings > 0,
+  });
 
   if (toolRecs.length > 0) {
     lines.push('', '## Recommended Tools', '');
@@ -688,6 +692,11 @@ function formatLintFindings(report: AnalysisReport, plain: boolean): string[] {
 
   if (lint.totalFindings > maxFindings) {
     lines.push(`*…and ${lint.totalFindings - maxFindings} more. Run with format="detailed" to see all.*`);
+  }
+
+  // CTA — make lint findings actionable
+  if (plain) {
+    lines.push('', `**Your agent can fix ${lint.totalFindings === 1 ? 'this' : 'most of these'} directly** — ask it to restructure your CLAUDE.md based on the findings above.`);
   }
 
   return lines;

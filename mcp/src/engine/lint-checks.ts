@@ -152,11 +152,20 @@ function checkNegativeOnly(content: string, file: string): LintFinding[] {
     /\binstead\b/i, /\brather\b/i, /\buse\b/i, /\bprefer\b/i,
     /\bdo\b/i, /\bbrug\b/i, /\bi stedet\b/i, /\bforetræk/i,
     /→/,  // arrow suggesting alternative
-    /—.*(?:brug|use|do|prefer)/i,
+    /—.*(?:brug|use|do|prefer|kør|åbn|tjek|verificér|flag|tilføj|vis|lav|gør|nævn|skriv|sæt)/i,
+    // Danish action verbs as positive alternatives
+    /\bkør\b/i, /\båbn\b/i, /\btjek\b/i, /\bverificér\b/i,
+    /\bflag\b/i, /\btilføj\b/i, /\bvis\b/i, /\blav\b/i, /\bgør\b/i,
+    /\bnævn\b/i, /\bskriv\b/i, /\bsæt\b/i, /\bimplementér\b/i,
+    /\bbare (?:gå i gang|gør det)\b/i,
   ];
 
   for (const { line, text } of lines) {
     if (!/^\s*[-*]\s+/.test(text)) continue;
+
+    // Skip descriptive bullets that start with bold labels (e.g. "**Strategi:**")
+    // — these are context/goals, not actionable rules
+    if (/^\s*[-*]\s+\*\*\w+.*:\*\*/.test(text)) continue;
 
     const isNegative = negativePatterns.some(p => p.test(text));
     if (!isNegative) continue;
@@ -485,17 +494,28 @@ function checkEmptySections(content: string, file: string): LintFinding[] {
   const results: LintFinding[] = [];
   const lines = content.split('\n');
 
+  // Track fenced code blocks to skip headers inside them
+  let inCodeBlock = false;
+
   for (let i = 0; i < lines.length; i++) {
+    if (/^```/.test(lines[i].trim())) {
+      inCodeBlock = !inCodeBlock;
+      continue;
+    }
+    if (inCodeBlock) continue;
+
     const headerMatch = lines[i].match(/^(#{1,3})\s+(.+)/);
     if (!headerMatch) continue;
 
     // Check if next non-empty line is another header (meaning this section is empty)
     let j = i + 1;
     let hasContent = false;
+    let innerCodeBlock = false;
     while (j < lines.length) {
+      if (/^```/.test(lines[j].trim())) innerCodeBlock = !innerCodeBlock;
       const trimmed = lines[j].trim();
       if (trimmed === '') { j++; continue; }
-      if (/^#{1,3}\s+/.test(trimmed)) break;
+      if (!innerCodeBlock && /^#{1,3}\s+/.test(trimmed)) break;
       hasContent = true;
       break;
     }

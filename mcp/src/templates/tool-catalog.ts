@@ -297,8 +297,11 @@ Phase 3: Analyze ONLY from saved sources, two-source minimum for findings`,
 export function recommendTools(
   problems: string[],
   persona: string,
-  installedMcpServers: string[] = []
+  installedMcpServers: string[] = [],
+  options: { installedSkills?: string[]; hasLintFindings?: boolean } = {}
 ): ToolRecommendation[] {
+  const { installedSkills = [], hasLintFindings = false } = options;
+
   const scored = TOOL_CATALOG.map(tool => {
     let score = 0;
 
@@ -312,10 +315,23 @@ export function recommendTools(
     // Persona match
     if (tool.personas.includes(persona)) score += 5;
 
-    // Already installed? Skip
+    // Already installed MCP server? Skip
     const nameLC = tool.name.toLowerCase();
-    if (installedMcpServers.some(s => s.toLowerCase().includes(nameLC))) {
-      score = -1; // already have it
+    if (tool.type === 'mcp_server' && installedMcpServers.some(s => s.toLowerCase().includes(nameLC))) {
+      score = -1;
+    }
+
+    // Already installed skill? Skip (match against /skillname pattern and bare name)
+    if (tool.type === 'skill') {
+      const skillName = nameLC.replace(/^\//, '').replace(/ skill$/, '');
+      if (installedSkills.some(s => s.toLowerCase() === skillName)) {
+        score = -1;
+      }
+    }
+
+    // Don't recommend external CLAUDE.md linters when our own lint engine already found issues
+    if (hasLintFindings && tool.solves.includes('config_quality') && tool.type === 'github_repo') {
+      score = -1;
     }
 
     return { tool, score };

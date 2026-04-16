@@ -288,6 +288,24 @@ function detectOverlap(graph: AuditGraph): AuditFinding[] {
 
     const severity: GapSeverity = sim >= 0.6 ? 'recommended' : 'nice_to_have';
 
+    // Contextual recommendation based on artifact types and similarity level
+    const isSkillTaskPair =
+      (a.type === 'skill' && b.type === 'scheduled_task') ||
+      (a.type === 'scheduled_task' && b.type === 'skill');
+
+    let recommendation: string;
+    let why: string;
+    if (isSkillTaskPair && sim >= 0.85) {
+      recommendation = `These are likely a manual trigger and an automatic schedule for the same job. Keep both, but update them together when you make changes — if one drifts, agents may produce different results depending on how they're invoked.`;
+      why = 'A manual skill and its scheduled twin should stay in sync. When they drift, the same job gives different results depending on whether it was triggered manually or ran automatically.';
+    } else if (sim < 0.6) {
+      recommendation = `Low similarity — likely different tools that happen to share some vocabulary. Safe to ignore unless you've noticed the wrong one getting invoked.`;
+      why = 'Marginal similarity rarely causes real problems. This is flagged so you can check, not because it needs action.';
+    } else {
+      recommendation = `Compare the two and decide: keep both (different enough), merge, or deprecate one. Near-duplicates are where drift lives.`;
+      why = 'Similar artifacts fragment your instructions. Agents end up invoking one when you meant the other, and rules drift between them.';
+    }
+
     findings.push({
       id: findingId('overlap', [a.name, b.name]),
       type: 'overlap',
@@ -299,8 +317,8 @@ function detectOverlap(graph: AuditGraph): AuditFinding[] {
         { source: a.path, excerpt: a.description, kind: 'quote' },
         { source: b.path, excerpt: b.description, kind: 'quote' },
       ],
-      recommendation: `Compare the two and decide: keep both (different enough), merge, or deprecate one. Near-duplicates are where drift lives.`,
-      why: 'Similar artifacts fragment your instructions. Agents end up invoking one when you meant the other, and rules drift between them.',
+      recommendation,
+      why,
     });
   }
 
