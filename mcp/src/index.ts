@@ -141,7 +141,7 @@ Example prompts that should trigger this tool:
 // Tool 3: onboard — conversational setup dialog
 server.tool(
   'onboard',
-  `Conversational setup. Walks the user through 7 steps (intro → role → goals → stack → pains → substrate → plan) and produces a tailored setup plan — tailored CLAUDE.md template, skill recommendations, hook recommendations, and next 3 steps.
+  `Conversational setup. Walks the user through 5 steps (intro → goals → stack+pains → substrate → plan) and produces a tailored setup plan — tailored CLAUDE.md template, skill recommendations, hook recommendations, and next 3 steps.
 
 How to use (for the agent):
 1. First call: no arguments. The tool returns an intro question + nextStep.
@@ -177,7 +177,7 @@ Example prompts that should trigger this tool:
       return { content: [{ type: 'text', text: formatOnboardResult(result) }] };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      const hint = msg.includes('step') ? ' Valid steps: intro, role, goals, stack, pains, substrate, plan. Omit step to start fresh.'
+      const hint = msg.includes('step') ? ' Valid steps: intro, goals, stack-pains, substrate, plan. Omit step to start fresh.'
         : msg.includes('state') ? ' The state blob may be corrupted — omit the state parameter to restart onboarding.'
         : ' Try calling onboard with no arguments to start a fresh session.';
       return {
@@ -337,11 +337,11 @@ When presenting: return the text verbatim. Do NOT summarize or re-wrap — the f
   {},
   async () => {
     const text = [
-      `# 👋 Dear User — what I can do for you`,
+      `# Dear User — what I can do for you`,
       ``,
       `Dear User analyzes how you and your AI agent work together. Everything runs locally — no data leaves your machine.`,
       ``,
-      `## 🔎 Five tools`,
+      `## Five tools`,
       ``,
       `**1. \`analyze\`** — Full collaboration report`,
       `   Scans your CLAUDE.md, memory, hooks, skills, sessions. Detects your persona, scores collaboration,`,
@@ -367,10 +367,10 @@ When presenting: return the text verbatim. Do NOT summarize or re-wrap — the f
       `   Your archetype, autonomy split, system size, top lesson — fun and shareable.`,
       `   → *"Give me my Dear User Wrapped"*`,
       ``,
-      `## 🚀 First time?`,
+      `## First time?`,
       `Start with \`onboard\` (tailors Dear User to your setup) or \`analyze\` (deep dive on current state).`,
       ``,
-      `## 🔁 Regular use`,
+      `## Regular use`,
       `\`analyze\` for depth · \`wrapped\` for sharing · \`audit\` + \`security\` periodically.`,
       ``,
       `v${PKG_VERSION} · Learn more: dearuser.ai`,

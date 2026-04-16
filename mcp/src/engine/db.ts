@@ -1,0 +1,287 @@
+// db.ts — SQLite database layer for Dear User
+//
+// Single global database at ~/.dearuser/dearuser.db.
+// Auto-creates on first access, auto-runs migrations.
+// WAL mode for concurrent reads (dashboard reads while MCP writes).
+//
+// Dear User = diagnose. Only stores data Dear User's own tools produce:
+// - du_agent_runs (tool execution log)
+// - du_score_history (collaboration score over time)
+// - du_recommendations (feedback loop)
+
+import Database from 'better-sqlite3';
+import { existsSync, mkdirSync, readFileSync, readdirSync } from 'fs';
+import { join } from 'path';
+import { homedir } from 'os';
+import { randomUUID } from 'crypto';
+
+const DEARUSER_DIR = join(homedir(), '.dearuser');
+const DB_PATH = join(DEARUSER_DIR, 'dearuser.db');
+
+declare const __dirname: string;
+
+function getMigrationsDir(): string {
+  const candidates = [
+    join(__dirname, '..', 'migrations'),       // from dist/ → mcp/migrations/
+    join(__dirname, '..', '..', 'migrations'),  // from src/engine/ → mcp/migrations/
+  ];
+  for (const dir of candidates) {
+    if (existsSync(dir)) return dir;
+  }
+  return candidates[0];
+}
+
+let _db: Database.Database | null = null;
+
+/**
+ * Get the database connection. Lazily opens on first call.
+ * Auto-creates ~/.dearuser/ and runs pending migrations.
+ */
+export function getDb(): Database.Database {
+  if (_db) return _db;
+
+  if (!existsSync(DEARUSER_DIR)) {
+    mkdirSync(DEARUSER_DIR, { recursive: true });
+  }
+
+  _db = new Database(DB_PATH);
+  _db.pragma('journal_mode = WAL');
+  _db.pragma('foreign_keys = ON');
+
+  _db.exec(`
+    CREATE TABLE IF NOT EXISTS du_migrations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      applied_at INTEGER NOT NULL
+    )
+  `);
+
+  runMigrations(_db);
+  return _db;
+}
+
+function runMigrations(db: Database.Database): void {
+  const migrationsDir = getMigrationsDir();
+  if (!existsSync(migrationsDir)) return;
+
+  const files = readdirSync(migrationsDir)
+    .filter(f => f.endsWith('.sql'))
+    .sort();
+
+  const applied = new Set(
+    db.prepare('SELECT name FROM du_migrations').all()
+      .map((row: any) => row.name as string)
+  );
+
+  for (const file of files) {
+    if (applied.has(file)) continue;
+
+    const sql = readFileSync(join(migrationsDir, file), 'utf-8');
+    db.exec(sql);
+
+    db.prepare('INSERT INTO du_migrations (name, applied_at) VALUES (?, ?)')
+      .run(file, Date.now());
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helper: generate IDs
+// ---------------------------------------------------------------------------
+
+export function newId(): string {
+  return randomUUID();
+}
+
+// ---------------------------------------------------------------------------
+// Agent Runs
+// ---------------------------------------------------------------------------
+
+export interface AgentRunInput {
+  toolName: string;
+  summary?: string;
+  score?: number;
+  details?: string;
+  error?: string;
+  status?: 'running' | 'success' | 'failed';
+}
+
+export function insertAgentRun(input: AgentRunInput): string {
+  const db = getDb();
+  const id = newId();
+  const now = Date.now();
+
+  db.prepare(`
+    INSERT INTO du_agent_runs (id, tool_name, started_at, finished_at, status, summary, score, details, error)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    input.toolName,
+    now,
+    input.status === 'running' ? null : now,
+    input.status || 'success',
+    input.summary || null,
+    input.score ?? null,
+    input.details || null,
+    input.error || null,
+  );
+
+  return id;
+}
+
+export function getRecentRuns(limit = 50): any[] {
+  const db = getDb();
+  return db.prepare(`
+    SELECT * FROM du_agent_runs ORDER BY started_at DESC LIMIT ?
+  `).all(limit);
+}
+
+// ---------------------------------------------------------------------------
+// Score History
+// ---------------------------------------------------------------------------
+
+export interface ScoreHistoryInput {
+  scope: 'global' | 'project';
+  score: number;
+  persona?: string;
+  categoryScores?: Record<string, number>;
+}
+
+export function insertScoreHistory(input: ScoreHistoryInput): void {
+  const db = getDb();
+  db.prepare(`
+    INSERT INTO du_score_history (id, scope, score, persona, category_scores, recorded_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(
+    newId(),
+    input.scope,
+    input.score,
+    input.persona || null,
+    input.categoryScores ? JSON.stringify(input.categoryScores) : null,
+    Date.now(),
+  );
+}
+
+export function getScoreHistory(days = 90): any[] {
+  const db = getDb();
+  const since = Date.now() - (days * 24 * 60 * 60 * 1000);
+  return db.prepare(`
+    SELECT * FROM du_score_history WHERE recorded_at >= ? ORDER BY recorded_at ASC
+  `).all(since);
+}
+
+// ---------------------------------------------------------------------------
+// Recommendations (replaces JSON file)
+// ---------------------------------------------------------------------------
+
+export interface RecommendationInput {
+  agentRunId?: string;
+  type: 'claude_md_rule' | 'hook' | 'skill' | 'mcp_server' | 'behavior';
+  title: string;
+  textSnippet?: string;
+  keywords?: string[];
+  severity?: 'critical' | 'recommended' | 'nice_to_have';
+  scoreAtGiven?: number;
+}
+
+export function insertRecommendation(input: RecommendationInput): string {
+  const db = getDb();
+  const id = newId();
+
+  db.prepare(`
+    INSERT INTO du_recommendations (id, agent_run_id, type, title, text_snippet, keywords, severity, status, score_at_given, given_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+  `).run(
+    id,
+    input.agentRunId || null,
+    input.type,
+    input.title,
+    input.textSnippet || null,
+    input.keywords ? JSON.stringify(input.keywords) : null,
+    input.severity || 'recommended',
+    input.scoreAtGiven ?? null,
+    Date.now(),
+  );
+
+  return id;
+}
+
+export function getRecommendations(status?: string): any[] {
+  const db = getDb();
+  if (status) {
+    return db.prepare('SELECT * FROM du_recommendations WHERE status = ? ORDER BY given_at DESC').all(status);
+  }
+  return db.prepare('SELECT * FROM du_recommendations ORDER BY given_at DESC').all();
+}
+
+export function updateRecommendationStatus(id: string, status: string, scoreAtCheck?: number): void {
+  const db = getDb();
+  db.prepare(`
+    UPDATE du_recommendations SET status = ?, score_at_check = ?, checked_at = ? WHERE id = ?
+  `).run(status, scoreAtCheck ?? null, Date.now(), id);
+}
+
+export function findRecommendationByTitle(title: string): any | undefined {
+  const db = getDb();
+  return db.prepare('SELECT * FROM du_recommendations WHERE title = ? ORDER BY given_at DESC LIMIT 1').get(title);
+}
+
+// ---------------------------------------------------------------------------
+// Migration helper: import existing JSON recommendations
+// ---------------------------------------------------------------------------
+
+export function migrateFromJson(): { imported: number } {
+  const jsonPath = join(DEARUSER_DIR, 'recommendations.json');
+  if (!existsSync(jsonPath)) return { imported: 0 };
+
+  const db = getDb();
+
+  const count = (db.prepare('SELECT COUNT(*) as c FROM du_recommendations').get() as any).c;
+  if (count > 0) return { imported: 0 };
+
+  try {
+    const data = JSON.parse(readFileSync(jsonPath, 'utf-8'));
+    if (!Array.isArray(data)) return { imported: 0 };
+
+    const insert = db.prepare(`
+      INSERT OR IGNORE INTO du_recommendations (id, type, title, text_snippet, keywords, severity, status, score_at_given, score_at_check, given_at, checked_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const tx = db.transaction(() => {
+      let imported = 0;
+      for (const rec of data) {
+        insert.run(
+          rec.id || newId(),
+          rec.type || 'claude_md_rule',
+          rec.title,
+          rec.textSnippet || null,
+          rec.keywords ? JSON.stringify(rec.keywords) : null,
+          'recommended',
+          rec.status || 'pending',
+          rec.scoreAtGiven ?? null,
+          rec.scoreAtCheck ?? null,
+          rec.givenAt ? new Date(rec.givenAt).getTime() : Date.now(),
+          rec.checkedAt ? new Date(rec.checkedAt).getTime() : null,
+        );
+        imported++;
+      }
+      return imported;
+    });
+
+    const imported = tx();
+    return { imported };
+  } catch {
+    return { imported: 0 };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Close (for clean shutdown)
+// ---------------------------------------------------------------------------
+
+export function closeDb(): void {
+  if (_db) {
+    _db.close();
+    _db = null;
+  }
+}

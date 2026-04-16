@@ -12,7 +12,7 @@
 // suspicious patterns but rate severity conservatively. The goal is to surface
 // things worth a manual look, not to claim a vulnerability definitively.
 
-import type { AuditArtifact, GapSeverity } from '../types.js';
+import type { AuditArtifact, GapSeverity, OwaspAgenticCategory } from '../types.js';
 
 export type InjectionCategory =
   | 'shell_unquoted_var'
@@ -29,9 +29,10 @@ export interface InjectionFinding {
   title: string;
   artifactId: string;
   artifactPath: string;
-  excerpt: string;          // the matched substring with a little context
+  excerpt: string;
   why: string;
   recommendation: string;
+  owaspCategory?: OwaspAgenticCategory;
 }
 
 /** Environment / argument variables whose values we do NOT control. */
@@ -114,6 +115,7 @@ function detectUnquotedVars(artifact: AuditArtifact): InjectionFinding[] {
         excerpt: snippet,
         why: 'Untrusted input spliced into a shell command without quoting can be interpreted as code if it contains spaces, semicolons, or backticks.',
         recommendation: `Quote the variable: \`"${match[0]}"\`. Better yet, validate input shape before using it (e.g., only allow alphanumeric).`,
+        owaspCategory: 'ASI-01',
       });
     }
   }
@@ -144,6 +146,7 @@ function detectUserInputToSensitiveCmd(artifact: AuditArtifact): InjectionFindin
           excerpt: snippet,
           why: `A sensitive command (${cmd.replace(/\\\\s\\+/g, ' ')}) is invoked with user-controlled input. Even a single crafted prompt could delete files, exfiltrate data, or run arbitrary code.`,
           recommendation: 'Validate and sanitise the input before use. For unavoidable cases, use argument arrays (exec instead of shell) so metacharacters cannot be interpreted.',
+          owaspCategory: 'ASI-05',
         });
       }
     }
@@ -174,6 +177,7 @@ function detectEvalInSkill(artifact: AuditArtifact): InjectionFinding[] {
       excerpt: snippet,
       why: '`eval` executes arbitrary strings. If any substituted value is under an attacker\'s control, it becomes remote code execution.',
       recommendation: 'Rewrite without eval — use arrays, dispatch tables, or typed function calls.',
+      owaspCategory: 'ASI-05',
     });
   }
 
@@ -199,6 +203,7 @@ function detectHookMissingSetE(artifact: AuditArtifact): InjectionFinding[] {
     excerpt: content.slice(0, 200),
     why: 'Shell hooks without `set -e` continue past failed commands. A broken hook can look like it worked for weeks.',
     recommendation: 'Start the hook with `set -eo pipefail` so a failed command aborts and surfaces the error.',
+    owaspCategory: 'ASI-08',
   }];
 }
 
@@ -221,6 +226,7 @@ function detectMcpShellTemplates(artifact: AuditArtifact): InjectionFinding[] {
       excerpt: content.slice(0, 200),
       why: 'MCP servers invoked via shell with interpolated strings can execute unintended commands if any interpolated value is agent-controlled.',
       recommendation: 'Prefer a direct executable (node/python/go binary) over bash wrappers. If you must shell, validate each interpolated value.',
+      owaspCategory: 'ASI-02',
     }];
   }
   return [];

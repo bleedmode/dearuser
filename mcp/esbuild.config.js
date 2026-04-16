@@ -7,8 +7,8 @@ await build({
   format: 'esm',
   outfile: 'dist/index.js',
   allowOverwrite: true,
-  // Bundle everything — no externals. Faster startup = fewer module resolutions.
-  external: [],
+  // better-sqlite3 is a native addon (.node binary) — cannot be bundled by esbuild.
+  external: ['better-sqlite3'],
   banner: {
     js: [
       'import { createRequire as __$$cReq } from "module";',

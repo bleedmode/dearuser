@@ -212,6 +212,29 @@ export function getSetupTemplate(role: Role): SetupTemplate {
 }
 
 /**
+ * Render a brief preview of the CLAUDE.md sections based on role + goals.
+ * Used during onboarding to show the user what's being generated.
+ */
+export function renderClaudeMdPreview(role: Role, goals: string | null): string {
+  const template = getSetupTemplate(role);
+  const lines: string[] = ['# My Claude Instructions', ''];
+  for (const section of template.claudeMdSections.slice(0, 2)) {
+    lines.push(section.heading);
+    lines.push('');
+    lines.push(section.body);
+    lines.push('');
+  }
+  if (goals) {
+    lines.push('## Goals');
+    lines.push('');
+    lines.push(`- ${goals}`);
+  }
+  lines.push('');
+  lines.push('(... more sections added as we continue)');
+  return lines.join('\n');
+}
+
+/**
  * Render a SetupTemplate as markdown, interpolating the user's answers.
  * The substrate decision string is rendered as-is (we let substrate-advisor
  * build the actual recommendation).
@@ -275,16 +298,6 @@ export function renderPlan(
     }
   }
 
-  lines.push('## Your dashboard', '');
-  lines.push('Dear User includes a local dashboard at http://localhost:7700.');
-  lines.push('Start it any time with `/dashboard` — no accounts, no cloud, just your data.');
-  lines.push('');
-  lines.push('The dashboard shows:');
-  lines.push('- **Score history** — how your collaboration improves over time');
-  lines.push('- **Agent runs** — when each tool ran and what it found');
-  lines.push('- **Recommendations** — which are pending, which you implemented');
-  lines.push('');
-
   lines.push('## Version control your config (recommended)', '');
   lines.push('Your AI setup (CLAUDE.md, memory files, skills) is valuable — treat it like code.');
   lines.push('');
@@ -292,10 +305,8 @@ export function renderPlan(
   lines.push('Consider also tracking your global config:');
   lines.push('');
   lines.push('```bash');
-  lines.push('cd ~/.dearuser && git init && echo "*.db\\n*.db-wal\\n*.db-shm" >> .gitignore && git add -A && git commit -m "Initial Dear User config"');
+  lines.push('cd ~/.claude && git init && git add CLAUDE.md && git commit -m "Initial Claude config"');
   lines.push('```');
-  lines.push('');
-  lines.push('The database file (dearuser.db) stays local — only config and migrations go in git.');
   lines.push('');
 
   lines.push('## Environment', '');
