@@ -156,19 +156,8 @@ export const TOOL_CATALOG: ToolRecommendation[] = [
     personas: ['vibe_coder', 'team_lead'],
     lastVerified: '2026-04-13',
   },
-  {
-    name: 'agnix',
-    type: 'github_repo',
-    description: 'Linter for CLAUDE.md, AGENTS.md, SKILL.md, hooks. 385 rules.',
-    userFriendlyDescription: 'Checks your CLAUDE.md for common mistakes and inconsistencies — like a spell-checker for your agent config.',
-    whoActs: 'I can install this globally — want me to run it?',
-    install: 'npm i -g agnix',
-    stars: 169,
-    url: 'https://github.com/agent-sh/agnix',
-    solves: ['config_quality', 'rule_conflicts'],
-    personas: ['senior_dev', 'team_lead', 'venture_studio'],
-    lastVerified: '2026-04-13',
-  },
+  // agnix removed — competes with our own lint engine. We should match/exceed
+  // their 385 rules, not recommend a competitor. Track their rules as a benchmark.
 
   // === Hook patterns ===
   {
@@ -298,9 +287,9 @@ export function recommendTools(
   problems: string[],
   persona: string,
   installedMcpServers: string[] = [],
-  options: { installedSkills?: string[]; hasLintFindings?: boolean } = {}
+  options: { installedSkills?: string[] } = {}
 ): ToolRecommendation[] {
-  const { installedSkills = [], hasLintFindings = false } = options;
+  const { installedSkills = [] } = options;
 
   const scored = TOOL_CATALOG.map(tool => {
     let score = 0;
@@ -327,11 +316,6 @@ export function recommendTools(
       if (installedSkills.some(s => s.toLowerCase() === skillName)) {
         score = -1;
       }
-    }
-
-    // Don't recommend external CLAUDE.md linters when our own lint engine already found issues
-    if (hasLintFindings && tool.solves.includes('config_quality') && tool.type === 'github_repo') {
-      score = -1;
     }
 
     return { tool, score };
