@@ -12,11 +12,13 @@ import { runAudit, formatAuditReport } from './tools/audit.js';
 import { runOnboard, formatOnboardResult } from './tools/onboard.js';
 import { runSecurity, formatSecurityReport } from './tools/security.js';
 import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { join } from 'path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// __filename and __dirname are provided by the esbuild banner in the bundled output.
+// For tsc-only builds (dev, tests), they're available as ESM globals via Node's --experimental-specifier-resolution.
+// Declare them to satisfy TypeScript's strict mode:
+declare const __filename: string;
+declare const __dirname: string;
 
 // Read version from package.json at startup
 let PKG_VERSION = '1.0.0';

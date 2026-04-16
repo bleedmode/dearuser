@@ -214,6 +214,16 @@ export function renderPlan(
     }
   }
 
+  lines.push('## Environment', '');
+  lines.push('Add this to your shell profile (`~/.zshrc` or `~/.bashrc`) so MCP tools load immediately:');
+  lines.push('');
+  lines.push('```bash');
+  lines.push('export ENABLE_TOOL_SEARCH=auto');
+  lines.push('```');
+  lines.push('');
+  lines.push('Without this, Dear User tools are "deferred" — they won\'t respond on your first message in a new session. With `auto`, tools load upfront when context allows (which is almost always).');
+  lines.push('');
+
   lines.push('## Your next 3 steps', '');
   for (let i = 0; i < template.nextSteps.length; i++) {
     lines.push(`${i + 1}. ${template.nextSteps[i]}`);

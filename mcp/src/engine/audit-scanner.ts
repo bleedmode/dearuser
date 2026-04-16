@@ -212,11 +212,13 @@ function scanHooks(home: string): AuditArtifact[] {
 }
 
 /**
- * Scan MCP servers from ~/.claude/mcp.json and ~/.claude/settings.json.
- * Artifacts so we can reason about which are referenced by skills/hooks.
+ * Scan MCP servers from ~/.claude.json, ~/.claude/mcp.json, and
+ * ~/.claude/settings.json.  ~/.claude.json is the canonical config
+ * file Claude Code reads (mcpServers key at top level).
  */
 function scanMcpServers(home: string): AuditArtifact[] {
   const candidates = [
+    join(home, '.claude.json'),
     join(home, '.claude', 'mcp.json'),
     join(home, '.claude', 'settings.json'),
   ];
