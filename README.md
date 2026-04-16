@@ -1,18 +1,24 @@
 # Dear User
 
-Tools for understanding and improving human-agent collaboration.
+**Your AI agent works for you — but how well do you work together?**
+
+Dear User analyzes your human-agent collaboration and tells you exactly what to fix.
 
 ## Monorepo structure
 
-- **`mcp/`** — `dearuser-mcp` npm package. MCP server with `analyze` and `wrapped` tools for Claude Code.
+- **`mcp/`** — `dearuser-mcp` npm package. MCP server with analyze, audit, security, onboard, and wrapped tools.
 - **`web/`** — `dearuser.ai` landing page + web-facing Wrapped experience (Astro).
 
-## Products
+## Quick start
 
-**Dear User Analyze** — Scans your CLAUDE.md, memory, hooks, skills, and sessions to produce a collaboration report with persona detection, scoring, and recommendations.
+```bash
+claude mcp add dearuser -- npx dearuser-mcp
+```
 
-**Dear User Wrapped** — Shareable, Spotify Wrapped-style stats about your human-agent collaboration.
+Then ask your agent: *"Analyze my collaboration with Claude"*
 
-## Status
+See [`mcp/README.md`](mcp/README.md) for full documentation, multi-client install guides, and tool reference.
 
-In progress. See `mcp/CLAUDE.md` for MCP implementation details.
+## License
+
+MIT

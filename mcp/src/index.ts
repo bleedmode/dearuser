@@ -43,7 +43,13 @@ Returns a pre-formatted markdown report. Use the format parameter to control det
 Everything runs locally — no data leaves the machine, no API keys needed, files are only read (never modified).
 
 When a recommendation has an "Actionable" marker, offer to implement it — ask first, then apply on confirmation.
-Tool recommendations with a "whoActs" line indicate whether you (the agent) can install it or the user needs to act — present accordingly.`,
+Tool recommendations with a "whoActs" line indicate whether you (the agent) can install it or the user needs to act — present accordingly.
+
+Example prompts that should trigger this tool:
+- "Analyze my collaboration with Claude"
+- "How good is my Claude setup?"
+- "What should I improve in my CLAUDE.md?"
+- "Score my agent configuration"`,
   {
     projectRoot: z.string().optional().describe('Project root to analyze when scope="project". Defaults to current working directory. Ignored for scope="global".'),
     scope: z.enum(['global', 'project']).optional().describe('"global" (default) aggregates across every project in ~/.claude/projects/. "project" narrows to a single directory.'),
@@ -99,7 +105,13 @@ IMPORTANT — When presenting results:
 - Show the closure rate prominently
 - Lead with critical findings, then recommended, then nice-to-have
 - Each finding has a stable id users can reference to dismiss
-- Be careful: heuristic-based detection has some false positives — frame findings as "likely" not "definitely"`,
+- Be careful: heuristic-based detection has some false positives — frame findings as "likely" not "definitely"
+
+Example prompts that should trigger this tool:
+- "Audit my Claude setup for structural issues"
+- "Are any of my scheduled tasks orphaned?"
+- "Check if my hooks and skills overlap"
+- "Is my agent substrate well-structured?"`,
   {
     projectRoot: z.string().optional().describe('Project root (e.g., "/Users/me/my-project"). Defaults to cwd. Audit is most useful in global scope.'),
     scope: z.enum(['global', 'project']).optional().describe('Default global.'),
@@ -145,7 +157,13 @@ What this tool does NOT do:
 - Does NOT require prior Claude Code experience — designed for first-time users
 - Does NOT collect or transmit any answers — state is a local opaque blob passed between calls
 
-Good for: new users, non-technical professionals, anyone setting up Claude Code for the first time, or someone revisiting goals after a while.`,
+Good for: new users, non-technical professionals, anyone setting up Claude Code for the first time, or someone revisiting goals after a while.
+
+Example prompts that should trigger this tool:
+- "Set up Dear User for me"
+- "I'm new to Claude Code, help me configure it"
+- "Onboard me"
+- "Help me create a CLAUDE.md"`,
   {
     step: z.string().optional().describe('Current step (e.g., "role", "goals", "stack"). Omit to start from intro.'),
     answer: z.string().optional().describe('User answer from the previous step (e.g., "I\'m a solo developer building SaaS products"). Required for all steps after intro.'),
@@ -188,7 +206,13 @@ What this tool does NOT do:
 IMPORTANT — When presenting results:
 - Lead with secrets (rotate any found credentials immediately)
 - Be precise about rule conflicts — show the rule AND the conflicting action
-- Don't minimize: "no findings" is a REAL signal of clean setup, not evidence of a broken scanner`,
+- Don't minimize: "no findings" is a REAL signal of clean setup, not evidence of a broken scanner
+
+Example prompts that should trigger this tool:
+- "Scan my Claude setup for security issues"
+- "Are there any leaked API keys in my config?"
+- "Check my hooks for prompt injection risks"
+- "Security audit of my agent setup"`,
   {
     projectRoot: z.string().optional().describe('Project root (e.g., "/Users/me/my-project"). Defaults to cwd.'),
     scope: z.enum(['global', 'project']).optional().describe('"global" (default) scans ~/.claude/ agent setup; "project" scans a single directory.'),
@@ -219,7 +243,12 @@ server.tool(
 What this tool does NOT do:
 - Does NOT share anything automatically — it generates text you can copy/paste if you choose
 - Does NOT access external accounts or profiles
-- Does NOT store or upload the generated stats anywhere`,
+- Does NOT store or upload the generated stats anywhere
+
+Example prompts that should trigger this tool:
+- "Give me my Dear User Wrapped"
+- "Show my collaboration stats"
+- "Generate shareable stats about my Claude usage"`,
   {
     projectRoot: z.string().optional().describe('Project root when scope="project" (e.g., "/Users/me/my-project"). Ignored for scope="global".'),
     scope: z.enum(['global', 'project']).optional().describe('"global" (default) aggregates across all projects; "project" narrows to one directory.'),
