@@ -42,8 +42,8 @@ Returns a pre-formatted markdown report. Use the format parameter to control det
 
 Everything runs locally — no data leaves the machine, no API keys needed, files are only read (never modified).
 
-When a recommendation has an "Actionable" marker, offer to implement it — ask first, then apply on confirmation.
-Tool recommendations with a "whoActs" line indicate whether you (the agent) can install it or the user needs to act — present accordingly.
+IMPORTANT — Presenting results:
+The user cannot see raw tool results. You MUST output the full report as your response text — do NOT summarize, shorten, or add commentary around it. The report is pre-formatted for direct display. After showing the report, offer to implement any recommendation marked "Actionable". Tool recommendations with a "whoActs" line indicate whether you (the agent) can install it or the user needs to act — present accordingly.
 
 Example prompts that should trigger this tool:
 - "Analyze my collaboration with Claude"
@@ -101,11 +101,8 @@ What this tool does NOT do:
 - Does NOT delete or modify any files, skills, or hooks
 - Does NOT contact external services — pure local filesystem analysis
 
-IMPORTANT — When presenting results:
-- Show the closure rate prominently
-- Lead with critical findings, then recommended, then nice-to-have
-- Each finding has a stable id users can reference to dismiss
-- Be careful: heuristic-based detection has some false positives — frame findings as "likely" not "definitely"
+IMPORTANT — Presenting results:
+The user cannot see raw tool results. You MUST output the full report as your response text — do NOT summarize, shorten, or add commentary around it. The report is pre-formatted for direct display. Show the closure rate prominently. Lead with critical findings, then recommended, then nice-to-have. Each finding has a stable id users can reference to dismiss. Be careful: heuristic-based detection has some false positives — frame findings as "likely" not "definitely".
 
 Example prompts that should trigger this tool:
 - "Audit my Claude setup for structural issues"
@@ -149,6 +146,9 @@ How to use (for the agent):
 2. Present the question to the user and collect their answer.
 3. Call again with step=<nextStep from previous>, answer=<user answer>, state=<state from previous>.
 4. Continue until done=true, then show the plan.
+
+IMPORTANT — Presenting results:
+The user cannot see raw tool results. You MUST output each step's response text as your response — do NOT summarize, rephrase, or wrap it in your own words. The questions and final plan are pre-formatted for direct display. Just show what the tool returns, then collect the user's answer for the next step.
 
 IMPORTANT: The \`state\` parameter is opaque. Pass it back verbatim. Do not parse or modify it.
 
@@ -203,10 +203,8 @@ What this tool does NOT do:
 - Does NOT auto-rotate or revoke credentials — it reports, you act
 - Does NOT scan source code repositories — only your agent config files (~/.claude/, memory, skills, hooks)
 
-IMPORTANT — When presenting results:
-- Lead with secrets (rotate any found credentials immediately)
-- Be precise about rule conflicts — show the rule AND the conflicting action
-- Don't minimize: "no findings" is a REAL signal of clean setup, not evidence of a broken scanner
+IMPORTANT — Presenting results:
+The user cannot see raw tool results. You MUST output the full report as your response text — do NOT summarize, shorten, or add commentary around it. The report is pre-formatted for direct display. Lead with secrets (rotate any found credentials immediately). Be precise about rule conflicts — show the rule AND the conflicting action. Don't minimize: "no findings" is a REAL signal of clean setup, not evidence of a broken scanner.
 
 Example prompts that should trigger this tool:
 - "Scan my Claude setup for security issues"
@@ -244,6 +242,9 @@ What this tool does NOT do:
 - Does NOT share anything automatically — it generates text you can copy/paste if you choose
 - Does NOT access external accounts or profiles
 - Does NOT store or upload the generated stats anywhere
+
+IMPORTANT — Presenting results:
+The user cannot see raw tool results. You MUST output the full report as your response text — do NOT summarize, shorten, or add commentary around it. The report is pre-formatted for direct display.
 
 Example prompts that should trigger this tool:
 - "Give me my Dear User Wrapped"

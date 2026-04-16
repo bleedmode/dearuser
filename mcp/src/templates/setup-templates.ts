@@ -37,6 +37,11 @@ const COMMON_SKILLS = {
     why: 'Structured research with quality gates (Collect → Rate → Analyze). Prevents AI-generated slop from contaminating future work.',
     install: 'Create ~/.claude/skills/research/SKILL.md with a 3-phase prompt',
   },
+  dearuser: {
+    name: '/dearuser-analyze (+ audit, security, wrapped, help)',
+    why: 'Reliable slash commands for all Dear User tools. Without these, MCP tool discovery is flaky — the agent may not find the tools.',
+    install: 'Copy the skill files from https://github.com/bleedmode/dearuser/tree/main/skills into ~/.claude/skills/',
+  },
 };
 
 const COMMON_HOOKS = {
@@ -80,11 +85,11 @@ const CODER_TEMPLATE: SetupTemplate = {
       body: '- Be concise. File paths + line numbers > prose.\n- No marketing-speak. No apologies. Just status + next step.',
     },
   ],
-  suggestedSkills: [COMMON_SKILLS.ship, COMMON_SKILLS.learn, COMMON_SKILLS.standup],
+  suggestedSkills: [COMMON_SKILLS.dearuser, COMMON_SKILLS.ship, COMMON_SKILLS.learn, COMMON_SKILLS.standup],
   suggestedHooks: [COMMON_HOOKS.buildCheck, COMMON_HOOKS.destructiveCommandGuard],
   nextSteps: [
+    'Install the Dear User skills — copy skills/ from the repo into ~/.claude/skills/ so /dearuser-analyze always works',
     'Create ~/.claude/CLAUDE.md with the sections above filled in',
-    'Install one skill first (/ship or /learn) — test it before adding more',
     'Add the build-check hook so syntax errors surface immediately',
   ],
 };
@@ -108,11 +113,11 @@ const OCCASIONAL_TEMPLATE: SetupTemplate = {
       body: '- Built things must work on first try when handed to me — no "should work" hand-waves.\n- If unsure, say so and suggest a small test first.',
     },
   ],
-  suggestedSkills: [COMMON_SKILLS.standup, COMMON_SKILLS.learn, COMMON_SKILLS.research],
+  suggestedSkills: [COMMON_SKILLS.dearuser, COMMON_SKILLS.standup, COMMON_SKILLS.learn, COMMON_SKILLS.research],
   suggestedHooks: [COMMON_HOOKS.protectedFiles],
   nextSteps: [
+    'Install the Dear User skills — copy skills/ from the repo into ~/.claude/skills/ so /dearuser-analyze always works',
     'Create ~/.claude/CLAUDE.md — keep it under 200 lines',
-    'Try /standup tomorrow morning — see if the daily overview helps',
     'Add protected-files hook for .env and credentials before you experiment more',
   ],
 };
@@ -136,11 +141,11 @@ const NON_CODER_TEMPLATE: SetupTemplate = {
       body: '- When you\'re unsure, say so clearly — don\'t guess.\n- If a task looks bigger than we discussed, pause and check in.',
     },
   ],
-  suggestedSkills: [COMMON_SKILLS.research, COMMON_SKILLS.learn],
+  suggestedSkills: [COMMON_SKILLS.dearuser, COMMON_SKILLS.research, COMMON_SKILLS.learn],
   suggestedHooks: [COMMON_HOOKS.protectedFiles],
   nextSteps: [
+    'Install the Dear User skills — copy skills/ from the repo into ~/.claude/skills/ so /dearuser-analyze always works',
     'Create a CLAUDE.md — start with the 4 sections above, edit as you learn what you want',
-    'Get /research working — it prevents the agent from making things up with bad sources',
     'Don\'t add more than 3 skills in your first month. Add when you feel the friction.',
   ],
 };
