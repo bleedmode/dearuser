@@ -8,7 +8,7 @@
 // explicitly told "never X" yet the infrastructure Does X anyway. The user's
 // mental model and reality diverge — the fail mode is "I thought we agreed".
 
-import type { AuditArtifact, GapSeverity, ParsedRule } from '../types.js';
+import type { AuditArtifact, GapSeverity, OwaspAgenticCategory, ParsedRule } from '../types.js';
 
 export type ConflictCategory =
   | 'prohibition_violated'     // CLAUDE.md says never X, hook/skill does X
@@ -27,6 +27,7 @@ export interface RuleConflict {
   excerpt: string;                 // the command/prompt that violates
   recommendation: string;
   why: string;
+  owaspCategory?: OwaspAgenticCategory;
 }
 
 // ============================================================================
@@ -158,6 +159,7 @@ function detectProhibitionViolations(
           excerpt,
           recommendation: `Review whether the command in ${artifact.name} actually violates the rule, or is a legitimate exception (e.g., rm on /tmp is usually safe). If it\'s a real conflict: either remove the command, or narrow the rule to reflect when the exception applies.`,
           why: 'When CLAUDE.md says "never X" but infrastructure Does X, the agent and user disagree about reality. The agent thinks you agreed; you don\'t realize the action is happening. Trust breaks silently.',
+          owaspCategory: 'ASI-09',
         });
       }
     }
@@ -196,6 +198,7 @@ function detectMissingRequirements(
           excerpt: `${artifact.name} prompt does not mention the required command pattern`,
           recommendation: `Add the step to ${artifact.name} so the rule is actually enforced. A rule without an enforcement mechanism is aspirational.`,
           why: 'Rules in CLAUDE.md without supporting infrastructure are frequently violated. You wrote "always run tests before shipping" but your /ship skill just commits and pushes.',
+          owaspCategory: 'ASI-09',
         });
       }
     }

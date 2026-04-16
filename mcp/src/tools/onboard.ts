@@ -5,22 +5,25 @@
 // the user, collects the answer, and calls this tool again with the step name,
 // the answer, and the same state blob.
 //
-// Flow: intro → role → goals → stack → pains → substrate → plan (done)
+// Flow (v2): intro → goals → stack-pains → substrate → plan (5 steps)
+// Backwards compat: old step names (role, stack, pains) still accepted.
 
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { classifySubstrate, substrateLabel } from '../engine/substrate-advisor.js';
 import type { Substrate } from '../engine/substrate-advisor.js';
-import { getSetupTemplate, renderPlan } from '../templates/setup-templates.js';
+import { scan } from '../engine/scanner.js';
+import { getSetupTemplate, renderPlan, renderClaudeMdPreview } from '../templates/setup-templates.js';
 import type { Role } from '../templates/setup-templates.js';
 
 export type OnboardStep =
   | 'intro'
-  | 'role'
+  | 'role'       // backwards compat
   | 'goals'
-  | 'stack'
-  | 'pains'
+  | 'stack'      // backwards compat
+  | 'pains'      // backwards compat
+  | 'stack-pains'
   | 'substrate'
   | 'plan';
 
@@ -33,6 +36,14 @@ export interface OnboardState {
   substrateDescription: string | null;
   decidedSubstrate: Substrate | null;
   answers: Record<string, string>;
+  /** Detected existing setup (populated on first call). */
+  existingSetup?: {
+    hasClaudeMd: boolean;
+    hasMemory: boolean;
+    skillCount: number;
+    hookCount: number;
+    summary: string;
+  } | null;
 }
 
 export interface OnboardResult {
@@ -127,24 +138,58 @@ function parseStack(answer: string): string[] {
 // Step handlers — each takes (state, answer) and returns an OnboardResult
 // ============================================================================
 
-function stepIntro(state: OnboardState): OnboardResult {
-  return {
-    step: 'intro',
-    teaching: 'Welcome — I\'ll spend about 5 minutes learning about you, then produce a setup plan tailored to how you actually work. Answer in your own words; there are no wrong answers.',
-    question: 'Which best describes you?',
-    options: [
-      'I write code regularly',
-      'I code occasionally, or manage people who do',
-      'I don\'t code but I want to use AI seriously',
-    ],
-    nextStep: 'role',
-    state: encodeState(state),
-    done: false,
-    plan: null,
-  };
-}
+/**
+ * Step 1 (merged intro+role): Project scan + role question.
+ * First call (no answer): scan project, show welcome + role question.
+ * Second call (with answer): parse role, advance to goals.
+ */
+function stepIntro(state: OnboardState, answer: string): OnboardResult {
+  // First call — no answer yet, show welcome + role question
+  if (!answer) {
+    // Project scan — detect what's already configured
+    try {
+      const scanResult = scan(process.cwd(), 'global');
+      const hasClaudeMd = scanResult.globalClaudeMd !== null || scanResult.projectClaudeMd !== null;
+      const hasMemory = scanResult.memoryFiles.length > 0;
+      const skillCount = scanResult.skillsCount ?? 0;
+      const hookCount = scanResult.hooksCount ?? 0;
+      const parts: string[] = [];
+      if (hasClaudeMd) parts.push('a CLAUDE.md');
+      if (hasMemory) parts.push(`${scanResult.memoryFiles.length} memory file(s)`);
+      if (skillCount > 0) parts.push(`${skillCount} skill(s)`);
+      if (hookCount > 0) parts.push(`${hookCount} hook(s)`);
+      state.existingSetup = {
+        hasClaudeMd,
+        hasMemory,
+        skillCount,
+        hookCount,
+        summary: parts.length > 0 ? `I can see you already have ${parts.join(', ')} configured.` : '',
+      };
+    } catch {
+      state.existingSetup = null;
+    }
 
-function stepRole(state: OnboardState, answer: string): OnboardResult {
+    const setupLine = state.existingSetup?.summary
+      ? `\n\n${state.existingSetup.summary} I\'ll build on what you have.\n`
+      : '\n';
+
+    return {
+      step: 'intro',
+      teaching: `Welcome — I'll spend about 3 minutes learning about you, then produce a tailored setup plan.${setupLine}\nAnswer in your own words; there are no wrong answers.`,
+      question: 'Which best describes you?',
+      options: [
+        'I write code regularly',
+        'I code occasionally, or manage people who do',
+        'I don\'t code but I want to use AI seriously',
+      ],
+      nextStep: 'goals',
+      state: encodeState(state),
+      done: false,
+      plan: null,
+    };
+  }
+
+  // Second call — parse role, show teaching, advance to goals
   const role = parseRole(answer);
   state.role = role;
   state.answers.role = answer;
@@ -161,7 +206,7 @@ function stepRole(state: OnboardState, answer: string): OnboardResult {
   })();
 
   return {
-    step: 'role',
+    step: 'intro',
     teaching,
     question: 'What\'s the single most important thing you want AI to help you with?',
     options: [],
@@ -173,43 +218,50 @@ function stepRole(state: OnboardState, answer: string): OnboardResult {
 }
 
 function stepGoals(state: OnboardState, answer: string): OnboardResult {
+  // Handle skip option
+  if (/skip|just.*template|spring over/i.test(answer)) {
+    state.goals = null;
+    state.answers.goals = '(skipped)';
+    // Jump directly to plan with defaults
+    return stepPlan(state, 'skip');
+  }
+
   state.goals = answer.trim();
   state.answers.goals = answer;
 
+  // Show CLAUDE.md preview based on role + goals
+  const preview = state.role ? renderClaudeMdPreview(state.role, state.goals) : null;
+
   return {
     step: 'goals',
-    teaching: null,
-    question: 'Which tools do you already use regularly? (free text — list whatever\'s in your stack, or say "none")',
-    options: [],
-    nextStep: 'stack',
+    teaching: preview ? `### Preview of your CLAUDE.md so far\n\n\`\`\`markdown\n${preview}\n\`\`\`` : null,
+    question: 'Two quick things:\n\n1. Which AI tools do you already use? (list them, or say "none")\n2. What\'s most frustrating about working with AI today?',
+    options: [
+      'Skip — just give me a template based on my role',
+    ],
+    nextStep: 'stack-pains',
     state: encodeState(state),
     done: false,
     plan: null,
   };
 }
 
-function stepStack(state: OnboardState, answer: string): OnboardResult {
+/** Combined stack + pains step — asks both in one question. */
+function stepStackPains(state: OnboardState, answer: string): OnboardResult {
+  // Handle skip
+  if (/skip|just.*template|spring over/i.test(answer)) {
+    state.answers['stack-pains'] = '(skipped)';
+    return stepPlan(state, 'skip');
+  }
+
+  // Parse stack from the full answer (keyword matching)
   state.stack = parseStack(answer);
-  state.answers.stack = answer;
-
-  return {
-    step: 'stack',
-    teaching: null,
-    question: 'What\'s most frustrating about working with AI today? (one or two sentences)',
-    options: [],
-    nextStep: 'pains',
-    state: encodeState(state),
-    done: false,
-    plan: null,
-  };
-}
-
-function stepPains(state: OnboardState, answer: string): OnboardResult {
+  // Store the full answer as pains (overlap with stack detection is fine)
   state.pains = answer.trim();
-  state.answers.pains = answer;
+  state.answers['stack-pains'] = answer;
 
   return {
-    step: 'pains',
+    step: 'stack-pains',
     teaching: 'Four places your data can live — picking the right one prevents pain later:\n\n- **Rules** (CLAUDE.md): how the agent should behave, read every session\n- **Memory** (memory files): lessons, feedback, narrative learnings\n- **Documents** (Notion, Google Docs): formatted content humans also read\n- **Database** (SQLite, Supabase): structured lists that grow and get queried\n\nPicking "markdown" for everything is the most common mistake — it works at 5 entries, collapses at 50.',
     question: 'What data are you accumulating (or want to) that the agent should help with? Describe it in your own words — what does each entry look like, how fast does it grow, who reads it?',
     options: [],
@@ -422,17 +474,23 @@ export function runOnboard(input: OnboardInput): OnboardResult {
   const answer = input.answer || '';
 
   switch (currentStep) {
-    case 'intro':   return stepIntro(state);
-    case 'role':    return stepRole(state, answer);
-    case 'goals':   return stepGoals(state, answer);
-    case 'stack':   return stepStack(state, answer);
-    case 'pains':   return stepPains(state, answer);
-    case 'substrate': return stepSubstrate(state, answer);
-    case 'plan':    return stepPlan(state, answer);
+    case 'intro':      return stepIntro(state, answer);
+    case 'role':       return stepIntro(state, answer);   // backwards compat: old role → intro with answer
+    case 'goals':      return stepGoals(state, answer);
+    case 'stack':      return stepStackPains(state, answer); // backwards compat
+    case 'pains':      return stepStackPains(state, answer); // backwards compat
+    case 'stack-pains': return stepStackPains(state, answer);
+    case 'substrate':  return stepSubstrate(state, answer);
+    case 'plan':       return stepPlan(state, answer);
     default:
       // Unknown step — reset to intro
-      return stepIntro(freshState());
+      return stepIntro(freshState(), '');
   }
+}
+
+function stepNumber(step: OnboardStep): number {
+  const map: Record<string, number> = { intro: 1, role: 1, goals: 2, stack: 3, pains: 3, 'stack-pains': 3, substrate: 4, plan: 5 };
+  return map[step] || 1;
 }
 
 /** Format an OnboardResult as markdown for the MCP client. */
@@ -443,7 +501,7 @@ export function formatOnboardResult(result: OnboardResult): string {
     return result.plan;
   }
 
-  lines.push(`*Onboard — step: ${result.step}${result.nextStep ? ` → ${result.nextStep}` : ''}*`);
+  lines.push(`*Onboard — step ${stepNumber(result.step)} of 5${result.nextStep ? ` → ${result.nextStep}` : ''}*`);
   lines.push('');
 
   if (result.teaching) {

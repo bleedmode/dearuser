@@ -31,6 +31,7 @@ export interface SecretFinding {
   excerpt: string;           // redacted preview (first 4 chars of secret + ...)
   lineNumber?: number;
   recommendation: string;
+  owaspCategory?: 'ASI-03';  // Identity & Privilege Abuse
 }
 
 interface Pattern {
@@ -41,6 +42,8 @@ interface Pattern {
   description: string;
   /** Extra validator to reject false positives — e.g., commit hash shape. */
   validate?: (match: string) => boolean;
+  /** OWASP Agentic AI Top 10 category for this pattern. */
+  owaspCategory: 'ASI-03'; // All secrets = Identity & Privilege Abuse
 }
 
 // ============================================================================
@@ -54,50 +57,57 @@ const PATTERNS: Pattern[] = [
     // Negative lookahead for `ant-` so we don't double-flag Anthropic keys.
     regex: /\b(sk-(?!ant-)(?:proj-)?[A-Za-z0-9_-]{20,})\b/g,
     description: 'OpenAI API key',
+    owaspCategory: 'ASI-03',
   },
   {
     category: 'anthropic_key',
     severity: 'critical',
     regex: /\b(sk-ant-[A-Za-z0-9_-]{20,})\b/g,
     description: 'Anthropic API key',
+    owaspCategory: 'ASI-03',
   },
   {
     category: 'github_token',
     severity: 'critical',
     regex: /\b(ghp_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{50,})\b/g,
     description: 'GitHub personal access token',
+    owaspCategory: 'ASI-03',
   },
   {
     category: 'stripe_key',
     severity: 'critical',
     regex: /\b(sk_live_[A-Za-z0-9]{20,}|pk_live_[A-Za-z0-9]{20,}|sk_test_[A-Za-z0-9]{20,})\b/g,
     description: 'Stripe API key',
+    owaspCategory: 'ASI-03',
   },
   {
     category: 'aws_key',
     severity: 'critical',
     regex: /\b(AKIA[0-9A-Z]{16})\b/g,
     description: 'AWS access key ID',
+    owaspCategory: 'ASI-03',
   },
   {
     category: 'slack_token',
     severity: 'critical',
     regex: /\b(xox[baprs]-[A-Za-z0-9-]{10,})\b/g,
     description: 'Slack token',
+    owaspCategory: 'ASI-03',
   },
   {
     category: 'google_api_key',
     severity: 'critical',
     regex: /\b(AIza[A-Za-z0-9_-]{35})\b/g,
     description: 'Google API key',
+    owaspCategory: 'ASI-03',
   },
   {
     category: 'supabase_key',
     severity: 'critical',
     regex: /\b(eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{20,})\b/g,
     description: 'JWT-shaped token (Supabase, Auth0, etc.)',
+    owaspCategory: 'ASI-03',
     validate: (s) => {
-      // JWT has 3 segments — accept only if middle segment looks base64-ish and >20 chars
       const parts = s.split('.');
       return parts.length === 3 && parts[1].length >= 20;
     },
@@ -105,11 +115,10 @@ const PATTERNS: Pattern[] = [
   {
     category: 'vercel_token',
     severity: 'critical',
-    regex: /\b([A-Za-z0-9]{24})\b/g, // Vercel tokens are 24-char alnum — low-specificity, validated
+    regex: /\b([A-Za-z0-9]{24})\b/g,
     description: 'Possible Vercel token',
+    owaspCategory: 'ASI-03',
     validate: (s) => {
-      // Only flag if context hint is present — the regex alone is too broad
-      // (catches any 24-char alnum). We rely on contextual detection elsewhere.
       return false; // disabled by default; re-enable when we have context heuristics
     },
   },
@@ -118,16 +127,15 @@ const PATTERNS: Pattern[] = [
     severity: 'critical',
     regex: /-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----/g,
     description: 'Embedded private key',
+    owaspCategory: 'ASI-03',
   },
   {
     category: 'env_secret',
     severity: 'recommended',
-    // "SECRET=..." or "PASSWORD=..." or "TOKEN=..." with an assigned value
-    // Capture group includes the key name so we can surface which one
     regex: /\b([A-Z][A-Z0-9_]{2,}(?:SECRET|PASSWORD|TOKEN|APIKEY|API_KEY|PRIVATE|CREDENTIALS))\s*=\s*["']?([A-Za-z0-9+/_\-=.]{12,})["']?/g,
     description: '.env-style secret assignment',
+    owaspCategory: 'ASI-03',
     validate: (s) => {
-      // Reject placeholder values
       const placeholders = ['your_key_here', 'xxxxx', 'changeme', 'todo', 'example', 'placeholder', 'secret_here'];
       return !placeholders.some(p => s.toLowerCase().includes(p));
     },
@@ -137,6 +145,7 @@ const PATTERNS: Pattern[] = [
     severity: 'recommended',
     regex: /\b(?:Bearer|Authorization:\s*Bearer)\s+([A-Za-z0-9_\-.]{30,})/g,
     description: 'Bearer token in headers',
+    owaspCategory: 'ASI-03',
   },
 ];
 
@@ -184,6 +193,7 @@ function scanText(content: string, location: string): SecretFinding[] {
         excerpt: redact(token),
         lineNumber: lineNumberOf(content, match.index),
         recommendation: `Remove this secret from ${location} immediately. Rotate the credential — assume it\'s compromised if this file was ever committed to git or shared. Move to a secrets manager (1Password CLI, Doppler, or a .env file excluded via .gitignore).`,
+        owaspCategory: pattern.owaspCategory,
       });
     }
   }

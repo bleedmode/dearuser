@@ -219,13 +219,13 @@ const TEMPLATES: Record<Substrate, SubstrateTemplate> = {
     ],
   },
   database: {
-    why: 'Lists that grow, need filtering, or are counted/aggregated belong in a real database. SQLite works for local solo use; Supabase when you need shared or remote access.',
-    exampleFn: (d) => `For "${d.slice(0, 60)}" — create a Supabase table with typed columns. Example schema:\n\n\`\`\`sql\nCREATE TABLE items (\n  id SERIAL PRIMARY KEY,\n  title TEXT NOT NULL,\n  status TEXT,\n  created_at TIMESTAMP DEFAULT now()\n);\n\`\`\``,
+    why: 'Lists that grow, need filtering, or are counted/aggregated belong in a real database. SQLite works for local solo use (zero setup, no accounts); Supabase when you need shared or remote access.',
+    exampleFn: (d) => `For "${d.slice(0, 60)}" — create a local SQLite database with typed columns:\n\n\`\`\`sql\nCREATE TABLE items (\n  id TEXT PRIMARY KEY,\n  title TEXT NOT NULL,\n  status TEXT,\n  created_at INTEGER\n);\n\`\`\`\n\nUse \`better-sqlite3\` (Node.js) to read/write. For shared access, use Supabase (free tier).`,
     antiPattern: 'Keeping the list in a markdown file. You can\'t query, filter, or count without parsing — and after 50 entries it\'s unreadable to both you and the agent.',
     steps: [
-      'Create a Supabase project (free tier works)',
+      'Create a SQLite database in your project (e.g. data.db) — or a Supabase project for cloud access',
       'Write the schema: tables + typed columns + timestamps',
-      'Expose it to your agent as an MCP server (supabase-mcp or a custom wrapper)',
+      'Expose it to your agent as an MCP server so it can read/write structured data',
     ],
   },
   document: {

@@ -11,7 +11,7 @@ Open source MCP server der hjælper mennesker og AI-agenter med at forstå hinan
 - GitHub: `bleedmode/dearuser` (monorepo med mcp/ + web/)
 - Web: `dearuser.ai`
 
-## Arkitektur: 3 videnskilder
+## Arkitektur: 3 videnskilder + lokal SQLite
 
 ```
 Kilde A (ekstern viden) → Hvad vi anbefaler
@@ -21,19 +21,33 @@ Kilde B (brugerens filer) → Diagnose
    Scanner: CLAUDE.md, memory, hooks, skills, sessions, history
    
 Kilde C (feedback loop) → Virkede det?
-   ~/.dearuser/recommendations.json → tjek ved næste analyze
+   ~/.dearuser/dearuser.db (SQLite) → recommendations, score_history, agent_runs
+   
+Kilde D (dashboard) → Visualisering
+   Hono server på localhost:7700 → read-only fra SQLite
 ```
 
-## MCP Tools (5 stk)
-- `analyze` — scan + diagnose + anbefalinger + session-mønstre + feedback loop (sprog/samarbejde)
-- `audit` — system coherence: orphan jobs, overlap, missing closure, substrate mismatch, unregistered MCP refs, unbacked-up substrate
-- `security` — secret scanning, prompt-injection surfaces, CLAUDE.md↔artefakt rule conflicts
+## Database (SQLite via better-sqlite3)
+- Fil: `~/.dearuser/dearuser.db` — auto-oprettes ved første tool-kald
+- WAL mode for concurrent reads (dashboard læser mens MCP skriver)
+- Auto-migration: `mcp/migrations/*.sql` køres ved DB-åbning
+- 4 tabeller: du_migrations, du_agent_runs, du_recommendations, du_score_history
+- KUN data Dear User's egne tools producerer — ingen tasks, research, projects (det er et separat produkt)
+- Dashboard åbner DB med readonly: true
+- JSON-fil migration: eksisterende recommendations.json importeres automatisk
+
+## MCP Tools (6 stk)
+- `analyze` — scan + diagnose + anbefalinger + session-mønstre + feedback loop → skriver du_agent_runs + du_score_history + du_recommendations
+- `audit` — system coherence: orphan jobs, overlap, missing closure, substrate mismatch → skriver du_agent_runs
+- `security` — secret scanning, prompt-injection surfaces, CLAUDE.md↔artefakt rule conflicts → skriver du_agent_runs
 - `onboard` — 7-step konversationel setup wizard for nye brugere
 - `wrapped` — shareable stats (text eller JSON)
+- `help` — capabilities menu
 
 ## Tech stack
-- TypeScript + @modelcontextprotocol/sdk + Zod
+- TypeScript + @modelcontextprotocol/sdk + Zod + better-sqlite3
 - Stdio transport, kører lokalt
+- Build: esbuild
 - Ingen cloud, ingen API keys, data forlader aldrig maskinen
 
 ## 5 Personas
@@ -55,28 +69,31 @@ Kilde C (feedback loop) → Virkede det?
 - **Bruger-research** (toolet udfører): scanning, diagnose, anbefalinger, feedback → lever i MCP server + ~/.dearuser/
 
 ## Current state (april 2026)
-- MCP server v2 bygget og testet (session-analyse, feedback loop, agent→agent instruktioner)
-- 5 tools: analyze, audit, security, onboard, wrapped
+- MCP server med 7 tools + lokal SQLite database + Hono dashboard
 - audit har 6 detectors (orphan, overlap, closure, substrate, mcp_refs, backup)
 - 26 kvalitetskontrollerede kilder i research DB (quality score 31%)
-- Wrapped prototype live på poised.dk/dearuser
-- PVS projekt oprettet med tasks
+- Wrapped prototype live på dearuser.ai
+- Dashboard live på localhost:7700 med score history, run log, recommendations
 - Ikke publiceret til npm endnu
 - 0 brugere, 0 validering af betalingsvillighed
 
 ## Open questions
 - Revenue model: gratis + pro $9/md er et gæt — uvalideret
-- Onboarding-flow: designet (OpenClaw-inspireret samtale) men ikke bygget
 - Prompt quality hook: reference eksisterer (severity1) men vores version ikke bygget
-- Domæne: agentwrapped.com eller dearuser.ai?
 
 ## Vigtige beslutninger taget
 - Open source engine, paid tier for monitoring/coaching/team
+- SQLite som default database — zero config, ingen cloud-krav
+- Dashboard og database er gratis (stickiness). Research pattern og advanced analytics er pro
+- Ét globalt DB (`~/.dearuser/dearuser.db`) — ikke per-projekt
+- Dashboard er separat process (Hono), MCP er stdio
+- better-sqlite3 (native addon) externalized i esbuild
 - 3-fase research process (Collect → Rate → Analyze) med kvalitetskontrol
 - Agent→agent: struktureret JSON output med presentation instructions
-- Feedback loop: gem anbefalinger, tjek implementering, track score
+- Feedback loop: gem anbefalinger, tjek implementering, track score (nu i SQLite)
 - Session-analyse: billig metadata + history parsing, ikke fuld JSONL parse
 - Industri-tracking: scheduled task, ikke real-time
+- Git-strategi: .db i .gitignore, migrations + config i git
 
 ## Regler for dette projekt
 - ALDRIG præsentér research uden evidence rating og caveat

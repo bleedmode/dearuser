@@ -12,6 +12,7 @@ import { scanArtifacts } from '../engine/audit-scanner.js';
 import { buildGraph } from '../engine/audit-graph.js';
 import { runDetectors, type DetectorOptions } from '../engine/audit-detectors.js';
 import { reconcileFindings } from '../engine/audit-feedback.js';
+import { insertAgentRun } from '../engine/db.js';
 import type {
   AuditArtifact,
   AuditArtifactType,
@@ -91,6 +92,17 @@ export function runAudit(options: AuditOptions = {}): AuditReport {
 
   // 4. Feedback
   const feedback = reconcileFindings(findings);
+
+  // Persist agent run to SQLite
+  try {
+    insertAgentRun({
+      toolName: 'audit',
+      summary: `${findings.length} findings (${findings.filter(f => f.severity === 'critical').length} critical)`,
+      status: 'success',
+    });
+  } catch {
+    // DB write failure should never break the audit
+  }
 
   return {
     version: '1.0',

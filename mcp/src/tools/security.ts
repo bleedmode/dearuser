@@ -20,11 +20,13 @@ import { scanArtifacts } from '../engine/audit-scanner.js';
 import { scanSecrets } from '../engine/secret-scanner.js';
 import { detectInjection } from '../engine/injection-detector.js';
 import { detectRuleConflicts } from '../engine/rule-conflict-detector.js';
+import { checkCves } from '../engine/cve-checker.js';
 import { runSupabaseAdvisor } from '../engine/supabase-advisor.js';
 import { runGitHubAdvisor } from '../engine/github-advisor.js';
 import { runNpmAdvisor } from '../engine/npm-advisor.js';
 import { runVercelAdvisor } from '../engine/vercel-advisor.js';
 import { loadConfig } from '../engine/config.js';
+import { insertAgentRun } from '../engine/db.js';
 import type {
   Scope,
   SecurityReport,
@@ -34,7 +36,23 @@ import type {
   GapSeverity,
   PlatformAdvisorFinding,
   PlatformAdvisorStatus,
+  OwaspAgenticCategory,
+  CveFinding,
 } from '../types.js';
+
+// OWASP Agentic AI Top 10 (2025/2026) labels
+const OWASP_LABELS: Record<OwaspAgenticCategory, string> = {
+  'ASI-01': 'Agent Goal Hijack',
+  'ASI-02': 'Insecure Tool Design',
+  'ASI-03': 'Identity & Privilege Abuse',
+  'ASI-04': 'Insecure Supply Chain',
+  'ASI-05': 'Tool Misuse',
+  'ASI-06': 'Memory & Context Poisoning',
+  'ASI-07': 'Insecure Inter-Agent Communication',
+  'ASI-08': 'Cascading Failures',
+  'ASI-09': 'Human-Agent Trust Exploitation',
+  'ASI-10': 'Rogue Agents',
+};
 
 export interface SecurityOptions {
   projectRoot?: string;
@@ -65,6 +83,7 @@ export async function runSecurity(options: SecurityOptions = {}): Promise<Securi
   const secrets = scanSecrets(artifacts, allTextFiles, scanResult.settingsFiles);
   const injection = detectInjection(artifacts);
   const ruleConflicts = detectRuleConflicts(parsed.rules, artifacts);
+  const cveFindings = checkCves(scanResult.settingsFiles, scope === 'project' ? projectRoot : null);
 
   // 4. Platform advisor tier — orchestrate external sources of truth
   const platformFindings: PlatformAdvisorFinding[] = [];
@@ -111,26 +130,49 @@ export async function runSecurity(options: SecurityOptions = {}): Promise<Securi
   }
 
   // 5. Summary counts (across all finding types + platform findings)
-  const allFindings: Array<{ severity: GapSeverity }> = [
+  const allFindings: Array<{ severity: GapSeverity; owaspCategory?: string }> = [
     ...secrets,
     ...injection,
     ...ruleConflicts,
+    ...cveFindings,
     ...platformFindings,
   ];
   const critical = allFindings.filter(f => f.severity === 'critical').length;
   const recommended = allFindings.filter(f => f.severity === 'recommended').length;
   const niceToHave = allFindings.filter(f => f.severity === 'nice_to_have').length;
 
+  // 6. OWASP summary — count findings per category
+  const owaspSummary: Partial<Record<OwaspAgenticCategory, number>> = {};
+  for (const f of allFindings) {
+    if (f.owaspCategory) {
+      const cat = f.owaspCategory as OwaspAgenticCategory;
+      owaspSummary[cat] = (owaspSummary[cat] || 0) + 1;
+    }
+  }
+
+  // Persist agent run to SQLite
+  try {
+    insertAgentRun({
+      toolName: 'security',
+      summary: `${critical + recommended + niceToHave} findings (${critical} critical, ${secrets.length} secrets, ${cveFindings.length} CVEs)`,
+      status: 'success',
+    });
+  } catch {
+    // DB write failure should never break the security scan
+  }
+
   return {
-    version: '1.1',
+    version: '1.2',
     generatedAt: new Date().toISOString(),
     scope,
     secrets,
     injection,
     ruleConflicts,
+    cveFindings,
     platformFindings,
     platformStatus,
     summary: { critical, recommended, niceToHave },
+    owaspSummary,
   };
 }
 
@@ -150,10 +192,23 @@ export function formatSecurityReport(report: SecurityReport): string {
     `- Secrets: ${report.secrets.length}`,
     `- Injection surfaces: ${report.injection.length}`,
     `- Rule conflicts: ${report.ruleConflicts.length}`,
+    `- CVE checks: ${report.cveFindings.length}`,
     ``,
     `**Platform advisors:**`,
     `- ${report.platformFindings.length} findings across ${report.platformStatus.length} platform(s)`,
   ];
+
+  // --- OWASP Agentic AI Top 10 summary ---
+  const owaspEntries = Object.entries(report.owaspSummary) as Array<[OwaspAgenticCategory, number]>;
+  if (owaspEntries.length > 0) {
+    lines.push(``, `### OWASP Agentic AI Top 10 Coverage`, ``);
+    lines.push(`| Category | Findings |`);
+    lines.push(`|----------|----------|`);
+    for (const [cat, count] of owaspEntries.sort((a, b) => a[0].localeCompare(b[0]))) {
+      lines.push(`| ${cat} — ${OWASP_LABELS[cat]} | ${count} |`);
+    }
+    lines.push(``, `*Mapped to [OWASP Agentic AI Top 10](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/). Categories without findings omitted.*`);
+  }
 
   // --- Platform status transparency ---
   if (report.platformStatus.length > 0) {
@@ -177,6 +232,7 @@ export function formatSecurityReport(report: SecurityReport): string {
       lines.push(`**Where:** \`${s.location}\`${s.lineNumber ? ` (line ${s.lineNumber})` : ''}`);
       lines.push(`**Preview:** \`${s.excerpt}\``);
       lines.push(`**Category:** ${s.category.replace(/_/g, ' ')}`);
+      if (s.owaspCategory) lines.push(`**OWASP:** ${s.owaspCategory} — ${OWASP_LABELS[s.owaspCategory]}`);
       lines.push(``, `**Fix:** ${s.recommendation}`);
       lines.push(``, `---`, ``);
     }
@@ -190,6 +246,7 @@ export function formatSecurityReport(report: SecurityReport): string {
       const marker = i.severity === 'critical' ? '🔴' : '🟡';
       lines.push(`### ${marker} ${i.title}`);
       lines.push(`**Where:** \`${i.artifactPath}\``);
+      if (i.owaspCategory) lines.push(`**OWASP:** ${i.owaspCategory} — ${OWASP_LABELS[i.owaspCategory]}`);
       lines.push(`**Why:** ${i.why}`);
       lines.push(``, '```');
       lines.push(i.excerpt);
@@ -214,7 +271,25 @@ export function formatSecurityReport(report: SecurityReport): string {
       lines.push(`**Source:** \`${c.claudeMdSource}\``);
       lines.push(`**Conflicting artifact:** \`${c.conflictingPath}\``);
       lines.push(`**Excerpt:** \`${c.excerpt.slice(0, 140)}\``);
+      if (c.owaspCategory) lines.push(`**OWASP:** ${c.owaspCategory} — ${OWASP_LABELS[c.owaspCategory]}`);
       lines.push(``, `**Why it matters:** ${c.why}`);
+      lines.push(``, `**Fix:** ${c.recommendation}`);
+      lines.push(``, `---`, ``);
+    }
+  }
+
+  // --- CVE checks ---
+  if (report.cveFindings.length > 0) {
+    lines.push(``, `## 🚨 Known CVE Checks`, ``);
+    lines.push(`*Checks for known Claude Code vulnerabilities with assigned CVE identifiers.*`, ``);
+    for (const c of report.cveFindings) {
+      const marker = c.severity === 'critical' ? '🔴' : '🟡';
+      lines.push(`### ${marker} ${c.cveId} (CVSS ${c.cvssScore})`);
+      lines.push(`**${c.title}**`);
+      lines.push(`**Where:** \`${c.location}\``);
+      lines.push(`**Excerpt:** \`${c.excerpt.slice(0, 140)}\``);
+      lines.push(`**OWASP:** ${c.owaspCategory} — ${OWASP_LABELS[c.owaspCategory]}`);
+      lines.push(``, c.description);
       lines.push(``, `**Fix:** ${c.recommendation}`);
       lines.push(``, `---`, ``);
     }
@@ -253,7 +328,7 @@ export function formatSecurityReport(report: SecurityReport): string {
   }
 
   // Empty state
-  const totalFindings = report.secrets.length + report.injection.length + report.ruleConflicts.length + report.platformFindings.length;
+  const totalFindings = report.secrets.length + report.injection.length + report.ruleConflicts.length + report.cveFindings.length + report.platformFindings.length;
   if (totalFindings === 0) {
     lines.push(
       ``,
