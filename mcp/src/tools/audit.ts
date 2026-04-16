@@ -245,78 +245,56 @@ function generateAssessment(
   clusters: OverlapCluster[],
 ): string[] {
   const lines: string[] = [];
-  const { critical, recommended, niceToHave } = report.summary;
 
-  // Status line
-  let status: string;
-  if (critical > 0) {
-    status = `Your setup has **${critical} critical issue${critical > 1 ? 's' : ''}** that need${critical === 1 ? 's' : ''} attention.`;
-  } else if (recommended > 0) {
-    status = `Your setup looks healthy — no critical issues found.`;
-  } else {
-    status = `Your setup looks great — no issues need attention.`;
-  }
-
-  lines.push(`## What to do`, ``, status);
-
-  // Actionable items — non-clustered findings that need attention (critical + recommended)
-  const clusteredFindingIds = new Set(clusters.flatMap(c => c.findings.map(f => f.id)));
+  // Compute actionable findings: critical + recommended NOT in large clusters (3+ findings)
   const largeClusters = clusters.filter(c => c.findings.length >= 3);
   const largeClustedFindingIds = new Set(largeClusters.flatMap(c => c.findings.map(f => f.id)));
 
-  // Collect actionable findings: critical + recommended that aren't part of large clusters
   const actionable = report.findings.filter(
     f => (f.severity === 'critical' || f.severity === 'recommended')
       && !largeClustedFindingIds.has(f.id),
   );
 
-  if (actionable.length > 0) {
-    const label = actionable.length === 1
-      ? `**1 thing to check:**`
-      : `**${actionable.length} things to check:**`;
-    lines.push(``, label);
+  lines.push(`## What to do`, ``);
 
-    // Show max 5 actionable items
-    for (const f of actionable.slice(0, 5)) {
-      // Use a simplified, jargon-free version of the recommendation
-      lines.push(`- ${f.recommendation}`);
-      lines.push(`  *Finding: ${f.title}*`);
-    }
-    if (actionable.length > 5) {
-      lines.push(`- ...and ${actionable.length - 5} more (see details above).`);
-    }
-  }
-
-  // Safe to ignore — large clusters + nice_to_have
-  const safeToIgnore: string[] = [];
-  for (const cluster of largeClusters) {
-    const prefix = detectClusterPrefix(cluster.artifactIds);
-    const count = cluster.artifactIds.size;
-    if (prefix) {
-      safeToIgnore.push(
-        `${count} "${prefix}" tools flagged as overlapping — they're separate tools in the same product, not duplicates.`,
+  if (actionable.length === 0) {
+    // Binary: nothing to do
+    lines.push(`✅ **Du behøver ikke gøre noget.**`);
+    lines.push(``);
+    const benignCount = largeClusters.reduce((sum, c) => sum + c.findings.length, 0)
+      + report.findings.filter(f => f.severity === 'nice_to_have' && !largeClustedFindingIds.has(f.id)).length;
+    if (benignCount > 0) {
+      lines.push(
+        `Dit setup er sundt. De ${benignCount} findings er enten forventet overlap mellem relaterede tools eller lav-prioritet polering — ingen handling nødvendig.`,
       );
     } else {
-      safeToIgnore.push(
-        `${cluster.findings.length} overlap findings between ${count} related artifacts — likely intentional, not duplicates.`,
-      );
+      lines.push(`Dit setup er rent.`);
     }
-  }
-  if (niceToHave > 0) {
-    const niceCount = report.findings.filter(
-      f => f.severity === 'nice_to_have' && !largeClustedFindingIds.has(f.id),
-    ).length;
-    if (niceCount > 0) {
-      safeToIgnore.push(
-        `${niceCount} low-priority finding${niceCount > 1 ? 's' : ''} (nice-to-have) — no action needed.`,
-      );
-    }
-  }
+  } else {
+    // Binary: user needs to act
+    const n = actionable.length;
+    lines.push(`⚠️ **Du skal gøre ${n} ${n === 1 ? 'ting' : 'ting'}:**`);
+    lines.push(``);
 
-  if (safeToIgnore.length > 0) {
-    lines.push(``, `**Safe to ignore:**`);
-    for (const item of safeToIgnore) {
-      lines.push(`- ${item}`);
+    // Numbered list with file paths when available
+    actionable.slice(0, 5).forEach((f, i) => {
+      lines.push(`${i + 1}. **${f.title}**`);
+      lines.push(`   ${f.recommendation}`);
+      // Extract file paths from evidence (source or excerpt containing absolute paths)
+      const paths = (f.evidence || [])
+        .map(e => {
+          const text = `${e.source} ${e.excerpt}`;
+          const match = text.match(/(\/[^\s`]+\.(md|json|ts|js|yaml|yml|sh))/);
+          return match ? match[1] : null;
+        })
+        .filter((p): p is string => p !== null);
+      if (paths.length > 0) {
+        lines.push(`   → ${paths.join(' + ')}`);
+      }
+    });
+
+    if (actionable.length > 5) {
+      lines.push(``, `...og ${actionable.length - 5} mere (se details ovenfor).`);
     }
   }
 
