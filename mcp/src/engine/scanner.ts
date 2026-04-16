@@ -304,7 +304,12 @@ function readSettingsAndMcpConfigAggregated(home: string, projectRoots: string[]
     join(home, '.claude', 'settings.json'),
     join(home, '.claude', 'settings.local.json'),
   ];
-  const globalMcpPaths = [join(home, '.claude', 'mcp.json')];
+  // .claude.json (root-level) is the primary MCP config source;
+  // .claude/mcp.json is secondary. Both can hold mcpServers.
+  const globalMcpPaths = [
+    join(home, '.claude.json'),
+    join(home, '.claude', 'mcp.json'),
+  ];
 
   const allSettingsPaths = [...globalSettingsPaths];
   const allMcpPaths = [...globalMcpPaths];
