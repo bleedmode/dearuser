@@ -27,6 +27,7 @@ import { getSetupTemplate, renderPlan } from '../templates/setup-templates.js';
 import type { Role } from '../templates/setup-templates.js';
 
 export type OnboardStep =
+  | 'greet'
   | 'intro'
   | 'work'
   | 'data'
@@ -42,6 +43,8 @@ export type OnboardStep =
 
 export interface OnboardState {
   version: 1;
+  /** Q0 answer — what the user wants us to call them. Used in report letter openings. */
+  name: string | null;
   /** Parsed from the Q1 free-text answer — hidden from the user. */
   role: Role | null;
   /** Q1 raw answer — what the user does day-to-day. */
@@ -94,6 +97,7 @@ export interface OnboardResult {
 function freshState(): OnboardState {
   return {
     version: 1,
+    name: null,
     role: null,
     work: null,
     pains: null,
@@ -197,14 +201,27 @@ function parseAudience(answer: string): OnboardState['audience'] {
 // ============================================================================
 
 /**
- * Step 1 (intro): Project scan happens silently; ask Q1.
- *
- * We DO NOT tell the user "I can see you already have 69 memory files, 11
- * skills, 1 hook" — that is meaningless to the Lovable audience and reads as
- * jargon. The scan data is kept in state for later use by the plan step.
+ * Parse a name answer. We want the first-name for greetings ("Kære Jarl").
+ * Strip punctuation, take the first word. Empty/whitespace → null.
  */
-function stepIntro(state: OnboardState, answer: string): OnboardResult {
-  // First call — no answer yet, silent scan + Q1
+function parseName(answer: string): string | null {
+  const cleaned = answer.trim().replace(/^(jeg hedder|mit navn er|i['']m|my name is|kald mig|call me)\s+/i, '');
+  const first = cleaned.split(/\s+/)[0]?.replace(/[^\p{L}\p{N}-]/gu, '');
+  if (!first || first.length > 40) return null;
+  // Capitalise if the user typed lowercase
+  return first.charAt(0).toUpperCase() + first.slice(1);
+}
+
+/**
+ * Step 0 (greet): Ask the user's name so we can open every report with
+ * "Kære [name]," instead of "Kære bruger,". We also do the project scan
+ * here silently — it's the earliest we have the user's attention.
+ *
+ * The name is optional: skip / "spring over" / blank → fallback to
+ * generic letter openings.
+ */
+function stepGreet(state: OnboardState, answer: string): OnboardResult {
+  // First call — no answer, show welcome + Q0
   if (!answer) {
     try {
       const scanResult = scan(process.cwd(), 'global');
@@ -219,20 +236,44 @@ function stepIntro(state: OnboardState, answer: string): OnboardResult {
     }
 
     return {
-      step: 'intro',
-      teaching: `Hej — jeg vil lære dig at kende, så jeg kan foreslå hvordan AI bedst hjælper dig.\n\nDet tager 4 små spørgsmål. Ingen forkerte svar.`,
-      question: 'Hvad arbejder du med til daglig? Hvilken slags arbejde tager mest af din tid?',
+      step: 'greet',
+      teaching: `Hej! Jeg er Dear User 💌 — jeg skriver små rapporter til dig om hvordan du og din AI-assistent arbejder sammen.\n\nJeg vil stille 5 korte spørgsmål. Ingen forkerte svar.`,
+      question: 'Først — hvad skal jeg kalde dig i mine breve? (fornavn er fint)',
       options: [],
-      // Stay in 'intro' so the next call parses Q1's answer (role). Only
-      // after parseRole do we advance to 'work'.
-      nextStep: 'intro',
+      nextStep: 'greet',
       state: encodeState(state),
       done: false,
       plan: null,
     };
   }
 
-  // Second call — parse role silently, advance to work (Q2)
+  // Second call — parse name (may be null if user skipped), advance to intro
+  if (/^(skip|spring over|ingen|nej tak|intet)/i.test(answer.trim())) {
+    state.name = null;
+  } else {
+    state.name = parseName(answer);
+  }
+  state.answers.greet = answer;
+
+  const addressing = state.name ? `Kære ${state.name}` : 'Kære bruger';
+
+  return {
+    step: 'greet',
+    teaching: `${addressing}. Så starter vi.`,
+    question: 'Hvad arbejder du med til daglig? Hvilken slags arbejde tager mest af din tid?',
+    options: [],
+    nextStep: 'intro',
+    state: encodeState(state),
+    done: false,
+    plan: null,
+  };
+}
+
+/**
+ * Step 1 (intro): User has answered Q1 about their work. Parse role silently,
+ * advance to Q2 (pains).
+ */
+function stepIntro(state: OnboardState, answer: string): OnboardResult {
   const role = parseRole(answer);
   state.role = role;
   state.work = answer.trim();
@@ -457,6 +498,7 @@ function writeConfigTemplate(state: OnboardState): string | null {
   const configPath = path.join(configDir, 'config.json');
 
   const preferences = {
+    name: state.name,
     role: state.role,
     cadence: state.cadence,
     audience: state.audience,
@@ -578,11 +620,13 @@ export interface OnboardInput {
 }
 
 export function runOnboard(input: OnboardInput): OnboardResult {
-  const currentStep = (input.step || 'intro') as OnboardStep;
+  // Default first step is now 'greet' — we ask name before anything else.
+  const currentStep = (input.step || 'greet') as OnboardStep;
   const state = decodeState(input.state);
   const answer = input.answer || '';
 
   switch (currentStep) {
+    case 'greet':       return stepGreet(state, answer);
     case 'intro':       return stepIntro(state, answer);
     case 'work':        return stepWork(state, answer);
     case 'data':        return stepData(state, answer);
@@ -596,32 +640,37 @@ export function runOnboard(input: OnboardInput): OnboardResult {
     case 'stack-pains': return stepWork(state, answer);
     case 'substrate':   return stepCadence(state, answer);
     default:
-      return stepIntro(freshState(), '');
+      return stepGreet(freshState(), '');
   }
 }
 
 function stepNumber(step: OnboardStep): number {
   const map: Record<string, number> = {
-    intro: 1, role: 1,
-    work: 2, goals: 2,
-    data: 3, stack: 3, pains: 3, 'stack-pains': 3,
-    cadence: 4, substrate: 4,
-    plan: 5,
+    greet: 1,
+    intro: 2, role: 2,
+    work: 3, goals: 3,
+    data: 4, stack: 4, pains: 4, 'stack-pains': 4,
+    cadence: 5, substrate: 5,
+    plan: 6,
   };
   return map[step] || 1;
 }
 
 /**
- * Label-number for "trin X af 5". In the intro step we ask TWO questions
+ * Label-number for "trin X af 5 spørgsmål". In the intro step we ask TWO questions
  * back-to-back (Q1 then Q2 after role parse), so the label should reflect
  * the question being asked — use nextStep when available.
  */
 function labelNumber(result: OnboardResult): number {
   if (result.done) return 5;
-  if (result.nextStep && result.nextStep !== result.step) {
+  // Prefer nextStep's number when the handler has advanced — the question
+  // being shown belongs to the next step, not the one that generated it.
+  if (result.nextStep && result.nextStep !== result.step && result.nextStep !== 'plan') {
     return stepNumber(result.nextStep);
   }
-  return stepNumber(result.step);
+  const n = stepNumber(result.step);
+  // We have 5 questions (greet..cadence) and a plan. Cap at 5 for labels.
+  return Math.min(n, 5);
 }
 
 /** Format an OnboardResult as markdown for the MCP client. */
@@ -632,7 +681,7 @@ export function formatOnboardResult(result: OnboardResult): string {
     return result.plan;
   }
 
-  lines.push(`*Onboard — trin ${labelNumber(result)} af 5*`);
+  lines.push(`*Onboard — trin ${labelNumber(result)} af 5 spørgsmål*`);
   lines.push('');
 
   if (result.teaching) {
