@@ -427,13 +427,43 @@ export function createApp(): Hono {
 }
 
 /**
- * Start the dashboard in-process. Returns the bound URL, or null if every
- * candidate port was busy (in which case we log a warning and the MCP server
- * continues without a dashboard — a non-fatal degradation).
+ * Check whether a Dear User dashboard is already running on `port`. Returns
+ * true only if the /health endpoint responds with `product: "dearuser"` —
+ * that prevents us from silently binding to someone else's web server.
+ */
+async function probeDashboard(port: number): Promise<boolean> {
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/health`, {
+      signal: AbortSignal.timeout(500),
+    });
+    if (!res.ok) return false;
+    const data = await res.json() as any;
+    return data?.product === 'dearuser';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Find-or-start the dashboard. If another Claude Code session already has
+ * one running on 7700..7710, reuse that URL instead of spawning a competing
+ * instance on a different port — this way the user always sees the same
+ * stable URL regardless of how many sessions are open.
+ *
+ * Returns the dashboard URL, or null if no port was available.
  */
 export async function startDashboard(): Promise<string | null> {
-  const app = createApp();
+  // Phase 1: look for an existing Dear User dashboard we can reuse.
+  for (let i = 0; i < MAX_PORT_ATTEMPTS; i++) {
+    const port = DEFAULT_PORT + i;
+    if (await probeDashboard(port)) {
+      console.error(`Dear User dashboard (reusing): http://localhost:${port}`);
+      return `http://localhost:${port}`;
+    }
+  }
 
+  // Phase 2: nothing to reuse — start our own on the first free port.
+  const app = createApp();
   for (let i = 0; i < MAX_PORT_ATTEMPTS; i++) {
     const port = DEFAULT_PORT + i;
     try {
@@ -441,21 +471,16 @@ export async function startDashboard(): Promise<string | null> {
         const server = serve(
           { fetch: app.fetch, port, hostname: '127.0.0.1' },
           (info) => {
-            // Bound successfully
             // eslint-disable-next-line no-console
             console.error(`Dear User dashboard: http://localhost:${info.port}`);
             resolve();
           },
         );
-        server.on('error', (err: NodeJS.ErrnoException) => {
-          if (err.code === 'EADDRINUSE') reject(err);
-          else reject(err);
-        });
+        server.on('error', (err: NodeJS.ErrnoException) => reject(err));
       });
       return `http://localhost:${port}`;
     } catch (err: any) {
-      if (err?.code === 'EADDRINUSE') continue; // try next port
-      // Other error → bail
+      if (err?.code === 'EADDRINUSE') continue;
       console.error('Dashboard failed to start:', err?.message || err);
       return null;
     }
