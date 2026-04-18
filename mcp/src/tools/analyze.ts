@@ -241,6 +241,10 @@ export function runAnalysis(
     injection,
     lint: { ...lint.summary, findings: lint.findings },
     feedback,
+    // Internal — used by index.ts to store the rendered report in du_agent_runs
+    // so the local dashboard's /r/:id route can display it. Undefined if the
+    // DB write failed (silent degradation — not user-facing).
+    _agentRunId: agentRunId,
   };
 }
 

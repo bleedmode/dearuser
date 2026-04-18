@@ -135,6 +135,22 @@ export function getRecentRuns(limit = 50): any[] {
   `).all(limit);
 }
 
+/** Get a single run by id — used by the dashboard share-URL (/r/:id). */
+export function getRunById(id: string): any | undefined {
+  const db = getDb();
+  return db.prepare('SELECT * FROM du_agent_runs WHERE id = ?').get(id);
+}
+
+/**
+ * Store the full human-readable report body against an existing run. Called
+ * after the MCP tool has generated the markdown so the dashboard's /r/:id
+ * route can show it. Silent no-op if the row doesn't exist.
+ */
+export function updateRunDetails(id: string, details: string): void {
+  const db = getDb();
+  db.prepare('UPDATE du_agent_runs SET details = ? WHERE id = ?').run(details, id);
+}
+
 // ---------------------------------------------------------------------------
 // Score History
 // ---------------------------------------------------------------------------
