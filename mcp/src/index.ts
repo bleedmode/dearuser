@@ -11,7 +11,7 @@ import type { AnalyzeFormat } from './tools/analyze.js';
 import { runAudit, formatAuditReport } from './tools/audit.js';
 import { runOnboard, formatOnboardResult } from './tools/onboard.js';
 import { runSecurity, formatSecurityReport } from './tools/security.js';
-import { updateRunDetails } from './engine/db.js';
+import { insertAgentRun, updateRunDetails } from './engine/db.js';
 import { existsSync, mkdirSync, openSync, readFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
@@ -355,7 +355,10 @@ Example prompts that should trigger this tool:
   async ({ projectRoot, scope, format }) => {
     try {
       const root = projectRoot || process.cwd();
-      const report = runAnalysis(root, scope || 'global');
+      // persist:false — wrapped reuses analyze's data but shouldn't log a
+      // duplicate "analyze" run in the user's history. We'll log our own
+      // "wrapped" run below once we have the rendered text.
+      const report = runAnalysis(root, { scope: scope || 'global', persist: false });
       const w = report.wrapped;
 
       if (format === 'json') {
@@ -405,7 +408,20 @@ Example prompts that should trigger this tool:
         );
       }
 
-      return { content: [{ type: 'text', text: lines.join('\n') }] };
+      // Log a wrapped run in its own right so it shows up in history with
+      // the correct tool name and rendered body (not as a duplicate analyze).
+      const wrappedText = lines.join('\n');
+      let wrappedRunId: string | undefined;
+      try {
+        wrappedRunId = insertAgentRun({
+          toolName: 'wrapped',
+          summary: `${report.persona.archetypeName} — ${report.collaborationScore}/100`,
+          score: report.collaborationScore,
+          status: 'success',
+        });
+      } catch { /* silent */ }
+
+      return { content: [{ type: 'text', text: attachDashboardLink(wrappedText, wrappedRunId) }] };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       const hint = msg.includes('EACCES') ? ' Check file permissions on ~/.claude/.'

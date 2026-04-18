@@ -235,7 +235,9 @@ function renderMarkdown(md: string): string {
 // ============================================================================
 
 function renderLanding(): string {
-  const recent = getRecentRuns(5);
+  // Same filter as /historik — don't show a "latest report" card that links
+  // to an empty page.
+  const recent = getRecentRuns(20).filter((r: any) => r.details && r.details.trim().length > 0).slice(0, 5);
   const scoreHistory = getScoreHistory(30);
   const latestScore = scoreHistory.length > 0 ? scoreHistory[scoreHistory.length - 1] : null;
   const pending = getRecommendations('pending').slice(0, 3);
@@ -325,7 +327,9 @@ function renderLanding(): string {
 // ============================================================================
 
 function renderHistorik(): string {
-  const runs = getRecentRuns(100);
+  // Hide runs with no saved body — they happen for older runs (pre-persist
+  // feature) and are useless to the user since /r/:id would show nothing.
+  const runs = getRecentRuns(100).filter((r: any) => r.details && r.details.trim().length > 0);
 
   if (runs.length === 0) {
     return page('Mine rapporter', `
