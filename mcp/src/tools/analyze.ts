@@ -9,7 +9,7 @@ import { detectGaps } from '../engine/gap-detector.js';
 import { generateRecommendations } from '../templates/recommendations.js';
 import { generateUserCoaching } from '../templates/user-coaching.js';
 import { analyzeSession } from '../engine/session-analyzer.js';
-import { trackRecommendations, checkImplementation } from '../engine/feedback-tracker.js';
+import { trackRecommendations, trackToolRecommendations, checkImplementation } from '../engine/feedback-tracker.js';
 import { insertAgentRun, insertScoreHistory } from '../engine/db.js';
 import { scanGitRepos } from '../engine/git-scanner.js';
 import type { GitScanResult } from '../engine/git-scanner.js';
@@ -115,6 +115,13 @@ export interface AnalysisOptions {
   scope?: Scope;
   /** Scan local .git directories for activity signals. Defaults to true. */
   includeGit?: boolean;
+  /**
+   * When false, skip the SQLite writes (agent_run, score_history,
+   * recommendation tracking). Used by the `wrapped` tool which calls
+   * runAnalysis for its data but doesn't want to log itself as a new
+   * "analyze" run in the user's history. Default true.
+   */
+  persist?: boolean;
 }
 
 export function runAnalysis(
@@ -194,31 +201,55 @@ export function runAnalysis(
     hooksCount: scanResult.hooksCount,
   });
 
-  // 15. Persist to SQLite — agent run + score history + recommendations
+  // 15. Compute tool recommendations (MCP servers, hooks, skills, repos we
+  //     suggest based on their problems + persona). These used to be
+  //     computed only when formatting the markdown — which meant they were
+  //     never persisted to du_recommendations and never showed up in the
+  //     dashboard's /forbedringer view. Fix: compute here, attach to the
+  //     report, persist alongside the text recommendations.
+  const problemIds = [
+    ...frictionPatterns.map(f => f.theme),
+    ...gaps.map(g => g.id),
+    ...(stats.hooksCount === 0 ? ['no_build_verification', 'destructive_commands', 'safety'] : []),
+    ...(sessionData.corrections.negationCount > 3 ? ['vague_prompts'] : []),
+  ];
+  const toolRecs = recommendTools(
+    problemIds,
+    persona.detected,
+    scanResult.installedServers,
+    { installedSkills: artifacts.filter(a => a.type === 'skill').map(a => a.name) },
+  );
+
+  // 16. Persist to SQLite — agent run + score history + recommendations.
+  // Skipped when persist:false (wrapped tool does this to avoid duplicate
+  // "analyze" rows in the user's run history).
   let agentRunId: string | undefined;
-  try {
-    agentRunId = insertAgentRun({
-      toolName: 'analyze',
-      summary: `Score: ${collaborationScore}/100 — ${persona.archetypeName}`,
-      score: collaborationScore,
-      status: 'success',
-    });
+  if (options.persist !== false) {
+    try {
+      agentRunId = insertAgentRun({
+        toolName: 'analyze',
+        summary: `Score: ${collaborationScore}/100 — ${persona.archetypeName}`,
+        score: collaborationScore,
+        status: 'success',
+      });
 
-    const catScores: Record<string, number> = {};
-    for (const [key, cat] of Object.entries(categories)) {
-      catScores[key] = cat.score;
+      const catScores: Record<string, number> = {};
+      for (const [key, cat] of Object.entries(categories)) {
+        catScores[key] = cat.score;
+      }
+      insertScoreHistory({
+        scope: scanResult.scope,
+        score: collaborationScore,
+        persona: persona.detected,
+        categoryScores: catScores,
+      });
+    } catch {
+      // DB write failure should never break the analysis
     }
-    insertScoreHistory({
-      scope: scanResult.scope,
-      score: collaborationScore,
-      persona: persona.detected,
-      categoryScores: catScores,
-    });
-  } catch {
-    // DB write failure should never break the analysis
-  }
 
-  trackRecommendations(recommendations, collaborationScore, agentRunId);
+    trackRecommendations(recommendations, collaborationScore, agentRunId);
+    trackToolRecommendations(toolRecs, collaborationScore, agentRunId);
+  }
 
   return {
     version: '2.0',
@@ -241,6 +272,7 @@ export function runAnalysis(
     injection,
     lint: { ...lint.summary, findings: lint.findings },
     feedback,
+    toolRecs,
     // Internal — used by index.ts to store the rendered report in du_agent_runs
     // so the local dashboard's /r/:id route can display it. Undefined if the
     // DB write failed (silent degradation — not user-facing).
@@ -458,20 +490,11 @@ function formatRecommendations(report: AnalysisReport): string[] {
   return lines;
 }
 
-/** Tool recommendations section. */
+/** Tool recommendations section. Reads from report.toolRecs (computed in
+ *  runAnalysis and persisted to du_recommendations). */
 function formatToolRecs(report: AnalysisReport): string[] {
   const lines: string[] = [];
-
-  const problemIds = [
-    ...report.frictionPatterns.map(f => f.theme),
-    ...report.gaps.map(g => g.id),
-    ...(report.stats.hooksCount === 0 ? ['no_build_verification', 'destructive_commands', 'safety'] : []),
-    ...(report.session.corrections.negationCount > 3 ? ['vague_prompts'] : []),
-  ];
-
-  const toolRecs = recommendTools(problemIds, report.persona.detected, report.installedServers, {
-    installedSkills: report.installedSkills,
-  });
+  const toolRecs = report.toolRecs;
 
   if (toolRecs.length > 0) {
     lines.push('', '## Recommended Tools', '');

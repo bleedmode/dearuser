@@ -109,6 +109,48 @@ export function trackRecommendations(
 }
 
 /**
+ * Record tool-catalog suggestions (MCP servers, hooks, skills, GitHub repos)
+ * so they show up in the dashboard's /forbedringer view alongside the text
+ * recommendations. Before this, tool recs only lived in the rendered report
+ * text — the user's "Forslag" page missed them entirely.
+ */
+export function trackToolRecommendations(
+  toolRecs: Array<{
+    name: string;
+    type: 'mcp_server' | 'hook' | 'skill' | 'github_repo';
+    description: string;
+    userFriendlyDescription?: string;
+    solves?: string[];
+  }>,
+  collaborationScore: number,
+  agentRunId?: string,
+): void {
+  for (const tool of toolRecs.slice(0, 5)) {
+    const existing = findRecommendationByTitle(tool.name);
+    if (existing) continue;
+
+    // Our db.ts schema accepts only these types — map github_repo to skill
+    // since it's typically a skill/hook template the user installs locally.
+    const dbType: 'hook' | 'skill' | 'mcp_server' =
+      tool.type === 'mcp_server' ? 'mcp_server'
+      : tool.type === 'hook' ? 'hook'
+      : 'skill';
+
+    const snippet = tool.userFriendlyDescription || tool.description;
+
+    insertRecommendation({
+      agentRunId,
+      type: dbType,
+      title: tool.name,
+      textSnippet: snippet.slice(0, 180),
+      keywords: tool.solves || [],
+      severity: 'recommended',
+      scoreAtGiven: collaborationScore,
+    });
+  }
+}
+
+/**
  * Type-aware implementation check. Uses structural context when available.
  */
 export function checkImplementation(

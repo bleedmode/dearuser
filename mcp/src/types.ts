@@ -438,6 +438,19 @@ export interface AnalysisReport {
   injection: InjectionFinding[];
   /** CLAUDE.md lint findings — instruction quality checks. */
   lint: LintSummary & { findings: LintFinding[] };
+  /** Tool-catalog suggestions — MCP servers, hooks, skills, GitHub repos. Typed
+   *  loosely here to avoid a circular import from templates/tool-catalog. */
+  toolRecs: Array<{
+    name: string;
+    type: 'mcp_server' | 'skill' | 'github_repo' | 'hook';
+    description: string;
+    userFriendlyDescription?: string;
+    stars?: number;
+    install: string;
+    whoActs?: string;
+    solves?: string[];
+    personas?: string[];
+  }>;
   feedback: {
     totalRecommendations: number;
     implemented: number;
