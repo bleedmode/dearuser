@@ -4,7 +4,8 @@
   "description": "Dear User — helps humans and AI agents understand each other better",
   "type": "module",
   "bin": {
-    "dearuser-mcp": "./dist/index.js"
+    "dearuser-mcp": "./dist/index.js",
+    "dearuser-dashboard": "./dist/dashboard-standalone.js"
   },
   "scripts": {
     "build": "node esbuild.config.js",

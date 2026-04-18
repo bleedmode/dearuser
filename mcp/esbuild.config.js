@@ -1,11 +1,9 @@
 import { build } from 'esbuild';
 
-await build({
-  entryPoints: ['src/index.ts'],
+const shared = {
   bundle: true,
   platform: 'node',
   format: 'esm',
-  outfile: 'dist/index.js',
   allowOverwrite: true,
   // better-sqlite3 is a native addon (.node binary) — cannot be bundled by esbuild.
   external: ['better-sqlite3'],
@@ -21,4 +19,13 @@ await build({
   },
   sourcemap: false,
   minify: false,
-});
+};
+
+// Build both entry points in parallel: the MCP server (index) and the
+// standalone dashboard (dashboard-standalone). The MCP server spawns the
+// standalone dashboard as a detached child so it survives Claude Code
+// sessions ending.
+await Promise.all([
+  build({ ...shared, entryPoints: ['src/index.ts'], outfile: 'dist/index.js' }),
+  build({ ...shared, entryPoints: ['src/dashboard-standalone.ts'], outfile: 'dist/dashboard-standalone.js' }),
+]);
