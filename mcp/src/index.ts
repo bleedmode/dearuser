@@ -11,8 +11,30 @@ import type { AnalyzeFormat } from './tools/analyze.js';
 import { runAudit, formatAuditReport } from './tools/audit.js';
 import { runOnboard, formatOnboardResult } from './tools/onboard.js';
 import { runSecurity, formatSecurityReport } from './tools/security.js';
+import { updateRunDetails } from './engine/db.js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+
+// Dashboard URL captured at MCP boot so we can include it as a CTA at the
+// bottom of long reports. Null means the dashboard didn't start (port busy,
+// dependency missing, etc.) — in that case we just skip the CTA.
+let DASHBOARD_URL: string | null = null;
+
+/**
+ * Wrap a report body with a "read the full version" CTA pointing at the local
+ * dashboard, and persist the body in du_agent_runs.details so /r/:id can
+ * render it. Silent no-ops when no agent_run id or no dashboard URL — the
+ * report is returned unchanged.
+ */
+function attachDashboardLink(body: string, agentRunId: string | undefined): string {
+  // Always persist if we have an id — even if the dashboard didn't boot,
+  // future sessions may start it and find the run.
+  if (agentRunId) {
+    try { updateRunDetails(agentRunId, body); } catch { /* non-fatal */ }
+  }
+  if (!DASHBOARD_URL || !agentRunId) return body;
+  return `${body}\n\n---\n\n📊 **Se fuld rapport + historik:** ${DASHBOARD_URL}/r/${agentRunId}`;
+}
 
 // __filename and __dirname are provided by the esbuild banner in the bundled output.
 // For tsc-only builds (dev, tests), they're available as ESM globals via Node's --experimental-specifier-resolution.
@@ -68,9 +90,10 @@ Example prompts that should trigger this tool:
         includeGit: includeGit !== false,
       });
 
+      const text = formatAnalyzeReport(report, effectiveFormat);
       return {
         content: [
-          { type: 'text', text: formatAnalyzeReport(report, effectiveFormat) },
+          { type: 'text', text: attachDashboardLink(text, (report as any)._agentRunId) },
         ],
       };
     } catch (error) {
@@ -124,7 +147,8 @@ Example prompts that should trigger this tool:
         scope: scope || 'global',
         focus: focus || 'all',
       });
-      return { content: [{ type: 'text', text: formatAuditReport(report) }] };
+      const text = formatAuditReport(report);
+      return { content: [{ type: 'text', text: attachDashboardLink(text, (report as any)._agentRunId) }] };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       const hint = msg.includes('EACCES') ? ' Check file permissions on ~/.claude/.'
@@ -220,7 +244,8 @@ Example prompts that should trigger this tool:
   async ({ projectRoot, scope }) => {
     try {
       const report = await runSecurity({ projectRoot, scope });
-      return { content: [{ type: 'text', text: formatSecurityReport(report) }] };
+      const text = formatSecurityReport(report);
+      return { content: [{ type: 'text', text: attachDashboardLink(text, (report as any)._agentRunId) }] };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       const hint = msg.includes('EACCES') ? ' Check file permissions on ~/.claude/ and your project directory.'
@@ -385,6 +410,16 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('Dear User MCP server running');
+
+  // Start the local dashboard in the same process. Non-fatal if it fails —
+  // the MCP server keeps working even without a dashboard. Lazy-import so
+  // MCP usage without the dashboard doesn't pay the startup cost of Hono.
+  try {
+    const { startDashboard } = await import('./dashboard.js');
+    DASHBOARD_URL = await startDashboard();
+  } catch (err) {
+    console.error('Dashboard boot skipped:', err instanceof Error ? err.message : err);
+  }
 }
 
 main().catch((error) => {

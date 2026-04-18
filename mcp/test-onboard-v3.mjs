@@ -71,8 +71,8 @@ out = await call({
 console.log(out);
 state = extractState(out);
 
-// 5. answer Q4 (cadence + audience) — step='cadence'
-banner('5. answer Q4 — daily + team');
+// 5. answer question 4 (cadence + audience) — step='cadence'
+banner('5. answer question 4 — daily + team');
 out = await call({
   step: 'cadence',
   answer: 'Hver morgen gerne — det er kun til mig selv.',

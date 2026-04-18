@@ -94,8 +94,9 @@ export function runAudit(options: AuditOptions = {}): AuditReport {
   const feedback = reconcileFindings(findings);
 
   // Persist agent run to SQLite
+  let agentRunId: string | undefined;
   try {
-    insertAgentRun({
+    agentRunId = insertAgentRun({
       toolName: 'audit',
       summary: `${findings.length} findings (${findings.filter(f => f.severity === 'critical').length} critical)`,
       status: 'success',
@@ -105,6 +106,7 @@ export function runAudit(options: AuditOptions = {}): AuditReport {
   }
 
   return {
+    _agentRunId: agentRunId,
     version: '1.0',
     generatedAt: new Date().toISOString(),
     scope: options.scope || 'global',

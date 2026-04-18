@@ -151,8 +151,9 @@ export async function runSecurity(options: SecurityOptions = {}): Promise<Securi
   }
 
   // Persist agent run to SQLite
+  let agentRunId: string | undefined;
   try {
-    insertAgentRun({
+    agentRunId = insertAgentRun({
       toolName: 'security',
       summary: `${critical + recommended + niceToHave} findings (${critical} critical, ${secrets.length} secrets, ${cveFindings.length} CVEs)`,
       status: 'success',
@@ -162,6 +163,7 @@ export async function runSecurity(options: SecurityOptions = {}): Promise<Securi
   }
 
   return {
+    _agentRunId: agentRunId,
     version: '1.2',
     generatedAt: new Date().toISOString(),
     scope,

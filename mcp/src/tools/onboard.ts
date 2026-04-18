@@ -54,7 +54,7 @@ export interface OnboardState {
   dataDescription: string | null;
   /** Substrate we chose FOR them based on Q3 — hidden from the user. */
   decidedSubstrate: Substrate | null;
-  /** Q4 parts — cadence ('daily'/'weekly'/'on-demand'/'event') + audience. */
+  /** question 4 parts — cadence ('daily'/'weekly'/'on-demand'/'event') + audience. */
   cadence: 'daily' | 'weekly' | 'on-demand' | 'event' | null;
   audience: 'self' | 'team' | 'customers' | null;
   /** Raw history for auditability. */
@@ -173,7 +173,7 @@ function parseStack(answer: string): string[] {
   return known.filter(tool => a.includes(tool));
 }
 
-/** Parse Q4 cadence answer. */
+/** Parse question 4 cadence answer. */
 function parseCadence(answer: string): OnboardState['cadence'] {
   const a = answer.toLowerCase();
   if (/daily|hver morgen|hver dag|every morning|each day|om morgenen/.test(a)) return 'daily';
@@ -184,7 +184,7 @@ function parseCadence(answer: string): OnboardState['cadence'] {
   return 'on-demand';
 }
 
-/** Parse Q4 audience answer. */
+/** Parse question 4 audience answer. */
 function parseAudience(answer: string): OnboardState['audience'] {
   const a = answer.toLowerCase();
   if (/customer|kunde|client|user/.test(a)) return 'customers';
@@ -284,7 +284,7 @@ function stepWork(state: OnboardState, answer: string): OnboardResult {
 }
 
 /**
- * Step 3 (data): Record Q3, classify substrate SILENTLY, ask Q4.
+ * Step 3 (data): Record Q3, classify substrate SILENTLY, ask question 4.
  *
  * The old flow had a teaching block here explaining "rules vs memory vs
  * documents vs database". That is developer jargon and doesn't belong in
@@ -330,7 +330,7 @@ function stepData(state: OnboardState, answer: string): OnboardResult {
 }
 
 /**
- * Step 4 (cadence): Record Q4 answers (cadence + audience), advance to plan.
+ * Step 4 (cadence): Record question 4 answers (cadence + audience), advance to plan.
  */
 function stepCadence(state: OnboardState, answer: string): OnboardResult {
   if (/skip|just.*template|spring over/i.test(answer)) {

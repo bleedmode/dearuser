@@ -249,6 +249,8 @@ export interface AuditFinding {
 }
 
 export interface AuditReport {
+  /** DB row id — set by runAudit, used by index.ts to persist the rendered report for the dashboard. */
+  _agentRunId?: string;
   version: '1.0';
   generatedAt: string;
   scope: Scope;
@@ -403,6 +405,8 @@ export interface LintSummary {
 }
 
 export interface AnalysisReport {
+  /** DB row id — set by runAnalysis, used by index.ts to persist the rendered report for the dashboard. */
+  _agentRunId?: string;
   version: '2.0';
   generatedAt: string;
   scanRoot: string;
@@ -555,6 +559,8 @@ export interface PlatformAdvisorStatus {
 }
 
 export interface SecurityReport {
+  /** DB row id — set by runSecurity, used by index.ts to persist the rendered report for the dashboard. */
+  _agentRunId?: string;
   version: '1.2';
   generatedAt: string;
   scope: Scope;
