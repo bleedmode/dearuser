@@ -11,7 +11,8 @@ import type { AnalyzeFormat } from './tools/analyze.js';
 import { runAudit, formatAuditReport } from './tools/audit.js';
 import { runOnboard, formatOnboardResult } from './tools/onboard.js';
 import { runSecurity, formatSecurityReport } from './tools/security.js';
-import { insertAgentRun, updateRunDetails } from './engine/db.js';
+import { insertAgentRun, updateRunDetails, getRecommendationById, updateRecommendationStatus } from './engine/db.js';
+import { implementClaudeMdAppend, implementSettingsMerge, prepareShellExec, prepareManual } from './engine/implementer.js';
 import { existsSync, mkdirSync, openSync, readFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
@@ -62,23 +63,78 @@ function openInBrowser(url: string): void {
 }
 
 /**
- * Wrap a report body with a dashboard CTA, persist it in du_agent_runs.details
- * so /r/:id can render it, AND auto-open the report in the user's browser so
- * they see it regardless of whether the agent summarised away the link.
+ * Build the "Hvad vil du gøre?" action menu that the agent should surface
+ * to the user after a report. Pulls the top 3 actionable pending
+ * recommendations (those with non-manual action types we can execute).
+ * Returns null when there's nothing actionable — avoids an empty menu.
+ */
+function buildActionMenu(): string | null {
+  try {
+    const { getRecommendations } = require('./engine/db.js');
+    const pending = getRecommendations('pending') as any[];
+    const actionable = pending
+      .filter(r => r.action_type && r.action_type !== 'manual' && r.action_data)
+      .slice(0, 3);
+    if (actionable.length === 0) return null;
+
+    const labelFor = (r: any): string => {
+      switch (r.action_type) {
+        case 'settings_merge':  return 'sætter det op automatisk';
+        case 'claude_md_append': return 'tilføjer reglen til CLAUDE.md';
+        case 'shell_exec':      return 'kører installations-kommandoen';
+        default: return '';
+      }
+    };
+
+    const lines: string[] = [
+      '',
+      '---',
+      '',
+      '## Hvad vil du gøre nu?',
+      '',
+      '[AGENT INSTRUCTION: Use the AskUserQuestion tool with the options below so the user gets a native clickable menu. If AskUserQuestion is not available, present the numbered list as-is and accept a digit or short phrase as the answer. When the user picks an option, call `mcp__dearuser__implement_recommendation` with the matching `recommendation_id`. For "spring over" / "drop" answers, call `mcp__dearuser__dismiss_recommendation`.]',
+      '',
+    ];
+
+    actionable.forEach((r, i) => {
+      const hint = labelFor(r);
+      lines.push(`${i + 1}. **${r.title}** — ${r.text_snippet || ''}`);
+      if (hint) lines.push(`   _(jeg ${hint} for dig)_`);
+      lines.push(`   \`recommendation_id: ${r.id}\``);
+      lines.push('');
+    });
+
+    lines.push(`${actionable.length + 1}. **Tag dem alle** — implementér 1-${actionable.length} på én gang`);
+    lines.push(`${actionable.length + 2}. **Spring over for nu** — kom tilbage senere`);
+
+    return lines.join('\n');
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Wrap a report body with a dashboard CTA and an action menu, persist it in
+ * du_agent_runs.details so /r/:id can render it, AND auto-open the report in
+ * the user's browser so they see it regardless of whether the agent
+ * summarised away the link.
  */
 function attachDashboardLink(body: string, agentRunId: string | undefined): string {
+  // Build the action menu BEFORE we persist, so the dashboard /r/:id view
+  // also carries the menu (useful if the user comes back to an old report).
+  const menu = buildActionMenu();
+  const composed = menu ? `${body}${menu}` : body;
+
   if (agentRunId) {
-    try { updateRunDetails(agentRunId, body); } catch { /* non-fatal */ }
+    try { updateRunDetails(agentRunId, composed); } catch { /* non-fatal */ }
   }
-  if (!DASHBOARD_URL || !agentRunId) return body;
+  if (!DASHBOARD_URL || !agentRunId) return composed;
 
   const reportUrl = `${DASHBOARD_URL}/r/${agentRunId}`;
   // Fire-and-forget — don't wait for the browser.
   openInBrowser(reportUrl);
 
-  // Link at the TOP of the CTA block, not bottom — readers (human and agent
-  // summariser) are more likely to preserve the first line of a section.
-  return `${body}\n\n---\n\n📊 **Rapporten er åbnet i din browser:** ${reportUrl}\n\n_Åbner den ikke automatisk? Klik linket eller kør \`open ${reportUrl}\` i terminalen._`;
+  return `${composed}\n\n---\n\n📊 **Rapporten er åbnet i din browser:** ${reportUrl}\n\n_Åbner den ikke automatisk? Klik linket eller kør \`open ${reportUrl}\` i terminalen._`;
 }
 
 // __filename and __dirname are provided by the esbuild banner in the bundled output.
@@ -435,7 +491,104 @@ Example prompts that should trigger this tool:
   }
 );
 
-// Tool 6: help — discovery/capabilities menu
+// Tool 6: implement_recommendation — apply one of Dear User's suggestions
+server.tool(
+  'implement_recommendation',
+  `Apply a Dear User recommendation to the user's setup — automatically if safe, or by returning the exact command/instruction for the agent to run.
+
+Call this after asking the user (via AskUserQuestion) which of the top recommendations from the latest analyze/audit/security report they want to implement. The recommendation_id comes from the menu we surface in the report's "Hvad vil du gøre?" section.
+
+Behavior by action_type:
+- **claude_md_append** — appends the markdown rule to ~/.claude/CLAUDE.md (with timestamped backup). Idempotent.
+- **settings_merge** — merges a JSON snippet into ~/.claude/settings.json (with backup, arrays deduped). Idempotent.
+- **shell_exec** — returns the shell command for YOU (the agent) to run via the Bash tool. Do NOT paraphrase; run it verbatim.
+- **manual** — returns instructions that need human judgment; present them to the user.
+
+After a successful implementation, the recommendation's status is marked "implemented" so Dear User won't suggest it again.
+
+IMPORTANT: Present the ImplementResult back to the user in plain Danish — confirm what changed, show any backup paths, and if there's a \`command\` field, run it via Bash and report the result. If \`ok:false\`, tell the user why and suggest they try again or do it manually.`,
+  {
+    recommendation_id: z.string().describe('The id of the recommendation to implement — surfaced in the action menu of the latest report.'),
+  },
+  async ({ recommendation_id }) => {
+    try {
+      const rec = getRecommendationById(recommendation_id);
+      if (!rec) {
+        return { content: [{ type: 'text', text: `Anbefaling med id ${recommendation_id} blev ikke fundet. Prøv at køre /dearuser-analyze igen.` }], isError: true };
+      }
+      if (rec.status === 'implemented') {
+        return { content: [{ type: 'text', text: `"${rec.title}" er allerede implementeret (${new Date(rec.checked_at || rec.given_at).toLocaleDateString('da-DK')}).` }] };
+      }
+
+      const actionType = rec.action_type as string | null;
+      const actionData = rec.action_data as string | null;
+
+      let result;
+      if (actionType === 'claude_md_append' && actionData) {
+        result = implementClaudeMdAppend(actionData);
+      } else if (actionType === 'settings_merge' && actionData) {
+        result = implementSettingsMerge(actionData);
+      } else if (actionType === 'shell_exec' && actionData) {
+        result = prepareShellExec(actionData);
+      } else if (actionType === 'manual' || !actionType) {
+        result = prepareManual(actionData || rec.text_snippet || 'Ingen instruktioner gemt.');
+      } else {
+        result = { ok: false, summary: `Ukendt action-type: ${actionType}` };
+      }
+
+      if (result.ok && !result.command && !result.instructions) {
+        // Actual implementation succeeded — mark it done.
+        try { updateRecommendationStatus(recommendation_id, 'implemented'); } catch { /* non-fatal */ }
+      }
+
+      // Format a clean message back to the agent/user.
+      const lines: string[] = [`**${rec.title}**`, '', result.summary];
+      if (result.command) {
+        lines.push('', '```bash', result.command, '```', '', '_Kør denne kommando via Bash — jeg kan ikke gøre det selv fra MCP-serveren._');
+      }
+      if (result.instructions) {
+        lines.push('', result.instructions);
+      }
+      if (result.backups && result.backups.length > 0) {
+        lines.push('', `_Backup: \`${result.backups[0]}\` — hvis noget går galt kan du kopiere den tilbage._`);
+      }
+      if (!result.ok && result.error) {
+        lines.push('', `Fejl: ${result.error}`);
+      }
+
+      return { content: [{ type: 'text', text: lines.join('\n') }], isError: !result.ok };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      return { content: [{ type: 'text', text: `Implementer fejlede: ${msg}` }], isError: true };
+    }
+  }
+);
+
+// Tool 7: dismiss_recommendation — user doesn't want this suggestion
+server.tool(
+  'dismiss_recommendation',
+  `Mark a Dear User recommendation as dismissed so it won't be suggested again. Call this when the user picks "drop"/"ikke for mig"/"skip" for a specific recommendation from the action menu.
+
+Use recommendation_id from the latest report's menu. The dismissal is permanent unless the user manually resets it via the dashboard.`,
+  {
+    recommendation_id: z.string().describe('The id of the recommendation to dismiss.'),
+  },
+  async ({ recommendation_id }) => {
+    try {
+      const rec = getRecommendationById(recommendation_id);
+      if (!rec) {
+        return { content: [{ type: 'text', text: `Anbefaling med id ${recommendation_id} blev ikke fundet.` }], isError: true };
+      }
+      updateRecommendationStatus(recommendation_id, 'dismissed');
+      return { content: [{ type: 'text', text: `OK — "${rec.title}" er nu droppet. Jeg foreslår den ikke igen.` }] };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      return { content: [{ type: 'text', text: `Kunne ikke droppe anbefalingen: ${msg}` }], isError: true };
+    }
+  }
+);
+
+// Tool 8: help — discovery/capabilities menu
 server.tool(
   'help',
   `Show Dear User's capabilities to the user. Call this whenever the user asks "what can Dear User do?", "hvad kan DearUser?", "show me the options", "help", or seems uncertain about which tool fits their need. Also call proactively the first time a user mentions Dear User if they haven't used it before.

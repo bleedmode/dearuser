@@ -189,6 +189,8 @@ export function getScoreHistory(days = 90): any[] {
 // Recommendations (replaces JSON file)
 // ---------------------------------------------------------------------------
 
+export type ActionType = 'claude_md_append' | 'settings_merge' | 'shell_exec' | 'manual';
+
 export interface RecommendationInput {
   agentRunId?: string;
   type: 'claude_md_rule' | 'hook' | 'skill' | 'mcp_server' | 'behavior';
@@ -197,6 +199,11 @@ export interface RecommendationInput {
   keywords?: string[];
   severity?: 'critical' | 'recommended' | 'nice_to_have';
   scoreAtGiven?: number;
+  /** How to implement: append to CLAUDE.md, merge into settings.json,
+   *  spawn a shell command, or show as manual instructions. */
+  actionType?: ActionType;
+  /** Full payload needed to execute actionType. */
+  actionData?: string;
 }
 
 export function insertRecommendation(input: RecommendationInput): string {
@@ -204,8 +211,8 @@ export function insertRecommendation(input: RecommendationInput): string {
   const id = newId();
 
   db.prepare(`
-    INSERT INTO du_recommendations (id, agent_run_id, type, title, text_snippet, keywords, severity, status, score_at_given, given_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+    INSERT INTO du_recommendations (id, agent_run_id, type, title, text_snippet, keywords, severity, status, score_at_given, given_at, action_type, action_data)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
   `).run(
     id,
     input.agentRunId || null,
@@ -216,9 +223,17 @@ export function insertRecommendation(input: RecommendationInput): string {
     input.severity || 'recommended',
     input.scoreAtGiven ?? null,
     Date.now(),
+    input.actionType || null,
+    input.actionData || null,
   );
 
   return id;
+}
+
+/** Get a single recommendation by id — used by implement/dismiss flows. */
+export function getRecommendationById(id: string): any | undefined {
+  const db = getDb();
+  return db.prepare('SELECT * FROM du_recommendations WHERE id = ?').get(id);
 }
 
 export function getRecommendations(status?: string): any[] {

@@ -17,7 +17,7 @@
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { marked } from 'marked';
-import { getRecentRuns, getRunById, getScoreHistory, getRecommendations } from './engine/db.js';
+import { getRecentRuns, getRunById, getScoreHistory, getRecommendations, updateRecommendationStatus } from './engine/db.js';
 import { getUserName, updatePreferences } from './engine/user-preferences.js';
 import { runOnboard } from './tools/onboard.js';
 import type { OnboardResult } from './tools/onboard.js';
@@ -420,13 +420,22 @@ function renderReport(id: string): string {
 function renderForbedringer(): string {
   const pending = getRecommendations('pending');
   const implemented = getRecommendations('implemented');
+  const dismissed = getRecommendations('dismissed');
 
-  const renderList = (items: any[]) => {
+  const renderList = (items: any[], canDrop: boolean) => {
     if (items.length === 0) return `<p class="text-ink-500 text-sm">Ingen lige nu.</p>`;
     return `
       <ul class="space-y-3">
         ${items.map(r => {
           const f = friendlyRec(r.title);
+          const dropForm = canDrop ? `
+            <form method="POST" action="/forbedringer/${escapeHtml(r.id)}/dismiss" class="ml-3 shrink-0">
+              <button type="submit"
+                class="text-xs text-ink-500 hover:text-bad-fg border border-paper-300 hover:border-bad-fg rounded-full px-3 py-1 transition">
+                Drop
+              </button>
+            </form>
+          ` : '';
           return `
             <li class="bg-paper-100 border border-paper-200 rounded-lg p-4">
               <div class="flex items-start gap-3">
@@ -436,6 +445,7 @@ function renderForbedringer(): string {
                   ${f.hint ? `<div class="text-sm text-ink-500 mt-1 leading-relaxed">${escapeHtml(f.hint)}</div>` : ''}
                   <div class="font-mono text-xs text-ink-300 mt-2">${timeAgo(r.given_at)}</div>
                 </div>
+                ${dropForm}
               </div>
             </li>
           `;
@@ -463,13 +473,20 @@ function renderForbedringer(): string {
 
       <div class="mb-10">
         <h2 class="text-sm uppercase tracking-wider text-ink-500 mb-3">Venter på dig (${pending.length})</h2>
-        ${renderList(pending)}
+        ${renderList(pending, true)}
       </div>
 
       ${implemented.length > 0 ? `
-        <div>
+        <div class="mb-10">
           <h2 class="text-sm uppercase tracking-wider text-ink-500 mb-3">Allerede gjort (${implemented.length})</h2>
-          ${renderList(implemented)}
+          ${renderList(implemented, false)}
+        </div>
+      ` : ''}
+
+      ${dismissed.length > 0 ? `
+        <div>
+          <h2 class="text-sm uppercase tracking-wider text-ink-500 mb-3">Droppet (${dismissed.length})</h2>
+          ${renderList(dismissed, false)}
         </div>
       ` : ''}
     </section>
@@ -636,6 +653,15 @@ export function createApp(): Hono {
       const reset = runOnboard({});
       return c.html(renderOnboardForm(reset, `Noget gik galt: ${msg}. Vi starter forfra.`));
     }
+  });
+
+  // Drop a recommendation — status → 'dismissed'. POST so browsers don't
+  // pre-fetch it, and so CSRF scanners see side-effect intent.
+  app.post('/forbedringer/:id/dismiss', async (c) => {
+    try {
+      updateRecommendationStatus(c.req.param('id'), 'dismissed');
+    } catch { /* non-fatal — the redirect still goes through */ }
+    return c.redirect('/forbedringer');
   });
 
   // Health probe — used by other MCP sessions to detect that a Dear User

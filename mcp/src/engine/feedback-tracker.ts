@@ -96,6 +96,14 @@ export function trackRecommendations(
       : rec.target.includes('behavior') ? 'behavior'
       : 'claude_md_rule';
 
+    // Map the rec's target into an action_type the implementer understands.
+    // 'settings' → settings_merge (JSON snippet), 'global_claude_md' →
+    // claude_md_append (markdown snippet). Others fall back to 'manual'.
+    const actionType: 'settings_merge' | 'claude_md_append' | 'manual' =
+      rec.target === 'settings' ? 'settings_merge'
+      : rec.target === 'global_claude_md' ? 'claude_md_append'
+      : 'manual';
+
     insertRecommendation({
       agentRunId,
       type: type as any,
@@ -104,6 +112,8 @@ export function trackRecommendations(
       keywords: extractKeywords(rec.title + ' ' + rec.textBlock.slice(0, 200)),
       severity: (rec.priority as any) || 'recommended',
       scoreAtGiven: collaborationScore,
+      actionType,
+      actionData: rec.textBlock,
     });
   }
 }
@@ -121,6 +131,7 @@ export function trackToolRecommendations(
     description: string;
     userFriendlyDescription?: string;
     solves?: string[];
+    install?: string;
   }>,
   collaborationScore: number,
   agentRunId?: string,
@@ -138,6 +149,15 @@ export function trackToolRecommendations(
 
     const snippet = tool.userFriendlyDescription || tool.description;
 
+    // Map into the implementer's action_type vocabulary:
+    // - mcp_server install string is a shell command → shell_exec
+    // - hook install is a JSON snippet for settings.json → settings_merge
+    // - skill/github_repo → manual (requires human judgment on install path)
+    const actionType: 'shell_exec' | 'settings_merge' | 'manual' =
+      tool.type === 'mcp_server' ? 'shell_exec'
+      : tool.type === 'hook' ? 'settings_merge'
+      : 'manual';
+
     insertRecommendation({
       agentRunId,
       type: dbType,
@@ -146,6 +166,8 @@ export function trackToolRecommendations(
       keywords: tool.solves || [],
       severity: 'recommended',
       scoreAtGiven: collaborationScore,
+      actionType,
+      actionData: tool.install,
     });
   }
 }
