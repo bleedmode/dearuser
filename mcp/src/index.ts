@@ -14,6 +14,7 @@ import { runSecurity, formatSecurityReport } from './tools/security.js';
 import { updateRunDetails } from './engine/db.js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { spawn } from 'child_process';
 
 // Dashboard URL captured at MCP boot so we can include it as a CTA at the
 // bottom of long reports. Null means the dashboard didn't start (port busy,
@@ -21,19 +22,62 @@ import { join } from 'path';
 let DASHBOARD_URL: string | null = null;
 
 /**
- * Wrap a report body with a "read the full version" CTA pointing at the local
- * dashboard, and persist the body in du_agent_runs.details so /r/:id can
- * render it. Silent no-ops when no agent_run id or no dashboard URL — the
- * report is returned unchanged.
+ * Open a URL in the user's default browser. Silent best-effort — we never
+ * block or throw if it fails. Opt out by setting DEARUSER_NO_AUTO_OPEN=1
+ * (useful for headless CI, SSH sessions, or if the user hates popups).
+ *
+ * Why this exists: the agent often summarises long reports and drops the
+ * dashboard link at the bottom. Auto-opening the browser guarantees the
+ * user actually sees the report regardless of summarisation.
+ */
+function openInBrowser(url: string): void {
+  if (process.env.DEARUSER_NO_AUTO_OPEN === '1') return;
+
+  // Map platform → command. We use the array form of spawn so no shell
+  // interprets the URL (avoids URL-injection edge cases).
+  let cmd: string;
+  let args: string[];
+  switch (process.platform) {
+    case 'darwin':
+      cmd = 'open';
+      args = [url];
+      break;
+    case 'win32':
+      cmd = 'cmd';
+      args = ['/c', 'start', '""', url];
+      break;
+    default:
+      cmd = 'xdg-open';
+      args = [url];
+  }
+
+  try {
+    const child = spawn(cmd, args, { stdio: 'ignore', detached: true });
+    child.unref();
+    child.on('error', () => { /* silent — missing xdg-open on minimal Linux is fine */ });
+  } catch {
+    // Silent — never let browser-open failure break a report delivery.
+  }
+}
+
+/**
+ * Wrap a report body with a dashboard CTA, persist it in du_agent_runs.details
+ * so /r/:id can render it, AND auto-open the report in the user's browser so
+ * they see it regardless of whether the agent summarised away the link.
  */
 function attachDashboardLink(body: string, agentRunId: string | undefined): string {
-  // Always persist if we have an id — even if the dashboard didn't boot,
-  // future sessions may start it and find the run.
   if (agentRunId) {
     try { updateRunDetails(agentRunId, body); } catch { /* non-fatal */ }
   }
   if (!DASHBOARD_URL || !agentRunId) return body;
-  return `${body}\n\n---\n\n📊 **Se fuld rapport + historik:** ${DASHBOARD_URL}/r/${agentRunId}`;
+
+  const reportUrl = `${DASHBOARD_URL}/r/${agentRunId}`;
+  // Fire-and-forget — don't wait for the browser.
+  openInBrowser(reportUrl);
+
+  // Link at the TOP of the CTA block, not bottom — readers (human and agent
+  // summariser) are more likely to preserve the first line of a section.
+  return `${body}\n\n---\n\n📊 **Rapporten er åbnet i din browser:** ${reportUrl}\n\n_Åbner den ikke automatisk? Klik linket eller kør \`open ${reportUrl}\` i terminalen._`;
 }
 
 // __filename and __dirname are provided by the esbuild banner in the bundled output.
@@ -407,19 +451,21 @@ When presenting: return the text verbatim. Do NOT summarize or re-wrap — the f
 
 // Start the server
 async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error('Dear User MCP server running');
-
-  // Start the local dashboard in the same process. Non-fatal if it fails —
-  // the MCP server keeps working even without a dashboard. Lazy-import so
-  // MCP usage without the dashboard doesn't pay the startup cost of Hono.
+  // Start the dashboard BEFORE accepting MCP requests so DASHBOARD_URL is
+  // populated by the time the first tool call arrives. If we started them
+  // in parallel, early tool calls could race the dashboard boot and miss
+  // the CTA link. Dashboard startup is bounded (10 port probes × 500ms =
+  // ~5s worst case) and normally takes <200ms.
   try {
     const { startDashboard } = await import('./dashboard.js');
     DASHBOARD_URL = await startDashboard();
   } catch (err) {
     console.error('Dashboard boot skipped:', err instanceof Error ? err.message : err);
   }
+
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error('Dear User MCP server running');
 }
 
 main().catch((error) => {
