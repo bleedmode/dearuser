@@ -12,7 +12,8 @@ import { runAudit, formatAuditReport } from './tools/audit.js';
 import { runOnboard, formatOnboardResult } from './tools/onboard.js';
 import { runSecurity, formatSecurityReport } from './tools/security.js';
 import { updateRunDetails } from './engine/db.js';
-import { readFileSync } from 'fs';
+import { existsSync, mkdirSync, openSync, readFileSync } from 'fs';
+import { homedir } from 'os';
 import { join } from 'path';
 import { spawn } from 'child_process';
 
@@ -474,23 +475,90 @@ When presenting: return the text verbatim. Do NOT summarize or re-wrap — the f
   }
 );
 
+/**
+ * Probe 7700..7709 for an existing Dear User dashboard. Returns the URL of
+ * the first responder, or null if none. Used both to reuse a dashboard
+ * another session/daemon started, and to confirm our detached spawn came up.
+ */
+async function findRunningDashboard(maxAttempts = 10): Promise<string | null> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const port = 7700 + i;
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/health`, {
+        signal: AbortSignal.timeout(500),
+      });
+      if (!res.ok) continue;
+      const data = await res.json() as any;
+      if (data?.product === 'dearuser') return `http://localhost:${port}`;
+    } catch { /* port empty or not us */ }
+  }
+  return null;
+}
+
+/**
+ * Spawn the dashboard as a detached child process that survives the MCP
+ * exit. Output is redirected to a log file in ~/.dearuser/. Returns the
+ * URL once the child responds to /health, or null on failure.
+ */
+async function spawnDetachedDashboard(): Promise<string | null> {
+  const dashboardScript = join(__dirname, 'dashboard-standalone.js');
+  if (!existsSync(dashboardScript)) {
+    console.error(`[mcp] dashboard-standalone.js not found at ${dashboardScript}`);
+    return null;
+  }
+
+  // Make sure the log directory exists and open the log file once.
+  const logDir = join(homedir(), '.dearuser');
+  if (!existsSync(logDir)) mkdirSync(logDir, { recursive: true });
+  const logPath = join(logDir, 'dashboard.log');
+
+  try {
+    const out = openSync(logPath, 'a');
+    const err = openSync(logPath, 'a');
+    const child = spawn(process.execPath, [dashboardScript], {
+      detached: true,
+      stdio: ['ignore', out, err],
+      env: process.env,
+    });
+    child.unref();
+  } catch (err) {
+    console.error('[mcp] could not spawn dashboard:', err instanceof Error ? err.message : err);
+    return null;
+  }
+
+  // Wait up to 5 seconds for the child to bind a port and start responding.
+  for (let i = 0; i < 20; i++) {
+    await new Promise(r => setTimeout(r, 250));
+    const url = await findRunningDashboard();
+    if (url) return url;
+  }
+  return null;
+}
+
 // Start the server
 async function main() {
-  // Start the dashboard BEFORE accepting MCP requests so DASHBOARD_URL is
-  // populated by the time the first tool call arrives. If we started them
-  // in parallel, early tool calls could race the dashboard boot and miss
-  // the CTA link. Dashboard startup is bounded (10 port probes × 500ms =
-  // ~5s worst case) and normally takes <200ms.
+  // Dashboard lifecycle: find-or-spawn a long-lived dashboard process that
+  // outlives this MCP session. That way the user can click a share URL from
+  // a week-old report and still reach it — even if the Claude Code session
+  // that generated the URL has long since closed.
   try {
-    const { startDashboard } = await import('./dashboard.js');
-    DASHBOARD_URL = await startDashboard();
+    // Step 1: Is a dashboard already running? (Could be a previous session's
+    // detached spawn, a user-launched `node dist/dashboard-standalone.js`,
+    // or a launchd/systemd unit.)
+    DASHBOARD_URL = await findRunningDashboard();
+
+    // Step 2: None running — spawn one ourselves, detached, so it survives us.
+    if (!DASHBOARD_URL) {
+      DASHBOARD_URL = await spawnDetachedDashboard();
+    }
   } catch (err) {
-    console.error('Dashboard boot skipped:', err instanceof Error ? err.message : err);
+    console.error('Dashboard setup skipped:', err instanceof Error ? err.message : err);
   }
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('Dear User MCP server running');
+  if (DASHBOARD_URL) console.error(`Dashboard: ${DASHBOARD_URL}`);
 }
 
 main().catch((error) => {
