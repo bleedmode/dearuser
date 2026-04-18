@@ -241,11 +241,36 @@ Example prompts that should trigger this tool:
   },
   async ({ step, answer, state }) => {
     try {
-      const result = runOnboard({ step, answer, state });
+      // If this is a fresh onboarding call (no step, no state) AND the
+      // dashboard is running, open the browser to the visual flow instead
+      // of chatting through the questions. The Lovable audience finds the
+      // browser form much easier than typing long answers in chat.
+      const fresh = !step && !state && !answer;
+      if (fresh && DASHBOARD_URL) {
+        const onboardUrl = `${DASHBOARD_URL}/onboard`;
+        openInBrowser(onboardUrl);
+        return {
+          content: [{
+            type: 'text',
+            text: [
+              `💌 **Jeg har åbnet opstarts-vinduet i din browser:** ${onboardUrl}`,
+              ``,
+              `Svar på de 5 korte spørgsmål der — det er nemmere end at skrive lange svar i chatten. Jeg venter her imens.`,
+              ``,
+              `_Foretrækker du at blive her i chatten? Kør \`onboard\` igen med \`answer=chat\` så fortsætter vi på den gamle måde._`,
+            ].join('\n'),
+          }],
+        };
+      }
+
+      // Chat-mode fallback — either explicit opt-in ("answer=chat" on a
+      // fresh call) or continuing a session that started in chat.
+      const chatAnswer = answer === 'chat' && fresh ? '' : answer;
+      const result = runOnboard({ step, answer: chatAnswer, state });
       return { content: [{ type: 'text', text: formatOnboardResult(result) }] };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      const hint = msg.includes('step') ? ' Valid steps: intro, goals, stack-pains, substrate, plan. Omit step to start fresh.'
+      const hint = msg.includes('step') ? ' Valid steps: greet, intro, work, data, cadence, plan. Omit step to start fresh.'
         : msg.includes('state') ? ' The state blob may be corrupted — omit the state parameter to restart onboarding.'
         : ' Try calling onboard with no arguments to start a fresh session.';
       return {

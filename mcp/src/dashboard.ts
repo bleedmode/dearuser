@@ -18,7 +18,9 @@ import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { marked } from 'marked';
 import { getRecentRuns, getRunById, getScoreHistory, getRecommendations } from './engine/db.js';
-import { getUserName } from './engine/user-preferences.js';
+import { getUserName, updatePreferences } from './engine/user-preferences.js';
+import { runOnboard } from './tools/onboard.js';
+import type { OnboardResult } from './tools/onboard.js';
 
 const DEFAULT_PORT = 7700;
 const MAX_PORT_ATTEMPTS = 10;
@@ -471,6 +473,123 @@ function renderForbedringer(): string {
 }
 
 // ============================================================================
+// Onboarding in the dashboard — hybrid flow
+//
+// Why this exists: typing long free-text answers in the Claude Code chat is
+// awkward. The browser lets users think, re-read, and pick from suggestions.
+// We reuse runOnboard() as the backend — one source of truth for questions,
+// parsing, and state transitions.
+//
+// Flow: GET /onboard starts fresh. POST /onboard accepts the form submission,
+// runs one step, and either returns the next question or writes the final
+// config + shows the plan.
+// ============================================================================
+
+function renderOnboardForm(result: OnboardResult, error?: string): string {
+  const totalSteps = 5;
+  const stepNo = result.done ? totalSteps : Math.max(1, Math.min(stepNumberFromResult(result), totalSteps));
+  const progress = Math.round((stepNo / totalSteps) * 100);
+
+  const teaching = result.teaching
+    ? `<div class="prose prose-stone max-w-none text-ink-700 mb-6 leading-relaxed whitespace-pre-wrap">${escapeHtml(result.teaching)}</div>`
+    : '';
+
+  const optionsChips = result.options.length > 0
+    ? `
+      <div class="mb-3 flex flex-wrap gap-2">
+        ${result.options.map(opt => `
+          <button type="button" onclick="document.getElementById('answer').value = ${JSON.stringify(opt)}; document.getElementById('answer').focus();"
+            class="text-sm bg-paper-100 hover:bg-accent-100 border border-paper-300 hover:border-accent-600 rounded-full px-3 py-1 text-ink-700 transition">
+            ${escapeHtml(opt)}
+          </button>
+        `).join('')}
+      </div>
+      <p class="text-xs text-ink-500 mb-3">Klik et forslag eller skriv dit eget svar.</p>
+    `
+    : '';
+
+  const errorBlock = error
+    ? `<div class="bg-bad-bg border border-bad-fg/30 text-bad-fg rounded-lg px-4 py-3 mb-4 text-sm">${escapeHtml(error)}</div>`
+    : '';
+
+  const body = `
+    <section class="max-w-xl mx-auto">
+      <div class="mb-6">
+        <div class="text-xs uppercase tracking-wider text-ink-500 mb-2">Spørgsmål ${stepNo} af ${totalSteps}</div>
+        <div class="h-1.5 bg-paper-200 rounded-full overflow-hidden">
+          <div class="h-full bg-accent-600 rounded-full transition-all" style="width: ${progress}%"></div>
+        </div>
+      </div>
+
+      ${teaching}
+
+      ${errorBlock}
+
+      <form method="POST" action="/onboard" class="space-y-4">
+        <input type="hidden" name="step" value="${escapeHtml(result.nextStep || 'greet')}">
+        <input type="hidden" name="state" value="${escapeHtml(result.state)}">
+
+        <label for="answer" class="block font-medium text-ink-900 text-lg leading-relaxed">
+          ${escapeHtml(result.question)}
+        </label>
+
+        ${optionsChips}
+
+        <textarea
+          id="answer"
+          name="answer"
+          rows="${result.options.length > 0 ? 2 : 4}"
+          class="w-full bg-paper-50 border border-paper-300 focus:border-accent-600 focus:ring-2 focus:ring-accent-100 rounded-lg p-3 text-ink-900 placeholder-ink-300 font-sans resize-y transition"
+          placeholder="Skriv dit svar her..."
+          autofocus
+        ></textarea>
+
+        <div class="flex items-center justify-between pt-2">
+          <a href="/" class="text-sm text-ink-500 hover:text-ink-900 transition">Afbryd</a>
+          <button type="submit"
+            class="bg-accent-600 hover:bg-accent-500 text-white font-medium px-5 py-2 rounded-lg transition">
+            Næste →
+          </button>
+        </div>
+      </form>
+    </section>
+  `;
+
+  return page('Opstart', body, 'oversigt');
+}
+
+function stepNumberFromResult(result: OnboardResult): number {
+  const map: Record<string, number> = {
+    greet: 1, intro: 2, work: 3, data: 4, cadence: 5, plan: 5,
+  };
+  if (result.nextStep && result.nextStep !== result.step && result.nextStep !== 'plan') {
+    return map[result.nextStep] || 1;
+  }
+  return map[result.step] || 1;
+}
+
+function renderOnboardDone(plan: string): string {
+  const rendered = renderMarkdown(plan);
+  return page('Færdig!', `
+    <section>
+      <div class="text-center mb-8">
+        <div class="text-5xl mb-3">💌</div>
+        <h1 class="text-3xl font-semibold mb-2">Færdig — tak!</h1>
+        <p class="text-ink-500">Jeg har gemt dine svar. Din plan er klar nedenfor.</p>
+      </div>
+      <div class="letter-prose bg-paper-100 border border-paper-200 rounded-xl p-6">
+        ${rendered}
+      </div>
+      <div class="mt-8 text-center">
+        <a href="/" class="inline-block bg-accent-600 hover:bg-accent-500 text-white font-medium px-5 py-2 rounded-lg transition">
+          Gå til forsiden
+        </a>
+      </div>
+    </section>
+  `, 'oversigt');
+}
+
+// ============================================================================
 // Hono app + server
 // ============================================================================
 
@@ -481,6 +600,39 @@ export function createApp(): Hono {
   app.get('/historik', (c) => c.html(renderHistorik()));
   app.get('/forbedringer', (c) => c.html(renderForbedringer()));
   app.get('/r/:id', (c) => c.html(renderReport(c.req.param('id'))));
+
+  // Onboarding — GET starts fresh, POST advances one step.
+  app.get('/onboard', (c) => {
+    const result = runOnboard({});
+    return c.html(renderOnboardForm(result));
+  });
+
+  app.post('/onboard', async (c) => {
+    const form = await c.req.formData();
+    const step = (form.get('step') || '').toString();
+    const state = (form.get('state') || '').toString();
+    const answer = (form.get('answer') || '').toString().trim();
+
+    // Empty submission — re-render the same step with a gentle nudge.
+    if (!answer) {
+      const current = runOnboard({ step, state });
+      return c.html(renderOnboardForm(current, 'Skriv dit svar før du går videre.'));
+    }
+
+    try {
+      const result = runOnboard({ step, answer, state });
+      if (result.done && result.plan) {
+        // runOnboard's stepPlan already writes the config (via its own
+        // writeConfigTemplate). Nothing more to persist here.
+        return c.html(renderOnboardDone(result.plan));
+      }
+      return c.html(renderOnboardForm(result));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const reset = runOnboard({});
+      return c.html(renderOnboardForm(reset, `Noget gik galt: ${msg}. Vi starter forfra.`));
+    }
+  });
 
   // Health probe — used by other MCP sessions to detect that a Dear User
   // dashboard is already running on this port (avoids duplicate servers).
