@@ -278,15 +278,30 @@ function scoreSystemMaturity(scan: ScanResult): CategoryScore {
   else if (scan.mcpServersCount === 1) present.push('1 MCP server — consider adding more for your use case');
   else missing.push('No MCP servers — missing tool integrations');
 
-  // Score on a curve — but harder than before
+  // Score on a curve. Reaching 100 requires depth (20+ artifacts combined)
+  // AND breadth (at least one of each: hook, skill, scheduled task, command,
+  // MCP server). This keeps the scale honest — every category is actually
+  // reachable — without handing out 100 to setups missing entire tiers.
   const totalArtifacts = scan.hooksCount + scan.skillsCount + scan.scheduledTasksCount + scan.commandsCount + scan.mcpServersCount;
+  const hasAllTiers =
+    scan.hooksCount > 0 &&
+    scan.skillsCount > 0 &&
+    scan.scheduledTasksCount > 0 &&
+    scan.commandsCount > 0 &&
+    scan.mcpServersCount > 0;
+
   let score: number;
   if (totalArtifacts === 0) score = 5;
   else if (totalArtifacts <= 2) score = 20;
   else if (totalArtifacts <= 5) score = 40;
   else if (totalArtifacts <= 10) score = 60;
   else if (totalArtifacts <= 15) score = 75;
-  else score = 85; // even 15+ doesn't get 100 — there's always room
+  else if (totalArtifacts <= 20) score = 90;
+  else score = hasAllTiers ? 100 : 90;
+
+  // Breadth gate: even 20+ artifacts shouldn't score 100 if an entire tier
+  // is missing (no hooks, or no commands, etc.). That's a meaningful gap.
+  if (score >= 95 && !hasAllTiers) score = 90;
 
   return { score, weight: WEIGHTS.systemMaturity, signalsPresent: present, signalsMissing: missing };
 }
