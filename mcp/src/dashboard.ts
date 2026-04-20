@@ -18,6 +18,7 @@ import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { marked } from 'marked';
 import { getRecentRuns, getRunById, getScoreHistory, getRecommendations, updateRecommendationStatus, getLatestScoresByTool } from './engine/db.js';
+import { reconcilePendingRecommendations } from './engine/reconcile-recommendations.js';
 import { getUserName, updatePreferences } from './engine/user-preferences.js';
 import { friendlyLabel } from './engine/friendly-labels.js';
 import { CATEGORY_EXPLANATIONS, overallVerdict, securityVerdict, systemHealthVerdict } from './engine/category-explanations.js';
