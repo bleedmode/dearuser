@@ -4,6 +4,7 @@ import { scan } from '../engine/scanner.js';
 import { parse } from '../engine/parser.js';
 import { detectPersona } from '../engine/persona-detector.js';
 import { score } from '../engine/scorer.js';
+import { computeCeiling } from '../engine/ceiling-scorer.js';
 import { analyzeFriction } from '../engine/friction-analyzer.js';
 import { detectGaps } from '../engine/gap-detector.js';
 import { generateRecommendations } from '../templates/recommendations.js';
@@ -169,25 +170,36 @@ export function runAnalysis(
   const artifacts = scanArtifacts();
   const injection = detectInjection(artifacts);
 
-  // 10. Generate recommendations — three tracks now:
+  // 10. Score categories (with session data for friction-based adjustments).
+  //     Moved up so proactive recommender can see `intentionalAutonomy` — it
+  //     drives whether corrections-friction is a full recommendation or a soft
+  //     refinement note.
+  const { categories, collaborationScore, intentionalAutonomy } = score(parsed, scanResult, sessionData);
+
+  // 11. Generate recommendations — three tracks:
   //    (a) agent-facing gap fills (file/config fixes)
   //    (b) user-facing behavior coaching (from friction patterns)
   //    (c) proactive pattern-based (from repeated CLIs, stale repos, /clear
-  //        overuse, revert hotspots — things analyze never surfaced before)
+  //        overuse, revert hotspots, correction friction, short prompts).
+  //        These now cover every session signal that trims score — so a low
+  //        score always comes with a path to raise it.
   const agentRecs = generateRecommendations(gaps, persona.detected);
   const userRecs = generateUserCoaching(frictionPatterns);
   const proactiveRecs = generateProactiveRecommendations({
     artifacts,
     session: sessionData,
     git,
+    intentionalAutonomy,
   });
   const recommendations = [...agentRecs, ...userRecs, ...proactiveRecs];
 
-  // 11. Build stats
+  // 12. Build stats
   const stats = buildStats(parsed, scanResult);
 
-  // 12. Score categories (with session data for friction-based adjustments)
-  const { categories, collaborationScore } = score(parsed, scanResult, sessionData);
+  // 12b. Compute score ceiling — where the user would reach if every current
+  //      recommendation is implemented. Surfaced so the user sees a concrete
+  //      reachable target instead of a mystery score.
+  const scoreCeiling = computeCeiling(parsed, scanResult, sessionData, categories, intentionalAutonomy);
 
   // 13. Build wrapped data
   const wrapped = buildWrapped(stats, persona, frictionPatterns);
@@ -262,6 +274,7 @@ export function runAnalysis(
     installedSkills: artifacts.filter(a => a.type === 'skill').map(a => a.name),
     persona,
     collaborationScore,
+    scoreCeiling,
     categories,
     frictionPatterns,
     gaps,
@@ -323,7 +336,44 @@ function formatHeader(report: AnalysisReport): string[] {
     ``,
     `## Collaboration Score: ${report.collaborationScore}/100`,
     ``,
+    ...formatCeiling(report),
   ];
+}
+
+/**
+ * Ceiling block — shows the user what score they'd reach by following the
+ * report, and surfaces any structural caps (systemMaturity tops at 85).
+ * This closes the old gap where a user could do everything the report said
+ * and still not know why they weren't at 100.
+ */
+function formatCeiling(report: AnalysisReport): string[] {
+  const c = report.scoreCeiling;
+  if (!c) return [];
+
+  const lines: string[] = [];
+  if (c.delta > 0) {
+    lines.push(
+      `**Reachable ceiling: ${c.ceilingScore}/100** (+${c.delta} if you implement every recommendation below).`,
+    );
+  } else if (c.delta === 0 && c.ceilingScore < 100) {
+    lines.push(
+      `**Reachable ceiling: ${c.ceilingScore}/100** — you're already at it. New recommendations would need to surface before this number changes.`,
+    );
+  } else if (c.ceilingScore === 100) {
+    lines.push(
+      `**Reachable ceiling: 100/100** — implementing everything in this report takes you all the way.`,
+    );
+  }
+
+  if (c.unreachable.length > 0) {
+    lines.push(``, `*Why ${c.ceilingScore < 100 ? `${c.ceilingScore}` : 'the ceiling'}, not 100:*`);
+    for (const reason of c.unreachable) {
+      lines.push(`- ${reason}`);
+    }
+  }
+
+  lines.push(``);
+  return lines;
 }
 
 /** Category score bars with human-friendly or technical signal labels. */
@@ -491,6 +541,40 @@ function formatRecommendations(report: AnalysisReport): string[] {
   return lines;
 }
 
+/**
+ * Map a tool's `solves` tags to the collaboration score category it most
+ * directly lifts. Returned to the user so tool recommendations are visibly
+ * tied to the score — not floating suggestions disconnected from the number.
+ */
+function toolSolvesCategory(solves: string[] | undefined): { id: string; label: string } | null {
+  if (!solves || solves.length === 0) return null;
+  for (const tag of solves) {
+    if (/safety|destructive|protected_files|accidental_secret/i.test(tag)) {
+      return { id: 'qualityStandards', label: 'Quality Checks' };
+    }
+    if (/build|quality_gaps|no_testing/i.test(tag)) {
+      return { id: 'qualityStandards', label: 'Quality Checks' };
+    }
+    if (/memory|learning_loop|corrections_lost|session_amnesia/i.test(tag)) {
+      return { id: 'memoryHealth', label: 'Memory' };
+    }
+    if (/vague_prompts|prompt_quality/i.test(tag)) {
+      return { id: 'communication', label: 'Communication' };
+    }
+    if (/scope_creep|autonomy/i.test(tag)) {
+      return { id: 'autonomyBalance', label: 'Independence' };
+    }
+    if (/daily_overview|missing_priorities|context_loss_between_sessions|process_friction/i.test(tag)) {
+      return { id: 'systemMaturity', label: 'Automation' };
+    }
+    if (/missing_context|research|documentation|hallucination|outdated_docs|wrong_api/i.test(tag)) {
+      return { id: 'roleClarity', label: 'Who Does What' };
+    }
+  }
+  // Fallback: installing any tool adds an artifact, which contributes to system maturity
+  return { id: 'systemMaturity', label: 'Automation' };
+}
+
 /** Tool recommendations section. Reads from report.toolRecs (computed in
  *  runAnalysis and persisted to du_recommendations). */
 function formatToolRecs(report: AnalysisReport): string[] {
@@ -514,6 +598,17 @@ function formatToolRecs(report: AnalysisReport): string[] {
         lines.push(tool.userFriendlyDescription || tool.description);
       }
       if (f.benefit) lines.push('**Hvad bliver bedre:** ' + f.benefit);
+
+      const category = toolSolvesCategory(tool.solves);
+      if (category && report.scoreCeiling) {
+        const cat = report.scoreCeiling.byCategory[category.id];
+        if (cat && cat.ceiling > cat.current) {
+          lines.push(`**Score-impact:** Lifts **${category.label}** from ${cat.current} toward ${cat.ceiling}.`);
+        } else {
+          lines.push(`**Score-impact:** Contributes to **${category.label}**.`);
+        }
+      }
+
       if (tool.whoActs) lines.push('', `_${tool.whoActs}_`);
       const install = tool.install.trim();
       if (install.includes('\n')) {
