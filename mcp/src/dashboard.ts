@@ -20,7 +20,7 @@ import { marked } from 'marked';
 import { getRecentRuns, getRunById, getScoreHistory, getRecommendations, updateRecommendationStatus, getLatestScoresByTool } from './engine/db.js';
 import { getUserName, updatePreferences } from './engine/user-preferences.js';
 import { friendlyLabel } from './engine/friendly-labels.js';
-import { CATEGORY_EXPLANATIONS, overallVerdict } from './engine/category-explanations.js';
+import { CATEGORY_EXPLANATIONS, overallVerdict, securityVerdict, systemHealthVerdict } from './engine/category-explanations.js';
 import { runOnboard } from './tools/onboard.js';
 import type { OnboardResult } from './tools/onboard.js';
 
@@ -406,11 +406,15 @@ function renderReport(id: string): string {
   }
 
   // Structured letter render if we have JSON for this run (new analyze tool);
-  // otherwise fall back to markdown-from-details (older runs, audit, security).
+  // otherwise fall back to markdown-from-details (older runs).
   if (run.report_json) {
     try {
       const parsed = JSON.parse(run.report_json);
       if (run.tool_name === 'analyze') return renderAnalyzeLetter(run, parsed);
+      if (run.tool_name === 'security') return renderSecurityLetter(run, parsed);
+      if (run.tool_name === 'system-health' || run.tool_name === 'audit') {
+        return renderSystemHealthLetter(run, parsed);
+      }
     } catch { /* fall through to markdown */ }
   }
   return renderMarkdownFallback(run);
@@ -785,6 +789,253 @@ function renderCollapsedFeedback(feedback: any): string {
           Jeg holder styr på hvilke forslag du har taget imod og hvilke der stadig venter. Se detaljerne på <a href="/forbedringer" class="text-accent-600 hover:text-accent-500">Forslag-siden</a>.
         </div>
       </details>
+    </section>
+  `;
+}
+
+// ============================================================================
+// Security & system-sundhed letters — share the visual language of the
+// analyze letter so every report feels like the same product speaking. The
+// structure is deliberately simpler: these reports are findings-driven, so
+// they don't need "top action + three small things" — the findings ARE the
+// actions, sorted by severity.
+// ============================================================================
+
+function renderSecurityLetter(run: any, report: any): string {
+  const score = typeof report.securityScore === 'number' ? report.securityScore : run.score;
+  const categories = report.categories || {};
+  const catEntries: Array<{ key: string; score: number }> = [
+    { key: 'secretSafety', score: categories.secretSafety?.score ?? 0 },
+    { key: 'injectionResistance', score: categories.injectionResistance?.score ?? 0 },
+    { key: 'ruleIntegrity', score: categories.ruleIntegrity?.score ?? 0 },
+    { key: 'dependencySafety', score: categories.dependencySafety?.score ?? 0 },
+    { key: 'platformCompliance', score: categories.platformCompliance?.score ?? 0 },
+  ].sort((a, b) => b.score - a.score);
+
+  const allFindings = [
+    ...(report.secrets || []).map((f: any) => ({ ...f, _kind: 'Secret' })),
+    ...(report.injection || []).map((f: any) => ({ ...f, _kind: 'Injection' })),
+    ...(report.ruleConflicts || []).map((f: any) => ({ ...f, _kind: 'Rule conflict' })),
+    ...(report.cveFindings || []).map((f: any) => ({ ...f, _kind: 'CVE' })),
+    ...(report.platformFindings || []).map((f: any) => ({ ...f, _kind: 'Platform' })),
+  ];
+  const sevOrder: Record<string, number> = { critical: 0, recommended: 1, nice_to_have: 2 };
+  allFindings.sort((a, b) => (sevOrder[a.severity] ?? 3) - (sevOrder[b.severity] ?? 3));
+
+  const ceiling = report.scoreCeiling;
+  const leadIn = allFindings.length === 0
+    ? 'Jeg har gennemgået dit setup for leaks, injection-overflader, regel-konflikter og eksterne advisors. Alt ser rent ud.'
+    : `Jeg har gennemgået dit setup for leaks, injection-overflader, regel-konflikter og eksterne advisors. Jeg fandt ${allFindings.length} ${allFindings.length === 1 ? 'ting' : 'ting'} værd at kigge på.`;
+
+  const body = `
+    <article class="max-w-2xl mx-auto letter-prose">
+      <header class="mb-10 not-letter">
+        <div class="text-xs uppercase tracking-wider text-ink-500 mb-2">Sikkerhedstjek</div>
+        <div class="font-mono text-xs text-ink-300">${escapeHtml(formatLetterDate(run.started_at))}</div>
+      </header>
+
+      <section class="mb-10">
+        <p class="text-xl text-ink-900 font-medium mb-3" style="margin-bottom: 0.75rem">${escapeHtml(greeting())},</p>
+        <p class="text-ink-700 leading-relaxed" style="margin: 0">${escapeHtml(leadIn)}</p>
+      </section>
+
+      ${renderDomainScoreAndCategories(score, catEntries, securityVerdict, ceiling)}
+
+      ${renderSecurityFindings(allFindings)}
+
+      <footer class="mt-16 pt-8 border-t border-paper-200">
+        <p class="text-ink-500 italic">Med venlig hilsen,</p>
+        <p class="text-ink-900 font-medium mt-1">${signature()}</p>
+      </footer>
+    </article>
+    <div class="mt-8 max-w-2xl mx-auto">
+      <a href="/historik" class="text-sm text-ink-500 hover:text-accent-600 transition">← Se alle mine breve</a>
+    </div>
+  `;
+
+  return page(`${toolLabel(run.tool_name)}`, body, 'oversigt');
+}
+
+function renderSystemHealthLetter(run: any, report: any): string {
+  const score = typeof report.systemHealthScore === 'number' ? report.systemHealthScore : run.score;
+  const categories = report.categories || {};
+  const catEntries: Array<{ key: string; score: number }> = [
+    { key: 'jobIntegrity', score: categories.jobIntegrity?.score ?? 0 },
+    { key: 'artifactOverlap', score: categories.artifactOverlap?.score ?? 0 },
+    { key: 'dataClosure', score: categories.dataClosure?.score ?? 0 },
+    { key: 'configHealth', score: categories.configHealth?.score ?? 0 },
+    { key: 'substrateHealth', score: categories.substrateHealth?.score ?? 0 },
+  ].sort((a, b) => b.score - a.score);
+
+  const findings: any[] = report.findings || [];
+  const sevOrder: Record<string, number> = { critical: 0, recommended: 1, nice_to_have: 2 };
+  const sortedFindings = [...findings].sort((a, b) => (sevOrder[a.severity] ?? 3) - (sevOrder[b.severity] ?? 3));
+
+  const ceiling = report.scoreCeiling;
+  const closureRate = typeof report.graph?.closureRate === 'number' ? Math.round(report.graph.closureRate * 100) : null;
+  const leadIn = findings.length === 0
+    ? 'Jeg har kigget dit setup igennem for orphan jobs, døde schedules, overlap og substrat-problemer. Alt hænger sammen.'
+    : `Jeg har kigget dit setup igennem for orphan jobs, døde schedules, overlap og substrat-problemer. Jeg fandt ${findings.length} ${findings.length === 1 ? 'ting' : 'ting'} værd at tage fat på${closureRate !== null ? ` (og ${closureRate}% af dine outputs har en modtager)` : ''}.`;
+
+  const body = `
+    <article class="max-w-2xl mx-auto letter-prose">
+      <header class="mb-10 not-letter">
+        <div class="text-xs uppercase tracking-wider text-ink-500 mb-2">System-sundhed</div>
+        <div class="font-mono text-xs text-ink-300">${escapeHtml(formatLetterDate(run.started_at))}</div>
+      </header>
+
+      <section class="mb-10">
+        <p class="text-xl text-ink-900 font-medium mb-3" style="margin-bottom: 0.75rem">${escapeHtml(greeting())},</p>
+        <p class="text-ink-700 leading-relaxed" style="margin: 0">${escapeHtml(leadIn)}</p>
+      </section>
+
+      ${renderDomainScoreAndCategories(score, catEntries, systemHealthVerdict, ceiling)}
+
+      ${renderSystemHealthFindings(sortedFindings)}
+
+      <footer class="mt-16 pt-8 border-t border-paper-200">
+        <p class="text-ink-500 italic">Med venlig hilsen,</p>
+        <p class="text-ink-900 font-medium mt-1">${signature()}</p>
+      </footer>
+    </article>
+    <div class="mt-8 max-w-2xl mx-auto">
+      <a href="/historik" class="text-sm text-ink-500 hover:text-accent-600 transition">← Se alle mine breve</a>
+    </div>
+  `;
+
+  return page(`${toolLabel(run.tool_name)}`, body, 'oversigt');
+}
+
+/**
+ * Shared score + per-category section for the two findings-based letters.
+ * Takes a verdict function so each domain uses its own wording (security
+ * speaks in terms of "fund", system-sundhed speaks in terms of "sammenhæng").
+ * Mirrors renderScoreAndCategories but surfaces the ceiling since findings-
+ * driven reports reach their ceiling purely by fixing things — users should
+ * see that line-of-sight directly.
+ */
+function renderDomainScoreAndCategories(
+  score: number | null,
+  catEntries: Array<{ key: string; score: number }>,
+  verdictFn: (s: number) => string,
+  ceiling: any,
+): string {
+  const verdict = typeof score === 'number' ? verdictFn(score) : '';
+  const ceilingLine = ceiling && typeof ceiling.ceilingScore === 'number' && ceiling.delta > 0
+    ? `<p class="text-sm text-ink-500 mt-3">Fixer du alle fund nedenfor rykker du til <strong class="text-ink-900">${ceiling.ceilingScore}/100</strong> (+${ceiling.delta}).</p>`
+    : ceiling && ceiling.ceilingScore === score
+      ? `<p class="text-sm text-ink-500 mt-3">Du er allerede på loftet for hvad der kan måles lige nu.</p>`
+      : '';
+
+  return `
+    <section class="mb-12">
+      <div class="bg-paper-100 border border-paper-200 rounded-2xl p-6 mb-5">
+        <div class="flex items-baseline justify-between mb-3">
+          <div class="text-xs uppercase tracking-wider text-ink-500">Overall</div>
+          <div class="text-xs text-ink-300 font-mono">0–100</div>
+        </div>
+        <div class="flex items-baseline gap-3 mb-2">
+          <div class="font-mono text-6xl font-semibold text-ink-900 leading-none">${typeof score === 'number' ? score : '—'}</div>
+          <div class="text-xl text-ink-300">/100</div>
+        </div>
+        ${verdict ? `<p class="text-ink-700 leading-relaxed mt-3">${escapeHtml(verdict)}</p>` : ''}
+        ${ceilingLine}
+      </div>
+
+      <div class="divide-y divide-paper-200 border-t border-paper-200">
+        ${catEntries.map(c => renderCategoryRow(c.key, c.score)).join('')}
+      </div>
+    </section>
+  `;
+}
+
+function severityBadge(severity: string): string {
+  if (severity === 'critical') return '<span class="inline-flex items-center gap-1.5 text-xs font-medium text-rose-700"><span class="w-1.5 h-1.5 rounded-full bg-rose-600"></span>Kritisk</span>';
+  if (severity === 'recommended') return '<span class="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Anbefalet</span>';
+  return '<span class="inline-flex items-center gap-1.5 text-xs font-medium text-ink-500"><span class="w-1.5 h-1.5 rounded-full bg-ink-300"></span>Nice to have</span>';
+}
+
+function renderSecurityFindings(findings: any[]): string {
+  if (findings.length === 0) {
+    return `
+      <section class="mb-12">
+        <p class="text-ink-700 leading-relaxed italic">Ingen fund i dag. Kom tilbage efter næste scan.</p>
+      </section>
+    `;
+  }
+  const shown = findings.slice(0, 15);
+  const extra = findings.length - shown.length;
+
+  return `
+    <section class="mb-12">
+      <h2 class="text-lg font-semibold text-ink-900 mb-4">Det jeg fandt</h2>
+      <div class="space-y-4">
+        ${shown.map(f => {
+          const title = f.title || f.category || f._kind;
+          const where = f.location || f.artifactPath || f.conflictingPath || f.projectName || '';
+          const fix = f.recommendation || f.fix || '';
+          const why = f.why || '';
+          return `
+            <article class="border-l-2 border-paper-300 pl-4 py-1">
+              <div class="flex items-baseline gap-3 flex-wrap mb-1">
+                ${severityBadge(f.severity)}
+                <span class="text-xs uppercase tracking-wider text-ink-400">${escapeHtml(f._kind)}</span>
+              </div>
+              <h3 class="font-medium text-ink-900 mt-1" style="margin: 0.25rem 0">${escapeHtml(title)}</h3>
+              ${where ? `<p class="text-xs text-ink-500 font-mono mt-1" style="margin: 0.25rem 0">${escapeHtml(where)}</p>` : ''}
+              ${why ? `<p class="text-sm text-ink-700 mt-2 leading-relaxed" style="margin-top: 0.5rem">${escapeHtml(why)}</p>` : ''}
+              ${fix ? `<p class="text-sm text-ink-700 mt-2 leading-relaxed" style="margin-top: 0.5rem"><span class="text-ink-500 italic">Fix: </span>${escapeHtml(fix)}</p>` : ''}
+            </article>
+          `;
+        }).join('')}
+      </div>
+      ${extra > 0 ? `<p class="text-sm text-ink-500 mt-4 italic">…og ${extra} fund til. Kør med format="detailed" eller kig i chat-outputtet for alle.</p>` : ''}
+    </section>
+  `;
+}
+
+function renderSystemHealthFindings(findings: any[]): string {
+  if (findings.length === 0) {
+    return `
+      <section class="mb-12">
+        <p class="text-ink-700 leading-relaxed italic">Ingen ting at rydde op i. Setup\'et hænger sammen.</p>
+      </section>
+    `;
+  }
+  const TYPE_LABELS: Record<string, string> = {
+    orphan_job: 'Forældreløst job',
+    stale_schedule: 'Dødt skema',
+    overlap: 'Overlap',
+    missing_closure: 'Manglende modtager',
+    unregistered_mcp_tool: 'Ikke-registreret MCP tool',
+    substrate_mismatch: 'Forkert substrat',
+    unbacked_up_substrate: 'Ikke backup\'et',
+  };
+
+  const shown = findings.slice(0, 15);
+  const extra = findings.length - shown.length;
+
+  return `
+    <section class="mb-12">
+      <h2 class="text-lg font-semibold text-ink-900 mb-4">Det jeg fandt</h2>
+      <div class="space-y-4">
+        ${shown.map(f => {
+          const typeLabel = TYPE_LABELS[f.type] || f.type;
+          return `
+            <article class="border-l-2 border-paper-300 pl-4 py-1">
+              <div class="flex items-baseline gap-3 flex-wrap mb-1">
+                ${severityBadge(f.severity)}
+                <span class="text-xs uppercase tracking-wider text-ink-400">${escapeHtml(typeLabel)}</span>
+              </div>
+              <h3 class="font-medium text-ink-900 mt-1" style="margin: 0.25rem 0">${escapeHtml(f.title)}</h3>
+              ${f.description ? `<p class="text-sm text-ink-700 mt-2 leading-relaxed" style="margin-top: 0.5rem">${escapeHtml(f.description)}</p>` : ''}
+              ${f.why ? `<p class="text-sm text-ink-500 italic mt-2 leading-relaxed" style="margin-top: 0.5rem">${escapeHtml(f.why)}</p>` : ''}
+              ${f.recommendation ? `<p class="text-sm text-ink-700 mt-2 leading-relaxed" style="margin-top: 0.5rem"><span class="text-ink-500 italic">Fix: </span>${escapeHtml(f.recommendation)}</p>` : ''}
+            </article>
+          `;
+        }).join('')}
+      </div>
+      ${extra > 0 ? `<p class="text-sm text-ink-500 mt-4 italic">…og ${extra} fund til.</p>` : ''}
     </section>
   `;
 }
