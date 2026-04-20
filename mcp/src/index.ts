@@ -11,7 +11,7 @@ import type { AnalyzeFormat } from './tools/analyze.js';
 import { runAudit, formatAuditReport } from './tools/audit.js';
 import { runOnboard, formatOnboardResult } from './tools/onboard.js';
 import { runSecurity, formatSecurityReport } from './tools/security.js';
-import { insertAgentRun, updateRunDetails, getRecommendationById, updateRecommendationStatus, getRecommendations } from './engine/db.js';
+import { insertAgentRun, updateRunDetails, updateRunJson, getRecommendationById, updateRecommendationStatus, getRecommendations } from './engine/db.js';
 import { implementClaudeMdAppend, implementSettingsMerge, prepareShellExec, prepareManual } from './engine/implementer.js';
 import { friendlyLabel } from './engine/friendly-labels.js';
 import { existsSync, mkdirSync, openSync, readFileSync } from 'fs';
@@ -120,9 +120,15 @@ function buildActionMenu(): string | null {
  * Wrap a report body with a dashboard CTA and an action menu, persist it in
  * du_agent_runs.details so /r/:id can render it, AND auto-open the report in
  * the user's browser so they see it regardless of whether the agent
- * summarised away the link.
+ * summarised away the link. Also persists the structured report (when
+ * provided) so the dashboard can render a letter-layout instead of a raw
+ * markdown dump.
  */
-function attachDashboardLink(body: string, agentRunId: string | undefined): string {
+function attachDashboardLink(
+  body: string,
+  agentRunId: string | undefined,
+  structuredReport?: unknown,
+): string {
   // Build the action menu BEFORE we persist, so the dashboard /r/:id view
   // also carries the menu (useful if the user comes back to an old report).
   const menu = buildActionMenu();
@@ -130,6 +136,9 @@ function attachDashboardLink(body: string, agentRunId: string | undefined): stri
 
   if (agentRunId) {
     try { updateRunDetails(agentRunId, composed); } catch { /* non-fatal */ }
+    if (structuredReport !== undefined) {
+      try { updateRunJson(agentRunId, structuredReport); } catch { /* non-fatal */ }
+    }
   }
   if (!DASHBOARD_URL || !agentRunId) return composed;
 
@@ -197,7 +206,7 @@ Example prompts that should trigger this tool:
       const text = formatAnalyzeReport(report, effectiveFormat);
       return {
         content: [
-          { type: 'text', text: attachDashboardLink(text, (report as any)._agentRunId) },
+          { type: 'text', text: attachDashboardLink(text, (report as any)._agentRunId, report) },
         ],
       };
     } catch (error) {
@@ -252,7 +261,7 @@ Example prompts that should trigger this tool:
         focus: focus || 'all',
       });
       const text = formatAuditReport(report);
-      return { content: [{ type: 'text', text: attachDashboardLink(text, (report as any)._agentRunId) }] };
+      return { content: [{ type: 'text', text: attachDashboardLink(text, (report as any)._agentRunId, report) }] };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       const hint = msg.includes('EACCES') ? ' Check file permissions on ~/.claude/.'
@@ -374,7 +383,7 @@ Example prompts that should trigger this tool:
     try {
       const report = await runSecurity({ projectRoot, scope });
       const text = formatSecurityReport(report);
-      return { content: [{ type: 'text', text: attachDashboardLink(text, (report as any)._agentRunId) }] };
+      return { content: [{ type: 'text', text: attachDashboardLink(text, (report as any)._agentRunId, report) }] };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       const hint = msg.includes('EACCES') ? ' Check file permissions on ~/.claude/ and your project directory.'
@@ -480,7 +489,7 @@ Example prompts that should trigger this tool:
         });
       } catch { /* silent */ }
 
-      return { content: [{ type: 'text', text: attachDashboardLink(wrappedText, wrappedRunId) }] };
+      return { content: [{ type: 'text', text: attachDashboardLink(wrappedText, wrappedRunId, report) }] };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       const hint = msg.includes('EACCES') ? ' Check file permissions on ~/.claude/.'

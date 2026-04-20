@@ -151,6 +151,18 @@ export function updateRunDetails(id: string, details: string): void {
   db.prepare('UPDATE du_agent_runs SET details = ? WHERE id = ?').run(details, id);
 }
 
+/**
+ * Store the structured report (AnalysisReport / AuditReport / SecurityReport)
+ * alongside the markdown. The dashboard uses this to render a rich letter
+ * view with progressive disclosure; the markdown stays as a fallback for
+ * chat/agent consumers who need a linear render.
+ */
+export function updateRunJson(id: string, reportJson: unknown): void {
+  const db = getDb();
+  const payload = typeof reportJson === 'string' ? reportJson : JSON.stringify(reportJson);
+  db.prepare('UPDATE du_agent_runs SET report_json = ? WHERE id = ?').run(payload, id);
+}
+
 // ---------------------------------------------------------------------------
 // Score History
 // ---------------------------------------------------------------------------

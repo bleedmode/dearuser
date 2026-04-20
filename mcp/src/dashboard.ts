@@ -358,34 +358,392 @@ function renderReport(id: string): string {
     `, 'oversigt');
   }
 
-  const body = run.details || run.summary || '_(Brevet indeholder ingen tekst.)_';
-  const rendered = renderMarkdown(body);
+  // Structured letter render if we have JSON for this run (new analyze tool);
+  // otherwise fall back to markdown-from-details (older runs, audit, security).
+  if (run.report_json) {
+    try {
+      const parsed = JSON.parse(run.report_json);
+      if (run.tool_name === 'analyze') return renderAnalyzeLetter(run, parsed);
+    } catch { /* fall through to markdown */ }
+  }
+  return renderMarkdownFallback(run);
+}
 
+function renderMarkdownFallback(run: any): string {
+  const body = run.details || run.summary || '_(Brevet indeholder ingen tekst.)_';
+  // Strip the "Hvad vil du gøre nu?" menu from the body — that section is
+  // for chat-flow only (the action menu only makes sense inline in a
+  // conversation where the agent can call AskUserQuestion). On the web it
+  // just reads as confusing bureaucracy.
+  const stripped = body.replace(/\n*---\n*## Hvad vil du gøre nu\?[\s\S]*?(?=\n---|\s*$)/m, '');
+  const rendered = renderMarkdown(stripped);
   return page(`${toolLabel(run.tool_name)}`, `
-    <article>
+    <article class="max-w-2xl mx-auto">
       <header class="mb-8">
         <div class="text-xs uppercase tracking-wider text-ink-500 mb-2">${escapeHtml(toolLabel(run.tool_name))}</div>
         <div class="font-mono text-xs text-ink-300">${escapeHtml(formatLetterDate(run.started_at))}</div>
       </header>
-
       <p class="text-xl text-ink-900 font-medium mb-1">${escapeHtml(greeting())},</p>
-      <p class="text-ink-500 mb-8 leading-relaxed">
-        Her er det jeg fandt da jeg kiggede på dit setup. ${run.score !== null ? `Din score er <strong class="font-mono text-ink-900">${run.score}/100</strong>.` : ''}
-      </p>
-
-      <div class="letter-prose">
-        ${rendered}
-      </div>
-
+      <p class="text-ink-500 mb-8 leading-relaxed">Her er hvad jeg fandt.</p>
+      <div class="letter-prose">${rendered}</div>
       <footer class="mt-12 pt-6 border-t border-paper-200">
         <p class="text-ink-500 italic">Med venlig hilsen,</p>
         <p class="text-ink-900 font-medium mt-1">${signature()}</p>
       </footer>
     </article>
-    <div class="mt-8">
+    <div class="mt-8 max-w-2xl mx-auto">
       <a href="/historik" class="text-sm text-ink-500 hover:text-accent-600 transition">← Se alle mine breve</a>
     </div>
   `, 'oversigt');
+}
+
+// ============================================================================
+// Letter-format analyze report — the core redesign.
+//
+// Information architecture (top → bottom):
+//   1. Warm greeting + one-sentence overall take
+//   2. Score card — big number, persona name, no checklist clutter
+//   3. "Det vigtigste først" — the ONE top action, framed as what we want the
+//      user to change. Not 10 findings, ONE.
+//   4. "Tre små ting" — 3 cards with friendly-label summary + benefit
+//   5. "Hvordan står det til" — 7 category progress pills, details collapsed
+//   6. Collapsed sections the user can open if curious:
+//      - Tekniske detaljer i dine instruktioner (lint findings)
+//      - Din daglige brug (stats, sessions, projects)
+//      - Hvad der er sket siden sidst (feedback loop)
+//   7. Warm sign-off
+//
+// Anti-patterns we're avoiding: markdown-dump, inline-kitchen-sink,
+// technical-copy, no-hierarchy, no-focus.
+// ============================================================================
+
+function renderAnalyzeLetter(run: any, report: any): string {
+  const score = typeof report.collaborationScore === 'number' ? report.collaborationScore : run.score;
+  const persona = report.persona?.archetypeName || report.persona?.detected || 'bruger';
+  const personaBlurb = report.persona?.archetypeDescription || '';
+
+  const warmth = overallTake(score);
+
+  // ---- Pick THE top action from the recommendations list ----
+  const allRecs: any[] = Array.isArray(report.recommendations) ? report.recommendations : [];
+  const topAction = pickTopAction(allRecs);
+  const smallThings = pickSmallThings(allRecs, (report.toolRecs as any[]) || [], topAction);
+
+  // ---- Category scores for the overview section ----
+  const categories = report.categories || {};
+  const catEntries: Array<{ key: string; label: string; score: number }> = [
+    { key: 'roleClarity',     label: 'Klar rollefordeling',  score: categories.roleClarity?.score     ?? 0 },
+    { key: 'communication',   label: 'Kommunikation',        score: categories.communication?.score   ?? 0 },
+    { key: 'memoryHealth',    label: 'Memory-sundhed',       score: categories.memoryHealth?.score    ?? 0 },
+    { key: 'coverage',        label: 'Dækning',              score: categories.coverage?.score        ?? 0 },
+    { key: 'autonomyBalance', label: 'Autonomi-balance',     score: categories.autonomyBalance?.score ?? 0 },
+    { key: 'systemMaturity',  label: 'Systemets modenhed',   score: categories.systemMaturity?.score  ?? 0 },
+    { key: 'qualityStandards',label: 'Kvalitetstjek',        score: categories.qualityStandards?.score?? 0 },
+  ].sort((a, b) => b.score - a.score);
+
+  const lintFindings: any[] = report.lint?.findings || [];
+  const stats = report.stats || {};
+  const session = report.session || {};
+  const feedback = report.feedback || null;
+
+  const body = `
+    <article class="max-w-2xl mx-auto">
+      <!-- Header -->
+      <header class="mb-10">
+        <div class="text-xs uppercase tracking-wider text-ink-500 mb-2">Din samarbejds-rapport</div>
+        <div class="font-mono text-xs text-ink-300">${escapeHtml(formatLetterDate(run.started_at))}</div>
+      </header>
+
+      <!-- Greeting + overall take -->
+      <section class="mb-10">
+        <p class="text-xl text-ink-900 font-medium mb-2">${escapeHtml(greeting())},</p>
+        <p class="text-ink-700 leading-relaxed">${escapeHtml(warmth)}</p>
+      </section>
+
+      <!-- Score card -->
+      <section class="mb-12">
+        <div class="bg-paper-100 border border-paper-200 rounded-2xl p-6 flex items-baseline gap-6">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-ink-500 mb-1">Din score</div>
+            <div class="font-mono text-5xl font-semibold text-ink-900 leading-none">${score ?? '—'}<span class="text-xl text-ink-300">/100</span></div>
+          </div>
+          <div class="flex-1 text-right">
+            <div class="text-xs uppercase tracking-wider text-ink-500 mb-1">Din stil</div>
+            <div class="text-lg text-ink-800">${escapeHtml(persona)}</div>
+            ${personaBlurb ? `<div class="text-xs text-ink-500 mt-1 leading-snug">${escapeHtml(personaBlurb.slice(0, 120))}${personaBlurb.length > 120 ? '…' : ''}</div>` : ''}
+          </div>
+        </div>
+      </section>
+
+      ${topAction ? renderTopActionCard(topAction) : ''}
+
+      ${smallThings.length > 0 ? renderSmallThings(smallThings) : ''}
+
+      <!-- Category overview — visual pills, no checklist clutter -->
+      <section class="mb-12">
+        <h2 class="text-lg font-semibold text-ink-900 mb-4">Hvordan står det overall</h2>
+        <ul class="space-y-2.5">
+          ${catEntries.map(c => renderCategoryBar(c.label, c.score)).join('')}
+        </ul>
+      </section>
+
+      <!-- Progressive disclosure: technical details -->
+      ${lintFindings.length > 0 ? renderCollapsedLint(lintFindings) : ''}
+
+      ${Object.keys(stats).length > 0 ? renderCollapsedStats(stats, session) : ''}
+
+      ${feedback ? renderCollapsedFeedback(feedback) : ''}
+
+      <!-- Sign-off -->
+      <footer class="mt-16 pt-8 border-t border-paper-200">
+        <p class="text-ink-500 italic">Med venlig hilsen,</p>
+        <p class="text-ink-900 font-medium mt-1">${signature()}</p>
+      </footer>
+    </article>
+    <div class="mt-8 max-w-2xl mx-auto">
+      <a href="/historik" class="text-sm text-ink-500 hover:text-accent-600 transition">← Se alle mine breve</a>
+    </div>
+  `;
+
+  return page(`${toolLabel(run.tool_name)}`, body, 'oversigt');
+}
+
+// ----- Top action card -----
+
+function renderTopActionCard(rec: any): string {
+  const f = friendlyLabel(rec.title || '');
+  const title = f.title || rec.title || 'Den vigtigste ting';
+  // Prefer our curated plain-Danish `benefit` as the explainer. Fall back to
+  // the rec's own English `why` only when we don't have a friendly version.
+  const why = f.benefit || rec.why || rec.description || '';
+  const howItLooks = rec.howItLooks || '';
+  const practiceStep = rec.practiceStep || '';
+  const priorityLabel = rec.priority === 'critical' ? 'Det vigtigste' : 'Læg mærke til';
+
+  return `
+    <section class="mb-12">
+      <div class="text-xs uppercase tracking-wider text-accent-600 mb-3 font-medium">${priorityLabel}</div>
+      <div class="bg-paper-50 border-2 border-accent-600 rounded-2xl p-6">
+        <h2 class="text-2xl font-semibold text-ink-900 mb-3 leading-tight">${escapeHtml(title)}</h2>
+        ${why ? `<p class="text-ink-700 leading-relaxed mb-4">${escapeHtml(why)}</p>` : ''}
+
+        ${howItLooks ? `
+          <details class="mt-4 group">
+            <summary class="cursor-pointer text-sm font-medium text-accent-600 hover:text-accent-500 list-none flex items-center gap-1.5">
+              <span class="transition-transform group-open:rotate-90">▸</span>
+              <span>Se hvordan det ser ud i praksis</span>
+            </summary>
+            <pre class="mt-3 bg-paper-100 border border-paper-200 rounded-lg p-4 text-sm text-ink-700 whitespace-pre-wrap font-sans leading-relaxed">${escapeHtml(howItLooks)}</pre>
+          </details>
+        ` : ''}
+
+        ${practiceStep ? `
+          <div class="mt-4 pt-4 border-t border-paper-200">
+            <div class="text-xs uppercase tracking-wider text-ink-500 mb-1">Prøv det næste gang</div>
+            <p class="text-ink-800">${escapeHtml(practiceStep)}</p>
+          </div>
+        ` : ''}
+      </div>
+    </section>
+  `;
+}
+
+// ----- Three small things -----
+
+function renderSmallThings(items: Array<{ title: string; summary?: string; benefit?: string }>): string {
+  return `
+    <section class="mb-12">
+      <h2 class="text-lg font-semibold text-ink-900 mb-4">Tre små ting jeg lagde mærke til</h2>
+      <p class="text-sm text-ink-500 mb-5">Ikke kritiske, men de kunne gøre dagligdagen lettere.</p>
+      <ul class="space-y-3">
+        ${items.slice(0, 3).map(item => `
+          <li class="bg-paper-100 border border-paper-200 rounded-xl p-5">
+            <div class="font-medium text-ink-900 mb-1.5">${escapeHtml(item.title)}</div>
+            ${item.summary ? `<div class="text-sm text-ink-700 leading-relaxed">${escapeHtml(item.summary)}</div>` : ''}
+            ${item.benefit ? `
+              <details class="mt-2 group">
+                <summary class="cursor-pointer text-xs text-accent-600 hover:text-accent-500 list-none inline-flex items-center gap-1">
+                  <span class="transition-transform group-open:rotate-90">▸</span>
+                  <span>Hvad bliver bedre?</span>
+                </summary>
+                <div class="mt-2 text-sm text-ink-600 leading-relaxed">${escapeHtml(item.benefit)}</div>
+              </details>
+            ` : ''}
+          </li>
+        `).join('')}
+      </ul>
+      <a href="/forbedringer" class="inline-block mt-4 text-sm text-accent-600 hover:text-accent-500">Se alle forslag →</a>
+    </section>
+  `;
+}
+
+// ----- Category bars -----
+
+function renderCategoryBar(label: string, score: number): string {
+  const pct = Math.max(0, Math.min(100, score));
+  const barColor = pct >= 90 ? 'bg-good-fg' : pct >= 75 ? 'bg-accent-600' : pct >= 60 ? 'bg-warn-fg' : 'bg-bad-fg';
+  return `
+    <li class="flex items-center gap-4">
+      <div class="w-48 text-sm text-ink-700 shrink-0">${escapeHtml(label)}</div>
+      <div class="flex-1 h-2 bg-paper-200 rounded-full overflow-hidden">
+        <div class="h-full ${barColor} rounded-full transition-all" style="width: ${pct}%"></div>
+      </div>
+      <div class="font-mono text-sm text-ink-500 w-12 text-right">${pct}</div>
+    </li>
+  `;
+}
+
+// ----- Collapsed sections -----
+
+function renderCollapsedLint(findings: any[]): string {
+  const critical = findings.filter(f => f.severity === 'critical').length;
+  const recommended = findings.filter(f => f.severity === 'recommended').length;
+  const nice = findings.filter(f => f.severity === 'nice_to_have').length;
+  const headline = critical > 0
+    ? `${critical} kritisk, ${recommended} anbefalet, ${nice} nice-to-have`
+    : `${recommended + nice} små ting der kan forbedres (ingen kritiske)`;
+
+  return `
+    <section class="mb-8">
+      <details class="group bg-paper-100/60 border border-paper-200 rounded-xl">
+        <summary class="cursor-pointer px-5 py-4 list-none flex items-center justify-between hover:bg-paper-100 rounded-xl">
+          <div>
+            <div class="font-medium text-ink-900">Tekniske detaljer i dine instruktioner</div>
+            <div class="text-sm text-ink-500 mt-0.5">${escapeHtml(headline)}</div>
+          </div>
+          <span class="text-ink-300 transition-transform group-open:rotate-90">▸</span>
+        </summary>
+        <div class="px-5 pb-5 pt-2">
+          <ul class="space-y-3">
+            ${findings.slice(0, 24).map(f => `
+              <li class="border-l-2 ${f.severity === 'critical' ? 'border-bad-fg' : f.severity === 'recommended' ? 'border-warn-fg' : 'border-paper-300'} pl-3">
+                <div class="text-sm font-medium text-ink-800">${escapeHtml(f.title || f.id || 'Finding')}</div>
+                ${f.description ? `<div class="text-xs text-ink-500 mt-0.5 leading-relaxed">${escapeHtml(f.description)}</div>` : ''}
+                ${f.fix ? `<div class="text-xs text-accent-600 mt-1">→ ${escapeHtml(f.fix)}</div>` : ''}
+              </li>
+            `).join('')}
+          </ul>
+        </div>
+      </details>
+    </section>
+  `;
+}
+
+function renderCollapsedStats(stats: any, session: any): string {
+  const activeSessions = session?.stats?.sessionsLast7Days ?? 0;
+  const totalRules = stats?.totalRules ?? 0;
+  const memoryFiles = stats?.memoryFiles ?? 0;
+  const corrections = session?.corrections?.negationCount ?? 0;
+
+  return `
+    <section class="mb-8">
+      <details class="group bg-paper-100/60 border border-paper-200 rounded-xl">
+        <summary class="cursor-pointer px-5 py-4 list-none flex items-center justify-between hover:bg-paper-100 rounded-xl">
+          <div>
+            <div class="font-medium text-ink-900">Din daglige brug</div>
+            <div class="text-sm text-ink-500 mt-0.5">${activeSessions} sessioner sidste 7 dage · ${totalRules} regler · ${memoryFiles} memory-filer</div>
+          </div>
+          <span class="text-ink-300 transition-transform group-open:rotate-90">▸</span>
+        </summary>
+        <div class="px-5 pb-5 pt-2 grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-ink-500">Regler i alt</div>
+            <div class="font-mono text-lg text-ink-800">${totalRules}</div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-ink-500">Memory-filer</div>
+            <div class="font-mono text-lg text-ink-800">${memoryFiles}</div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-ink-500">Sessioner sidste 7 dage</div>
+            <div class="font-mono text-lg text-ink-800">${activeSessions}</div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-ink-500">Rettelser du har givet</div>
+            <div class="font-mono text-lg text-ink-800">${corrections}</div>
+          </div>
+        </div>
+      </details>
+    </section>
+  `;
+}
+
+function renderCollapsedFeedback(feedback: any): string {
+  const implemented = feedback.implemented ?? 0;
+  const pending = feedback.pending ?? 0;
+  const total = feedback.totalRecommendations ?? 0;
+  if (total === 0) return '';
+
+  return `
+    <section class="mb-8">
+      <details class="group bg-paper-100/60 border border-paper-200 rounded-xl">
+        <summary class="cursor-pointer px-5 py-4 list-none flex items-center justify-between hover:bg-paper-100 rounded-xl">
+          <div>
+            <div class="font-medium text-ink-900">Hvad er der sket siden sidst</div>
+            <div class="text-sm text-ink-500 mt-0.5">${implemented} implementeret · ${pending} venter · ${total} i alt</div>
+          </div>
+          <span class="text-ink-300 transition-transform group-open:rotate-90">▸</span>
+        </summary>
+        <div class="px-5 pb-5 pt-2 text-sm text-ink-600 leading-relaxed">
+          Jeg holder styr på hvilke forslag du har taget imod og hvilke der stadig venter. Se detaljerne på <a href="/forbedringer" class="text-accent-600 hover:text-accent-500">Forslag-siden</a>.
+        </div>
+      </details>
+    </section>
+  `;
+}
+
+// ----- Helpers for picking content -----
+
+function overallTake(score: number | null | undefined): string {
+  if (typeof score !== 'number') return 'Jeg har kigget på dit setup.';
+  if (score >= 90) return 'Overall ser det rigtig stærkt ud — dit setup er modent og velholdt. Her er det jeg lagde mærke til.';
+  if (score >= 75) return 'Din samarbejdsform er solid. Der er nogle ting at stramme op, men ingen kriser.';
+  if (score >= 60) return 'Du har et OK udgangspunkt. Der er 1-2 ting jeg synes du bør tage fat på.';
+  return 'Der er nogle grundlæggende ting vi bør have på plads. Lad os tage dem i rækkefølge.';
+}
+
+function pickTopAction(recs: any[]): any | null {
+  // Prefer the user-facing critical recommendation (it's a behavior change,
+  // not a file-edit — those are easier to "one action" the user onto).
+  const criticalUser = recs.find(r => r.priority === 'critical' && (r.audience === 'user' || r.audience === 'both'));
+  if (criticalUser) return criticalUser;
+  const critical = recs.find(r => r.priority === 'critical');
+  if (critical) return critical;
+  const recommendedUser = recs.find(r => r.priority === 'recommended' && (r.audience === 'user' || r.audience === 'both'));
+  if (recommendedUser) return recommendedUser;
+  return recs[0] || null;
+}
+
+function pickSmallThings(
+  recs: any[],
+  toolRecs: any[],
+  topAction: any | null,
+): Array<{ title: string; summary?: string; benefit?: string }> {
+  const out: Array<{ title: string; summary?: string; benefit?: string }> = [];
+  const seenTitles = new Set<string>();
+  if (topAction?.title) seenTitles.add(topAction.title);
+
+  // 1-2 user-facing recommendations (not the top one)
+  for (const r of recs) {
+    if (out.length >= 2) break;
+    if (!r.title || seenTitles.has(r.title)) continue;
+    if (r === topAction) continue;
+    if (r.priority === 'critical') continue;
+    const f = friendlyLabel(r.title);
+    out.push({ title: f.title, summary: f.summary || r.description, benefit: f.benefit });
+    seenTitles.add(r.title);
+  }
+
+  // 1-2 tool recommendations
+  for (const t of toolRecs) {
+    if (out.length >= 3) break;
+    if (!t.name || seenTitles.has(t.name)) continue;
+    const f = friendlyLabel(t.name);
+    out.push({ title: f.title, summary: f.summary || t.userFriendlyDescription || t.description, benefit: f.benefit });
+    seenTitles.add(t.name);
+  }
+
+  return out.slice(0, 3);
 }
 
 // ============================================================================
