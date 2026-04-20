@@ -644,11 +644,122 @@ function detectUnbackedUpSubstrate(artifacts: AuditArtifact[]): AuditFinding[] {
 }
 
 // ============================================================================
+// Detector 7 — stale schedule (scheduled task hasn't run in expected window)
+// ============================================================================
+
+/**
+ * Estimate the maximum expected gap between runs for a 5-field cron expression.
+ * Returns null if the expression is unrecognised — caller should skip flagging.
+ *
+ * This is intentionally coarse: we just want an upper bound so we can say
+ * "this task was supposed to run within N hours and hasn't".
+ */
+function expectedIntervalMs(cron: string): number | null {
+  const parts = cron.trim().split(/\s+/);
+  if (parts.length !== 5) return null;
+  const [minuteField, hourField, domField, _monthField, dowField] = parts;
+  const isAny = (f: string) => f === '*' || f === '?';
+  const hasList = (f: string) => /[,/-]/.test(f);
+
+  const HOUR_MS = 60 * 60 * 1000;
+  const DAY_MS = 24 * HOUR_MS;
+
+  // Specific day-of-week (e.g. `1` for Monday) → weekly
+  if (!isAny(dowField) && !hasList(dowField)) return 7 * DAY_MS;
+  // Specific day-of-month → monthly (approx 31 days upper bound)
+  if (!isAny(domField) && !hasList(domField)) return 31 * DAY_MS;
+  // Specific hour → daily
+  if (!isAny(hourField) && !hasList(hourField)) return DAY_MS;
+  // `*/N` on hour → N hours
+  const stepHour = hourField.match(/^\*\/(\d+)$/);
+  if (stepHour) return Number(stepHour[1]) * HOUR_MS;
+  // Hour-of-day list (e.g. `0,12`) → roughly spacing-based, assume daily upper bound
+  if (hourField.includes(',') || hourField.includes('-')) return DAY_MS;
+  // `*` on hour → hourly or sub-hourly
+  if (isAny(hourField)) {
+    if (!isAny(minuteField) && !hasList(minuteField)) return HOUR_MS; // once per hour
+    const stepMinute = minuteField.match(/^\*\/(\d+)$/);
+    if (stepMinute) return Number(stepMinute[1]) * 60 * 1000;
+    return HOUR_MS; // default floor: one hour
+  }
+  return null;
+}
+
+/**
+ * A scheduled task whose `lastRunAt` is older than ~2× its expected interval.
+ *
+ * This catches the silent-failure class where a cron job is still registered
+ * and "enabled" but has stopped firing — the exact class of bug that caused
+ * the security-check-has-not-run-for-5-days situation.
+ *
+ * We skip tasks without state (can't confirm anything), manual-only tasks
+ * (no cron to compare against), and disabled tasks (intentional pause).
+ */
+function detectStaleSchedule(graph: AuditGraph): AuditFinding[] {
+  const findings: AuditFinding[] = [];
+  const now = Date.now();
+
+  for (const task of graph.nodes) {
+    if (task.type !== 'scheduled_task') continue;
+    const { lastRunAt, cronExpression, scheduledEnabled } = task.metadata;
+    if (scheduledEnabled === false) continue;     // user paused it on purpose
+    if (!cronExpression) continue;                // manual-only, no schedule to miss
+    const interval = expectedIntervalMs(cronExpression);
+    if (!interval) continue;                      // unrecognised cron — don't guess
+
+    const graceMs = interval * 2;
+    const ageMs = lastRunAt ? now - lastRunAt.getTime() : Infinity;
+    if (ageMs <= graceMs) continue;
+
+    // Pretty-format the gap so users don't have to do the math
+    const humanAge = lastRunAt
+      ? (ageMs >= 2 * 24 * 60 * 60 * 1000
+          ? `${Math.floor(ageMs / (24 * 60 * 60 * 1000))} days ago`
+          : `${Math.floor(ageMs / (60 * 60 * 1000))} hours ago`)
+      : 'never';
+    const humanInterval = interval >= 24 * 60 * 60 * 1000
+      ? `${Math.round(interval / (24 * 60 * 60 * 1000))}d`
+      : `${Math.round(interval / (60 * 60 * 1000))}h`;
+
+    // Severity scales with how overdue it is.
+    // - Never run at all → critical regardless of interval
+    // - More than 5× interval overdue → critical
+    // - Otherwise recommended
+    const severity: GapSeverity =
+      !lastRunAt || ageMs > 5 * interval ? 'critical' : 'recommended';
+
+    findings.push({
+      id: findingId('stale_schedule', [task.name]),
+      type: 'stale_schedule',
+      severity,
+      title: `Scheduled task "${task.name}" hasn't run when it should have`,
+      description: lastRunAt
+        ? `Last successful run was ${humanAge}, but this task is scheduled to run every ${humanInterval} (cron: \`${cronExpression}\`). It's still marked enabled, so something is failing silently — the scheduler didn't fire, the run crashed before logging, or the session it's pinned to is gone.`
+        : `This task is enabled with cron \`${cronExpression}\` but has never successfully run. Either it was just created, or every run so far has failed before it could record completion.`,
+      affectedArtifacts: [task.id],
+      evidence: [
+        {
+          source: task.path,
+          excerpt: lastRunAt
+            ? `lastRunAt=${lastRunAt.toISOString()}, expected every ${humanInterval}`
+            : `lastRunAt=never, expected every ${humanInterval}`,
+          kind: 'stat',
+        },
+      ],
+      recommendation: `Open this task and check: (a) is the session it's pinned to still alive? (b) does the task's own prompt still work when run manually? (c) if the schedule is no longer needed, disable it explicitly rather than leaving it in a broken state. Don't close a "task X hasn't run" finding without verifying X actually runs now.`,
+      why: 'A scheduled task that stops firing silently is the worst kind of failure — it looks like everything is fine until you notice that whatever the task was supposed to do simply stopped happening. Security checks, backups, and monitoring jobs all fail this way.',
+    });
+  }
+
+  return findings;
+}
+
+// ============================================================================
 // Orchestration
 // ============================================================================
 
 export interface DetectorOptions {
-  focus?: 'orphan' | 'overlap' | 'closure' | 'substrate' | 'mcp_refs' | 'backup' | 'all';
+  focus?: 'orphan' | 'overlap' | 'closure' | 'substrate' | 'mcp_refs' | 'backup' | 'stale_schedule' | 'all';
 }
 
 export function runDetectors(
@@ -675,6 +786,9 @@ export function runDetectors(
   }
   if (focus === 'all' || focus === 'backup') {
     findings.push(...detectUnbackedUpSubstrate(graph.nodes));
+  }
+  if (focus === 'all' || focus === 'stale_schedule') {
+    findings.push(...detectStaleSchedule(graph));
   }
 
   // Dedupe by id — one physical issue shouldn't surface twice

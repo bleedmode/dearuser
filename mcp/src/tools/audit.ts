@@ -46,6 +46,7 @@ function emptyFindingCounts(): Record<AuditFindingType, number> {
     substrate_mismatch: 0,
     unregistered_mcp_tool: 0,
     unbacked_up_substrate: 0,
+    stale_schedule: 0,
   };
 }
 
@@ -335,6 +336,9 @@ export function formatAuditReport(report: AuditReport): string {
     ['overlap', 'Overlap'],
     ['missing_closure', 'Missing closure'],
     ['substrate_mismatch', 'Substrate mismatch'],
+    ['unregistered_mcp_tool', 'Unregistered MCP tools'],
+    ['unbacked_up_substrate', 'Unbacked-up substrate'],
+    ['stale_schedule', 'Stale schedules'],
   ];
   const typeBreakdown = typeLabels
     .filter(([t]) => byType[t] > 0)

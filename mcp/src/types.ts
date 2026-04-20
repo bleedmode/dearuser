@@ -196,7 +196,8 @@ export type AuditFindingType =
   | 'missing_closure'
   | 'substrate_mismatch'
   | 'unregistered_mcp_tool'
-  | 'unbacked_up_substrate';
+  | 'unbacked_up_substrate'
+  | 'stale_schedule';
 
 /** A thing in the user's AI stack that can produce or consume data. */
 export interface AuditArtifact {
@@ -214,6 +215,11 @@ export interface AuditArtifact {
     entryCount?: number;
     // For memory files: does it look like a database? (dates, IDs, structured)
     structuredEntries?: boolean;
+    // For scheduled tasks: last successful run, cron expression, and enabled flag
+    // from Claude Code's scheduler state. Missing if state file couldn't be read.
+    lastRunAt?: Date;
+    cronExpression?: string;
+    scheduledEnabled?: boolean;
   };
 }
 

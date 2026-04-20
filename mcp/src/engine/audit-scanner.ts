@@ -9,6 +9,80 @@ import { join } from 'path';
 import { homedir } from 'os';
 import type { AuditArtifact } from '../types.js';
 
+/** Scheduler state persisted by Claude Code. Fields we care about. */
+interface ScheduledTaskState {
+  lastRunAt?: Date;
+  cronExpression?: string;
+  enabled?: boolean;
+}
+
+/**
+ * Load the Claude Code scheduler's persisted state to get lastRunAt + cron per task.
+ *
+ * State lives under `~/Library/Application Support/Claude*` in various session
+ * directories, each containing a `scheduled-tasks.json`. We merge all instances
+ * by task id, keeping the most recent `lastRunAt` we find. Returns an empty
+ * map if nothing is readable — detectors must handle that gracefully.
+ */
+function loadScheduledTaskState(home: string): Map<string, ScheduledTaskState> {
+  const map = new Map<string, ScheduledTaskState>();
+  const roots = [
+    join(home, 'Library', 'Application Support', 'Claude'),
+    join(home, 'Library', 'Application Support', 'ClaudeCode'),
+  ];
+
+  const stateFiles: string[] = [];
+  for (const root of roots) {
+    if (!existsSync(root)) continue;
+    // Walk a bounded depth looking for scheduled-tasks.json
+    const stack: Array<{ dir: string; depth: number }> = [{ dir: root, depth: 0 }];
+    while (stack.length > 0) {
+      const { dir, depth } = stack.pop()!;
+      if (depth > 5) continue;
+      let entries;
+      try { entries = readdirSync(dir, { withFileTypes: true }); } catch { continue; }
+      for (const entry of entries) {
+        const full = join(dir, entry.name);
+        if (entry.isFile() && entry.name === 'scheduled-tasks.json') {
+          stateFiles.push(full);
+        } else if (entry.isDirectory()) {
+          stack.push({ dir: full, depth: depth + 1 });
+        }
+      }
+    }
+  }
+
+  for (const file of stateFiles) {
+    try {
+      const raw = JSON.parse(readFileSync(file, 'utf-8'));
+      const tasks = Array.isArray(raw?.scheduledTasks) ? raw.scheduledTasks : [];
+      for (const t of tasks) {
+        if (typeof t?.id !== 'string') continue;
+        const parsed: ScheduledTaskState = {
+          cronExpression: typeof t.cronExpression === 'string' ? t.cronExpression : undefined,
+          enabled: typeof t.enabled === 'boolean' ? t.enabled : undefined,
+          lastRunAt: typeof t.lastRunAt === 'string' ? new Date(t.lastRunAt) : undefined,
+        };
+        const prev = map.get(t.id);
+        if (!prev) {
+          map.set(t.id, parsed);
+          continue;
+        }
+        // Merge — keep the most recent lastRunAt we've seen
+        const merged: ScheduledTaskState = { ...prev };
+        if (parsed.cronExpression) merged.cronExpression = parsed.cronExpression;
+        if (parsed.enabled !== undefined) merged.enabled = parsed.enabled;
+        if (parsed.lastRunAt && (!prev.lastRunAt || parsed.lastRunAt > prev.lastRunAt)) {
+          merged.lastRunAt = parsed.lastRunAt;
+        }
+        map.set(t.id, merged);
+      }
+    } catch { /* ignore malformed files */ }
+  }
+
+  return map;
+}
+
 /** Parse YAML-ish frontmatter from a markdown file. Returns the map plus the body. */
 function parseFrontmatter(content: string): { fm: Record<string, string>; body: string } {
   const match = content.match(/^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/);
@@ -102,32 +176,66 @@ function scanSkills(home: string): AuditArtifact[] {
 /** Scan scheduled tasks: ~/.claude/scheduled-tasks/<name>/SKILL.md */
 function scanScheduledTasks(home: string): AuditArtifact[] {
   const dir = join(home, '.claude', 'scheduled-tasks');
-  if (!existsSync(dir)) return [];
-
+  const state = loadScheduledTaskState(home);
   const artifacts: AuditArtifact[] = [];
-  try {
-    const entries = readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const file = readSkillFile(join(dir, entry.name));
-      if (!file) continue;
+  const seenNames = new Set<string>();
 
-      const { fm, body } = parseFrontmatter(file.content);
-      artifacts.push({
-        id: `scheduled_task:${fm.name || entry.name}`,
-        type: 'scheduled_task',
-        name: fm.name || entry.name,
-        path: file.path,
-        description: fm.description || firstContentLine(body),
-        prompt: body,
-        metadata: {
-          lastModified: file.mtime,
-          size: file.size,
-          frontmatter: fm,
-        },
-      });
-    }
-  } catch { /* ignore */ }
+  if (existsSync(dir)) {
+    try {
+      const entries = readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const file = readSkillFile(join(dir, entry.name));
+        if (!file) continue;
+
+        const { fm, body } = parseFrontmatter(file.content);
+        const name = fm.name || entry.name;
+        // Scheduler state is keyed by task id, which matches the task folder name.
+        const s = state.get(entry.name) || state.get(name);
+        seenNames.add(name);
+        seenNames.add(entry.name);
+        artifacts.push({
+          id: `scheduled_task:${name}`,
+          type: 'scheduled_task',
+          name,
+          path: file.path,
+          description: fm.description || firstContentLine(body),
+          prompt: body,
+          metadata: {
+            lastModified: file.mtime,
+            size: file.size,
+            frontmatter: fm,
+            lastRunAt: s?.lastRunAt,
+            cronExpression: s?.cronExpression,
+            scheduledEnabled: s?.enabled,
+          },
+        });
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Scheduler state may reference tasks with no corresponding SKILL.md folder.
+  // These are orphan state entries — the scheduler thinks they exist but there's
+  // no definition on disk, so they can't run. We register them as artifacts
+  // (path = state file, empty body) so detectors can flag them.
+  for (const [stateId, s] of state) {
+    if (seenNames.has(stateId)) continue;
+    artifacts.push({
+      id: `scheduled_task:${stateId}`,
+      type: 'scheduled_task',
+      name: stateId,
+      path: join(home, '.claude', 'scheduled-tasks', stateId, '(missing SKILL.md)'),
+      description: `Scheduler-registered task with no SKILL.md on disk.`,
+      prompt: '',
+      metadata: {
+        size: 0,
+        lastRunAt: s.lastRunAt,
+        cronExpression: s.cronExpression,
+        scheduledEnabled: s.enabled,
+      },
+    });
+  }
+
   return artifacts;
 }
 
