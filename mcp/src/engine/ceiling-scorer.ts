@@ -33,15 +33,14 @@ const WEIGHTS: Record<CategoryId, number> = {
 };
 
 /**
- * Hard caps that can't be lifted just by adding signals. Surfaced in the
- * ceiling explanation so the user doesn't wonder why 100% is unreachable.
+ * Hard caps that can't be lifted just by adding signals. Kept as a lookup so
+ * the ceiling explanation can surface them when structural limits apply.
+ * Currently empty — every category can reach 100 with the right signals. If
+ * a structural cap is added to a category in the future, register it here so
+ * the ceiling UI stays honest (a visible cap < 100 on a 0–100 scale is the
+ * kind of inconsistency users notice and lose trust over).
  */
-const CATEGORY_CAPS: Partial<Record<CategoryId, { cap: number; reason: string }>> = {
-  systemMaturity: {
-    cap: 85,
-    reason: 'System Maturity tops out at 85 by design — even a heavily-automated setup can always add more. You reach 85 with ~15 artifacts (hooks + skills + scheduled tasks + MCP servers combined).',
-  },
-};
+const CATEGORY_CAPS: Partial<Record<CategoryId, { cap: number; reason: string }>> = {};
 
 export interface CategoryCeiling {
   /** Current score for this category. */
@@ -131,8 +130,13 @@ function projectAutonomyCategory(cat: CategoryScore, intentionalAutonomy: boolea
  * We also subtract the session-based /clear penalty recovery if it's visible
  * in the missing signals.
  */
+/**
+ * System maturity is a stepped curve keyed on total artifact count (with a
+ * breadth gate — needs at least one of each tier to hit 100). Ceiling is the
+ * current score plus recovered penalties and an estimate of what's reachable
+ * by adding the missing tier / fixing session friction.
+ */
 function projectSystemMaturityCategory(cat: CategoryScore): number {
-  const cap = CATEGORY_CAPS.systemMaturity?.cap ?? 85;
   let projected = cat.score;
   for (const miss of cat.signalsMissing) {
     if (/\/clear/i.test(miss)) projected += 10;
@@ -140,9 +144,10 @@ function projectSystemMaturityCategory(cat: CategoryScore): number {
     else if (/\bskills\b/i.test(miss)) projected += 8;
     else if (/scheduled tasks/i.test(miss)) projected += 8;
     else if (/MCP servers/i.test(miss)) projected += 8;
+    else if (/custom commands/i.test(miss)) projected += 10;
     else projected += 3;
   }
-  return Math.min(cap, projected);
+  return Math.min(100, projected);
 }
 
 export function computeCeiling(
