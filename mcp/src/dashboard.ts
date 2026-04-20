@@ -20,6 +20,7 @@ import { marked } from 'marked';
 import { getRecentRuns, getRunById, getScoreHistory, getRecommendations, updateRecommendationStatus } from './engine/db.js';
 import { getUserName, updatePreferences } from './engine/user-preferences.js';
 import { friendlyLabel } from './engine/friendly-labels.js';
+import { CATEGORY_EXPLANATIONS, overallVerdict } from './engine/category-explanations.js';
 import { runOnboard } from './tools/onboard.js';
 import type { OnboardResult } from './tools/onboard.js';
 
@@ -422,23 +423,21 @@ function renderAnalyzeLetter(run: any, report: any): string {
   const persona = report.persona?.archetypeName || report.persona?.detected || 'bruger';
   const personaBlurb = report.persona?.archetypeDescription || '';
 
-  const warmth = overallTake(score);
-
   // ---- Pick THE top action from the recommendations list ----
   const allRecs: any[] = Array.isArray(report.recommendations) ? report.recommendations : [];
   const topAction = pickTopAction(allRecs);
   const smallThings = pickSmallThings(allRecs, (report.toolRecs as any[]) || [], topAction);
 
-  // ---- Category scores for the overview section ----
+  // ---- Category scores for the combined score + category section ----
   const categories = report.categories || {};
-  const catEntries: Array<{ key: string; label: string; score: number }> = [
-    { key: 'roleClarity',     label: 'Klar rollefordeling',  score: categories.roleClarity?.score     ?? 0 },
-    { key: 'communication',   label: 'Kommunikation',        score: categories.communication?.score   ?? 0 },
-    { key: 'memoryHealth',    label: 'Memory-sundhed',       score: categories.memoryHealth?.score    ?? 0 },
-    { key: 'coverage',        label: 'Dækning',              score: categories.coverage?.score        ?? 0 },
-    { key: 'autonomyBalance', label: 'Autonomi-balance',     score: categories.autonomyBalance?.score ?? 0 },
-    { key: 'systemMaturity',  label: 'Systemets modenhed',   score: categories.systemMaturity?.score  ?? 0 },
-    { key: 'qualityStandards',label: 'Kvalitetstjek',        score: categories.qualityStandards?.score?? 0 },
+  const catEntries: Array<{ key: string; score: number }> = [
+    { key: 'roleClarity',     score: categories.roleClarity?.score     ?? 0 },
+    { key: 'communication',   score: categories.communication?.score   ?? 0 },
+    { key: 'memoryHealth',    score: categories.memoryHealth?.score    ?? 0 },
+    { key: 'coverage',        score: categories.coverage?.score        ?? 0 },
+    { key: 'autonomyBalance', score: categories.autonomyBalance?.score ?? 0 },
+    { key: 'systemMaturity',  score: categories.systemMaturity?.score  ?? 0 },
+    { key: 'qualityStandards',score: categories.qualityStandards?.score?? 0 },
   ].sort((a, b) => b.score - a.score);
 
   const lintFindings: any[] = report.lint?.findings || [];
@@ -447,45 +446,30 @@ function renderAnalyzeLetter(run: any, report: any): string {
   const feedback = report.feedback || null;
 
   const body = `
-    <article class="max-w-2xl mx-auto">
+    <article class="max-w-2xl mx-auto letter-prose">
       <!-- Header -->
-      <header class="mb-10">
+      <header class="mb-10 not-letter">
         <div class="text-xs uppercase tracking-wider text-ink-500 mb-2">Din samarbejds-rapport</div>
         <div class="font-mono text-xs text-ink-300">${escapeHtml(formatLetterDate(run.started_at))}</div>
       </header>
 
-      <!-- Greeting + overall take -->
+      <!-- Greeting — brev-style, leads into the rest of the letter -->
       <section class="mb-10">
-        <p class="text-xl text-ink-900 font-medium mb-2">${escapeHtml(greeting())},</p>
-        <p class="text-ink-700 leading-relaxed">${escapeHtml(warmth)}</p>
+        <p class="text-xl text-ink-900 font-medium mb-3" style="margin-bottom: 0.75rem">${escapeHtml(greeting())},</p>
+        <p class="text-ink-700 leading-relaxed" style="margin: 0">
+          ${escapeHtml(personaBlurb
+            ? `Jeg har kigget dit setup igennem. Du arbejder som "${persona}" — ${lowerFirst(personaBlurb.split('.')[0])}. Her er hvad jeg fandt.`
+            : `Jeg har kigget dit setup igennem. Her er hvad jeg fandt.`)}
+        </p>
       </section>
 
-      <!-- Score card -->
-      <section class="mb-12">
-        <div class="bg-paper-100 border border-paper-200 rounded-2xl p-6 flex items-baseline gap-6">
-          <div>
-            <div class="text-xs uppercase tracking-wider text-ink-500 mb-1">Din score</div>
-            <div class="font-mono text-5xl font-semibold text-ink-900 leading-none">${score ?? '—'}<span class="text-xl text-ink-300">/100</span></div>
-          </div>
-          <div class="flex-1 text-right">
-            <div class="text-xs uppercase tracking-wider text-ink-500 mb-1">Din stil</div>
-            <div class="text-lg text-ink-800">${escapeHtml(persona)}</div>
-            ${personaBlurb ? `<div class="text-xs text-ink-500 mt-1 leading-snug">${escapeHtml(personaBlurb.slice(0, 120))}${personaBlurb.length > 120 ? '…' : ''}</div>` : ''}
-          </div>
-        </div>
-      </section>
+      <!-- Combined: overall score + per-category bars, one section, one glance -->
+      ${renderScoreAndCategories(score, catEntries)}
 
-      ${topAction ? renderTopActionCard(topAction) : ''}
+      <!-- Top action — inline brev-prose, not a card -->
+      ${topAction ? renderTopActionInline(topAction) : ''}
 
       ${smallThings.length > 0 ? renderSmallThings(smallThings) : ''}
-
-      <!-- Category overview — visual pills, no checklist clutter -->
-      <section class="mb-12">
-        <h2 class="text-lg font-semibold text-ink-900 mb-4">Hvordan står det overall</h2>
-        <ul class="space-y-2.5">
-          ${catEntries.map(c => renderCategoryBar(c.label, c.score)).join('')}
-        </ul>
-      </section>
 
       <!-- Progressive disclosure: technical details -->
       ${lintFindings.length > 0 ? renderCollapsedLint(lintFindings) : ''}
@@ -508,43 +492,126 @@ function renderAnalyzeLetter(run: any, report: any): string {
   return page(`${toolLabel(run.tool_name)}`, body, 'oversigt');
 }
 
-// ----- Top action card -----
+function lowerFirst(s: string): string {
+  return s.length > 0 ? s[0].toLowerCase() + s.slice(1) : s;
+}
 
-function renderTopActionCard(rec: any): string {
+// ----- Top action — rendered as brev-prose, not a bordered card. A card
+// reads as "dashboard KPI"; a letter reads as "Dear User wants to tell you
+// one thing specifically". Use typography (a thin accent rule, italic lead-in)
+// instead of a heavy border-box to keep the letter tone.
+
+function renderTopActionInline(rec: any): string {
   const f = friendlyLabel(rec.title || '');
   const title = f.title || rec.title || 'Den vigtigste ting';
-  // Prefer our curated plain-Danish `benefit` as the explainer. Fall back to
-  // the rec's own English `why` only when we don't have a friendly version.
   const why = f.benefit || rec.why || rec.description || '';
   const howItLooks = rec.howItLooks || '';
   const practiceStep = rec.practiceStep || '';
-  const priorityLabel = rec.priority === 'critical' ? 'Det vigtigste' : 'Læg mærke til';
+  const leadIn = rec.priority === 'critical'
+    ? 'Men én ting vil jeg særligt bede dig tage med dig:'
+    : 'En ting jeg særligt lagde mærke til:';
 
   return `
     <section class="mb-12">
-      <div class="text-xs uppercase tracking-wider text-accent-600 mb-3 font-medium">${priorityLabel}</div>
-      <div class="bg-paper-50 border-2 border-accent-600 rounded-2xl p-6">
-        <h2 class="text-2xl font-semibold text-ink-900 mb-3 leading-tight">${escapeHtml(title)}</h2>
+      <p class="text-ink-500 italic mb-3">${escapeHtml(leadIn)}</p>
+
+      <!-- Accent rule to the left as a letter-style emphasis mark, no card border -->
+      <div class="pl-5 border-l-2 border-accent-600">
+        <h2 class="text-2xl font-semibold text-ink-900 mb-3 leading-tight" style="font-family: 'Geist', sans-serif">${escapeHtml(title)}</h2>
         ${why ? `<p class="text-ink-700 leading-relaxed mb-4">${escapeHtml(why)}</p>` : ''}
 
         ${howItLooks ? `
-          <details class="mt-4 group">
-            <summary class="cursor-pointer text-sm font-medium text-accent-600 hover:text-accent-500 list-none flex items-center gap-1.5">
+          <details class="mt-3 group">
+            <summary class="cursor-pointer text-sm text-accent-600 hover:text-accent-500 list-none inline-flex items-center gap-1.5">
               <span class="transition-transform group-open:rotate-90">▸</span>
-              <span>Se hvordan det ser ud i praksis</span>
+              <span>Et eksempel på hvordan det ser ud</span>
             </summary>
-            <pre class="mt-3 bg-paper-100 border border-paper-200 rounded-lg p-4 text-sm text-ink-700 whitespace-pre-wrap font-sans leading-relaxed">${escapeHtml(howItLooks)}</pre>
+            <div class="mt-3 text-sm text-ink-700 whitespace-pre-wrap leading-relaxed italic">${escapeHtml(howItLooks)}</div>
           </details>
         ` : ''}
 
         ${practiceStep ? `
-          <div class="mt-4 pt-4 border-t border-paper-200">
-            <div class="text-xs uppercase tracking-wider text-ink-500 mb-1">Prøv det næste gang</div>
-            <p class="text-ink-800">${escapeHtml(practiceStep)}</p>
-          </div>
+          <p class="mt-4 text-ink-700 leading-relaxed">
+            <span class="text-ink-500 italic">Prøv det næste gang: </span>${escapeHtml(practiceStep)}
+          </p>
         ` : ''}
       </div>
     </section>
+  `;
+}
+
+// ----- Combined score + categories — one section, one glance.
+//
+// Hero-tal stays at the top, then each of the 7 categories flows directly
+// underneath as a row with: name + plain-language line (always visible) +
+// bar + score. Clicking the row expands "what's pulling this up/down" and
+// "what your score means" — details are progressive, not demanded.
+
+function renderScoreAndCategories(score: number | null, catEntries: Array<{ key: string; score: number }>): string {
+  const pct = typeof score === 'number' ? Math.max(0, Math.min(100, score)) : 0;
+  const verdict = typeof score === 'number' ? overallVerdict(score) : '';
+
+  return `
+    <section class="mb-12">
+      <!-- Hero score — big number, verdict line. No side-by-side persona card. -->
+      <div class="bg-paper-100 border border-paper-200 rounded-2xl p-6 mb-5">
+        <div class="flex items-baseline justify-between mb-3">
+          <div class="text-xs uppercase tracking-wider text-ink-500">Overall</div>
+          <div class="text-xs text-ink-300 font-mono">0–100</div>
+        </div>
+        <div class="flex items-baseline gap-3 mb-2">
+          <div class="font-mono text-6xl font-semibold text-ink-900 leading-none">${typeof score === 'number' ? score : '—'}</div>
+          <div class="text-xl text-ink-300">/100</div>
+        </div>
+        ${verdict ? `<p class="text-ink-700 leading-relaxed mt-3">${escapeHtml(verdict)}</p>` : ''}
+      </div>
+
+      <!-- Per-category rows, sorted high→low -->
+      <div class="divide-y divide-paper-200 border-t border-paper-200">
+        ${catEntries.map(c => renderCategoryRow(c.key, c.score)).join('')}
+      </div>
+    </section>
+  `;
+}
+
+function renderCategoryRow(key: string, score: number): string {
+  const explanation = CATEGORY_EXPLANATIONS[key];
+  if (!explanation) return '';
+
+  const pct = Math.max(0, Math.min(100, score));
+  const barColor = pct >= 85 ? 'bg-good-fg' : pct >= 65 ? 'bg-accent-600' : 'bg-warn-fg';
+  const verdict = explanation.verdict(pct);
+
+  return `
+    <details class="group py-3">
+      <summary class="cursor-pointer list-none hover:bg-paper-50 rounded-lg -mx-2 px-2 py-1.5 transition">
+        <div class="flex items-baseline gap-4">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-baseline gap-2">
+              <span class="font-medium text-ink-900">${escapeHtml(explanation.label)}</span>
+              <span class="text-ink-300 text-xs transition-transform group-open:rotate-90 inline-block">▸</span>
+            </div>
+            <div class="text-sm text-ink-500 mt-0.5 leading-snug">${escapeHtml(explanation.summary)}</div>
+          </div>
+          <div class="flex items-center gap-3 shrink-0">
+            <div class="w-28 h-2 bg-paper-200 rounded-full overflow-hidden">
+              <div class="h-full ${barColor} rounded-full" style="width: ${pct}%"></div>
+            </div>
+            <div class="font-mono text-sm text-ink-700 w-8 text-right">${pct}</div>
+          </div>
+        </div>
+      </summary>
+      <div class="mt-3 ml-0 pl-4 border-l border-paper-200 text-sm leading-relaxed space-y-3">
+        <div>
+          <div class="text-xs uppercase tracking-wider text-ink-500 mb-1">Hvad betyder din score</div>
+          <p class="text-ink-700 italic">${escapeHtml(verdict)}</p>
+        </div>
+        <div>
+          <div class="text-xs uppercase tracking-wider text-ink-500 mb-1">Hvad trækker scoren op eller ned</div>
+          <p class="text-ink-700">${escapeHtml(explanation.whatMatters)}</p>
+        </div>
+      </div>
+    </details>
   `;
 }
 
@@ -574,22 +641,6 @@ function renderSmallThings(items: Array<{ title: string; summary?: string; benef
       </ul>
       <a href="/forbedringer" class="inline-block mt-4 text-sm text-accent-600 hover:text-accent-500">Se alle forslag →</a>
     </section>
-  `;
-}
-
-// ----- Category bars -----
-
-function renderCategoryBar(label: string, score: number): string {
-  const pct = Math.max(0, Math.min(100, score));
-  const barColor = pct >= 90 ? 'bg-good-fg' : pct >= 75 ? 'bg-accent-600' : pct >= 60 ? 'bg-warn-fg' : 'bg-bad-fg';
-  return `
-    <li class="flex items-center gap-4">
-      <div class="w-48 text-sm text-ink-700 shrink-0">${escapeHtml(label)}</div>
-      <div class="flex-1 h-2 bg-paper-200 rounded-full overflow-hidden">
-        <div class="h-full ${barColor} rounded-full transition-all" style="width: ${pct}%"></div>
-      </div>
-      <div class="font-mono text-sm text-ink-500 w-12 text-right">${pct}</div>
-    </li>
   `;
 }
 
@@ -693,14 +744,6 @@ function renderCollapsedFeedback(feedback: any): string {
 }
 
 // ----- Helpers for picking content -----
-
-function overallTake(score: number | null | undefined): string {
-  if (typeof score !== 'number') return 'Jeg har kigget på dit setup.';
-  if (score >= 90) return 'Overall ser det rigtig stærkt ud — dit setup er modent og velholdt. Her er det jeg lagde mærke til.';
-  if (score >= 75) return 'Din samarbejdsform er solid. Der er nogle ting at stramme op, men ingen kriser.';
-  if (score >= 60) return 'Du har et OK udgangspunkt. Der er 1-2 ting jeg synes du bør tage fat på.';
-  return 'Der er nogle grundlæggende ting vi bør have på plads. Lad os tage dem i rækkefølge.';
-}
 
 function pickTopAction(recs: any[]): any | null {
   // Prefer the user-facing critical recommendation (it's a behavior change,
