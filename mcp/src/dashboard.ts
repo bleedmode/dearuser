@@ -224,10 +224,18 @@ function renderLanding(): string {
   const latest = getLatestScoresByTool();
   const pending = getRecommendations('pending').slice(0, 3);
 
+  // Normalise null/undefined/non-number to null so the tile renderer has a
+  // single missing-value check. Previously `?.score` returned undefined on
+  // missing domains, which the renderer's `=== null` check didn't catch —
+  // result: "undefined/100" in red on the dashboard.
+  const normScore = (run: any): number | null => {
+    const s = run?.score;
+    return typeof s === 'number' ? s : null;
+  };
   const scores = {
-    samarbejde: latest.analyze?.score as number | null,
-    sikkerhed: latest.security?.score as number | null,
-    systemSundhed: latest.systemHealth?.score as number | null,
+    samarbejde: normScore(latest.analyze),
+    sikkerhed: normScore(latest.security),
+    systemSundhed: normScore(latest.systemHealth),
   };
 
   // Combined score = equal weight across the three domains we actually have
