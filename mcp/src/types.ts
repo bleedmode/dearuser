@@ -268,6 +268,18 @@ export interface AuditReport {
     closureRate: number | null; // % of produces-edges that have a consumer; null if no produces
   };
   findings: AuditFinding[];
+  /** 0-100 system-health score, same shape as the other scorers. */
+  systemHealthScore: number;
+  /** Per-category breakdown for the dashboard. */
+  categories: {
+    jobIntegrity: CategoryScore;
+    artifactOverlap: CategoryScore;
+    dataClosure: CategoryScore;
+    configHealth: CategoryScore;
+    substrateHealth: CategoryScore;
+  };
+  /** Projected ceiling — where you'd reach by fixing every current finding. */
+  scoreCeiling: ScoreCeiling;
   summary: {
     critical: number;
     recommended: number;
@@ -612,6 +624,18 @@ export interface SecurityReport {
   cveFindings: CveFinding[];
   platformFindings: PlatformAdvisorFinding[];
   platformStatus: PlatformAdvisorStatus[];
+  /** 0-100 security score, same shape as collaboration score. */
+  securityScore: number;
+  /** Per-category breakdown that powers the score. */
+  categories: {
+    secretSafety: CategoryScore;
+    injectionResistance: CategoryScore;
+    ruleIntegrity: CategoryScore;
+    dependencySafety: CategoryScore;
+    platformCompliance: CategoryScore;
+  };
+  /** Where the user would reach by fixing every current finding. */
+  scoreCeiling: ScoreCeiling;
   summary: {
     critical: number;
     recommended: number;

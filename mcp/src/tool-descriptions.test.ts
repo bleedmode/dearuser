@@ -41,7 +41,7 @@ beforeAll(async () => {
 }, 15000);
 
 describe('MCP tool descriptions', () => {
-  const EXPECTED_TOOLS = ['analyze', 'audit', 'onboard', 'security', 'wrapped', 'help'];
+  const EXPECTED_TOOLS = ['analyze', 'system_health', 'onboard', 'security', 'wrapped', 'help'];
 
   it('all expected tools are registered', () => {
     const names = tools.map(t => t.name);

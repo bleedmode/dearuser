@@ -135,6 +135,37 @@ export function getRecentRuns(limit = 50): any[] {
   `).all(limit);
 }
 
+/**
+ * Latest successful run for each of the three scoring tools. Used by the
+ * landing-page dashboard to show the current samarbejds / sikkerheds /
+ * system-sundhed score side-by-side. Returns only runs with a non-null score
+ * so the dashboard doesn't render "——/100" placeholders.
+ *
+ * Tool names map: analyze → collaboration, security → security, system-health
+ * (or legacy "audit") → system-sundhed.
+ */
+export function getLatestScoresByTool(): {
+  analyze: any | null;
+  security: any | null;
+  systemHealth: any | null;
+} {
+  const db = getDb();
+  const latest = (tools: string[]): any | null => {
+    const placeholders = tools.map(() => '?').join(', ');
+    return db.prepare(`
+      SELECT * FROM du_agent_runs
+      WHERE tool_name IN (${placeholders}) AND score IS NOT NULL
+      ORDER BY started_at DESC LIMIT 1
+    `).get(...tools) || null;
+  };
+  return {
+    analyze: latest(['analyze']),
+    security: latest(['security']),
+    // Accept legacy 'audit' rows so renaming didn't erase history
+    systemHealth: latest(['system-health', 'audit']),
+  };
+}
+
 /** Get a single run by id — used by the dashboard share-URL (/r/:id). */
 export function getRunById(id: string): any | undefined {
   const db = getDb();

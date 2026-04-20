@@ -27,6 +27,8 @@ import { runNpmAdvisor } from '../engine/npm-advisor.js';
 import { runVercelAdvisor } from '../engine/vercel-advisor.js';
 import { loadConfig } from '../engine/config.js';
 import { insertAgentRun } from '../engine/db.js';
+import { scoreSecurity } from '../engine/security-scorer.js';
+import type { ScoreCeiling } from '../types.js';
 import type {
   Scope,
   SecurityReport,
@@ -150,12 +152,54 @@ export async function runSecurity(options: SecurityOptions = {}): Promise<Securi
     }
   }
 
+  // 7. Score — turn findings into a 0-100 number with category breakdown.
+  //    Mirrors collaboration scoring so the dashboard can render both under
+  //    the same visual language.
+  const { categories, securityScore } = scoreSecurity({
+    secrets,
+    injection,
+    ruleConflicts,
+    cveFindings,
+    platformFindings,
+    platformStatus,
+  });
+
+  // 8. Ceiling — every current finding has a recommendation to fix it, so
+  //    fixing them all takes each category to 100 (except platformCompliance
+  //    when advisors aren't reachable — that needs setup, not a fix).
+  const platformCovered = platformStatus.some(s => s.status === 'ok' && s.projectsScanned > 0);
+  const byCategory: ScoreCeiling['byCategory'] = {};
+  let ceilingWeightedSum = 0;
+  const unreachable: string[] = [];
+  for (const [id, cat] of Object.entries(categories)) {
+    const ceiling = id === 'platformCompliance' && !platformCovered ? 0 : 100;
+    byCategory[id] = { current: cat.score, ceiling, delta: ceiling - cat.score };
+    ceilingWeightedSum += ceiling * cat.weight;
+  }
+  if (!platformCovered) {
+    unreachable.push('Platform advisors not reachable — Platform Compliance can\'t score until 1Password tokens are configured. See ~/.dearuser/config.json.');
+  }
+  const ceilingScore = Math.round(ceilingWeightedSum);
+  const scoreCeiling: ScoreCeiling = {
+    currentScore: securityScore,
+    ceilingScore,
+    delta: ceilingScore - securityScore,
+    byCategory,
+    unreachable,
+    summary: ceilingScore === securityScore
+      ? `Already at your security ceiling. New findings from future scans may move this number.`
+      : ceilingScore === 100
+        ? `Fixing every finding in this report lifts your security score to 100.`
+        : `Fixing every finding lifts your score from ${securityScore} to ${ceilingScore}. ${unreachable.length > 0 ? 'The gap to 100 needs one-time setup (see below).' : ''}`.trim(),
+  };
+
   // Persist agent run to SQLite
   let agentRunId: string | undefined;
   try {
     agentRunId = insertAgentRun({
       toolName: 'security',
-      summary: `${critical + recommended + niceToHave} findings (${critical} critical, ${secrets.length} secrets, ${cveFindings.length} CVEs)`,
+      summary: `Security: ${securityScore}/100 — ${critical + recommended + niceToHave} findings (${critical} critical, ${secrets.length} secrets, ${cveFindings.length} CVEs)`,
+      score: securityScore,
       status: 'success',
     });
   } catch {
@@ -173,6 +217,9 @@ export async function runSecurity(options: SecurityOptions = {}): Promise<Securi
     cveFindings,
     platformFindings,
     platformStatus,
+    securityScore,
+    categories,
+    scoreCeiling,
     summary: { critical, recommended, niceToHave },
     owaspSummary,
   };
@@ -180,10 +227,51 @@ export async function runSecurity(options: SecurityOptions = {}): Promise<Securi
 
 /** Format a SecurityReport as markdown for the MCP client. */
 export function formatSecurityReport(report: SecurityReport): string {
+  const c = report.scoreCeiling;
+  const ceilingLine = c && c.delta > 0
+    ? `**Reachable ceiling: ${c.ceilingScore}/100** (+${c.delta} if you fix every finding below).`
+    : c && c.ceilingScore === 100
+      ? `**Reachable ceiling: 100/100** — fixing every finding takes you all the way.`
+      : `**Reachable ceiling: ${c?.ceilingScore ?? report.securityScore}/100.**`;
+
   const lines: string[] = [
-    `# Dear User — Security Audit`,
+    `# Dear User — Security`,
     ``,
-    `*Unified security pane: agent setup + platform advisors (Supabase, etc).*`,
+    `*Unified security pane: agent setup + platform advisors (Supabase, GitHub, npm, Vercel).*`,
+    ``,
+    `## Security Score: ${report.securityScore}/100`,
+    ``,
+    ceilingLine,
+  ];
+
+  if (c && c.unreachable.length > 0) {
+    lines.push(``, `*Why not 100:*`);
+    for (const reason of c.unreachable) lines.push(`- ${reason}`);
+  }
+
+  // Category breakdown — same shape as the analyze report
+  lines.push(``, `### Category Scores`);
+  const catConfig: Array<[keyof typeof report.categories, string]> = [
+    ['secretSafety', 'Secret Safety'],
+    ['injectionResistance', 'Injection Resistance'],
+    ['ruleIntegrity', 'Rule Integrity'],
+    ['dependencySafety', 'Dependency Safety'],
+    ['platformCompliance', 'Platform Compliance'],
+  ];
+  for (const [key, name] of catConfig) {
+    const cat = report.categories[key];
+    const bar = '█'.repeat(Math.round(cat.score / 10)) + '░'.repeat(10 - Math.round(cat.score / 10));
+    const status = cat.score >= 85 ? 'Strong'
+      : cat.score >= 70 ? 'Good'
+      : cat.score >= 50 ? 'Needs work'
+      : cat.score > 0 ? 'Weak — action needed'
+      : 'Not measured';
+    lines.push(`- **${name}**: ${bar} ${cat.score}/100 — *${status}*`);
+    for (const sig of cat.signalsPresent.slice(0, 1)) lines.push(`  - ✓ ${sig}`);
+    for (const sig of cat.signalsMissing.slice(0, 2)) lines.push(`  - → ${sig}`);
+  }
+
+  lines.push(
     ``,
     `## Summary`,
     `- 🔴 **${report.summary.critical}** critical`,
@@ -198,7 +286,7 @@ export function formatSecurityReport(report: SecurityReport): string {
     ``,
     `**Platform advisors:**`,
     `- ${report.platformFindings.length} findings across ${report.platformStatus.length} platform(s)`,
-  ];
+  );
 
   // --- OWASP Agentic AI Top 10 summary ---
   const owaspEntries = Object.entries(report.owaspSummary) as Array<[OwaspAgenticCategory, number]>;
