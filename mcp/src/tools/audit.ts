@@ -13,6 +13,7 @@ import { buildGraph } from '../engine/audit-graph.js';
 import { runDetectors, type DetectorOptions } from '../engine/audit-detectors.js';
 import { reconcileFindings } from '../engine/audit-feedback.js';
 import { insertAgentRun } from '../engine/db.js';
+import { scoreSystemHealth } from '../engine/system-health-scorer.js';
 import type {
   AuditArtifact,
   AuditArtifactType,
@@ -20,6 +21,7 @@ import type {
   AuditFindingType,
   AuditReport,
   Scope,
+  ScoreCeiling,
 } from '../types.js';
 
 export interface AuditOptions extends DetectorOptions {
@@ -94,12 +96,38 @@ export function runAudit(options: AuditOptions = {}): AuditReport {
   // 4. Feedback
   const feedback = reconcileFindings(findings);
 
+  // 5. Score — turn findings into a 0-100 number with category breakdown.
+  //    Same shape as collaboration and security scores so the dashboard can
+  //    render all three under one visual language.
+  const { categories, systemHealthScore } = scoreSystemHealth(findings);
+
+  // 6. Ceiling — fixing every finding takes each category to 100.
+  const byCategory: ScoreCeiling['byCategory'] = {};
+  let ceilingWeightedSum = 0;
+  for (const [id, cat] of Object.entries(categories)) {
+    const ceiling = 100;
+    byCategory[id] = { current: cat.score, ceiling, delta: ceiling - cat.score };
+    ceilingWeightedSum += ceiling * cat.weight;
+  }
+  const ceilingScore = Math.round(ceilingWeightedSum);
+  const scoreCeiling: ScoreCeiling = {
+    currentScore: systemHealthScore,
+    ceilingScore,
+    delta: ceilingScore - systemHealthScore,
+    byCategory,
+    unreachable: [],
+    summary: ceilingScore === systemHealthScore
+      ? `Already at 100 — system-sundhed is clean.`
+      : `Fixing every finding in this report lifts your system-sundhed score from ${systemHealthScore} to ${ceilingScore}.`,
+  };
+
   // Persist agent run to SQLite
   let agentRunId: string | undefined;
   try {
     agentRunId = insertAgentRun({
-      toolName: 'audit',
-      summary: `${findings.length} findings (${findings.filter(f => f.severity === 'critical').length} critical)`,
+      toolName: 'system-health',
+      summary: `System-sundhed: ${systemHealthScore}/100 — ${findings.length} findings (${findings.filter(f => f.severity === 'critical').length} critical)`,
+      score: systemHealthScore,
       status: 'success',
     });
   } catch {
@@ -119,6 +147,9 @@ export function runAudit(options: AuditOptions = {}): AuditReport {
       closureRate: computeClosureRate(graph.edges),
     },
     findings,
+    systemHealthScore,
+    categories,
+    scoreCeiling,
     summary: {
       critical: findings.filter(f => f.severity === 'critical').length,
       recommended: findings.filter(f => f.severity === 'recommended').length,
@@ -316,19 +347,52 @@ export function formatAuditReport(report: AuditReport): string {
     largeClusters.flatMap(c => c.findings.map(f => f.id)),
   );
 
+  const c = report.scoreCeiling;
+  const ceilingLine = c.delta > 0
+    ? `**Reachable ceiling: ${c.ceilingScore}/100** (+${c.delta} if you fix every finding below).`
+    : `**Reachable ceiling: ${c.ceilingScore}/100** — already there.`;
+
   const lines: string[] = [
-    `# Dear User — System Audit`,
+    `# Dear User — System-sundhed`,
     ``,
     `*Scanned: ${report.graph.nodeCount} artifacts, ${report.graph.edgeCount} edges` +
       (report.graph.closureRate !== null
         ? ` · Closure rate: ${Math.round(report.graph.closureRate * 100)}% of produced outputs have a consumer*`
         : `*`),
     ``,
-    `## Summary`,
+    `## System-sundhed Score: ${report.systemHealthScore}/100`,
+    ``,
+    ceilingLine,
+    ``,
+    `### Category Scores`,
+  ];
+
+  const catConfig: Array<[keyof typeof report.categories, string]> = [
+    ['jobIntegrity', 'Job Integrity'],
+    ['artifactOverlap', 'Artifact Overlap'],
+    ['dataClosure', 'Data Closure'],
+    ['configHealth', 'Config Health'],
+    ['substrateHealth', 'Substrate Health'],
+  ];
+  for (const [key, name] of catConfig) {
+    const cat = report.categories[key];
+    const bar = '█'.repeat(Math.round(cat.score / 10)) + '░'.repeat(10 - Math.round(cat.score / 10));
+    const status = cat.score >= 85 ? 'Strong'
+      : cat.score >= 70 ? 'Good'
+      : cat.score >= 50 ? 'Needs work'
+      : 'Weak — action needed';
+    lines.push(`- **${name}**: ${bar} ${cat.score}/100 — *${status}*`);
+    for (const sig of cat.signalsPresent.slice(0, 1)) lines.push(`  - ✓ ${sig}`);
+    for (const sig of cat.signalsMissing.slice(0, 2)) lines.push(`  - → ${sig}`);
+  }
+
+  lines.push(
+    ``,
+    `## Findings`,
     `- 🔴 **${report.summary.critical}** critical`,
     `- 🟡 **${report.summary.recommended}** recommended`,
     `- 🟢 **${report.summary.niceToHave}** nice-to-have`,
-  ];
+  );
 
   const byType = report.summary.byType;
   const typeLabels: Array<[AuditFindingType, string]> = [

@@ -17,7 +17,7 @@
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { marked } from 'marked';
-import { getRecentRuns, getRunById, getScoreHistory, getRecommendations, updateRecommendationStatus } from './engine/db.js';
+import { getRecentRuns, getRunById, getScoreHistory, getRecommendations, updateRecommendationStatus, getLatestScoresByTool } from './engine/db.js';
 import { getUserName, updatePreferences } from './engine/user-preferences.js';
 import { friendlyLabel } from './engine/friendly-labels.js';
 import { CATEGORY_EXPLANATIONS, overallVerdict } from './engine/category-explanations.js';
@@ -33,7 +33,8 @@ const MAX_PORT_ATTEMPTS = 10;
 
 const TOOL_LABELS: Record<string, string> = {
   analyze: 'Din samarbejds-rapport',
-  audit: 'Systemtjek',
+  audit: 'System-sundhed', // legacy runs saved under the old tool name
+  'system-health': 'System-sundhed',
   security: 'Sikkerhedstjek',
   wrapped: 'Samarbejdet i tal',
   onboard: 'Opstart',
@@ -46,7 +47,8 @@ function toolLabel(toolName: string): string {
 function toolEmoji(toolName: string): string {
   switch (toolName) {
     case 'analyze': return '🔍';
-    case 'audit': return '🩺';
+    case 'audit': return '🩺'; // legacy runs — kept for backwards compat
+    case 'system-health': return '🩺';
     case 'security': return '🔒';
     case 'wrapped': return '🎁';
     case 'onboard': return '👋';
@@ -210,15 +212,30 @@ function renderMarkdown(md: string): string {
 // Landing — greeting + latest letter + open suggestions
 // ============================================================================
 
+/**
+ * Landing page doubles as the product's main dashboard. Shows the three
+ * domain scores (samarbejde / sikkerhed / system-sundhed) side-by-side with
+ * one combined headline number, keeping the "Kære Jarl" letter tone in the
+ * intro so the product doesn't feel clinical. Competitors are pure dashboards;
+ * we're a dashboard with a voice.
+ */
 function renderLanding(): string {
-  // Same filter as /historik — don't show a "latest report" card that links
-  // to an empty page.
   const recent = getRecentRuns(20).filter((r: any) => r.details && r.details.trim().length > 0).slice(0, 5);
-  const scoreHistory = getScoreHistory(30);
-  const latestScore = scoreHistory.length > 0 ? scoreHistory[scoreHistory.length - 1] : null;
+  const latest = getLatestScoresByTool();
   const pending = getRecommendations('pending').slice(0, 3);
 
-  const hasContent = recent.length > 0 || pending.length > 0 || latestScore;
+  const scores = {
+    samarbejde: latest.analyze?.score as number | null,
+    sikkerhed: latest.security?.score as number | null,
+    systemSundhed: latest.systemHealth?.score as number | null,
+  };
+
+  // Combined score = equal weight across the three domains we actually have
+  // data for. Scoring a domain that hasn't run would be dishonest.
+  const measured = [scores.samarbejde, scores.sikkerhed, scores.systemSundhed].filter((s): s is number => typeof s === 'number');
+  const combinedScore = measured.length > 0 ? Math.round(measured.reduce((a, b) => a + b, 0) / measured.length) : null;
+
+  const hasContent = recent.length > 0 || pending.length > 0 || measured.length > 0;
 
   if (!hasContent) {
     return page('Forside', `
@@ -234,38 +251,59 @@ function renderLanding(): string {
     `, 'oversigt');
   }
 
-  const scoreBlock = latestScore ? `
-    <div class="bg-paper-100 border border-paper-200 rounded-xl p-6 flex items-baseline gap-6">
-      <div>
-        <div class="text-xs uppercase tracking-wider text-ink-500 mb-1">Din score</div>
-        <div class="font-mono text-5xl font-medium text-ink-900 leading-none">${latestScore.score}<span class="text-xl text-ink-300">/100</span></div>
-      </div>
-      ${latestScore.persona ? `
-        <div class="flex-1 text-right">
-          <div class="text-xs uppercase tracking-wider text-ink-500 mb-1">Din stil</div>
-          <div class="text-lg text-ink-700">${escapeHtml(latestScore.persona)}</div>
+  // Score tile — one per domain. Missing scores render a neutral "not yet"
+  // state with a CTA rather than a fake zero.
+  const tile = (label: string, hint: string, score: number | null, reportId?: string, toolHint?: string): string => {
+    if (score === null) {
+      return `
+        <div class="bg-paper-50 border border-dashed border-paper-300 rounded-xl p-5 flex flex-col justify-between min-h-[160px]">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-ink-400 mb-1">${escapeHtml(label)}</div>
+            <div class="font-mono text-3xl text-ink-300">—/100</div>
+          </div>
+          <div class="text-xs text-ink-400 mt-3">
+            Jeg har ikke kørt ${escapeHtml(label.toLowerCase())} endnu. Bed mig om <code class="font-mono bg-paper-100 px-1 rounded text-ink-500">${escapeHtml(toolHint || label)}</code>.
+          </div>
         </div>
-      ` : ''}
+      `;
+    }
+    const color = score >= 85 ? 'text-emerald-700' : score >= 70 ? 'text-amber-700' : 'text-rose-700';
+    const href = reportId ? `/r/${escapeHtml(reportId)}` : '#';
+    return `
+      <a href="${href}" class="bg-paper-100 border border-paper-200 rounded-xl p-5 flex flex-col justify-between min-h-[160px] hover:border-accent-600 transition group">
+        <div>
+          <div class="text-xs uppercase tracking-wider text-ink-500 mb-1 group-hover:text-accent-600 transition">${escapeHtml(label)}</div>
+          <div class="font-mono text-4xl font-medium ${color} leading-none">${score}<span class="text-lg text-ink-300">/100</span></div>
+        </div>
+        <div class="text-xs text-ink-500 mt-3">${escapeHtml(hint)} <span class="text-ink-300 group-hover:text-accent-600 transition">→</span></div>
+      </a>
+    `;
+  };
+
+  const combinedBlock = combinedScore !== null ? `
+    <div class="bg-gradient-to-br from-accent-50 to-paper-100 border border-accent-200 rounded-xl p-6 mb-6">
+      <div class="flex items-baseline justify-between gap-6 flex-wrap">
+        <div>
+          <div class="text-xs uppercase tracking-wider text-accent-700 mb-1">Samlet</div>
+          <div class="font-mono text-6xl font-medium text-ink-900 leading-none">${combinedScore}<span class="text-2xl text-ink-300">/100</span></div>
+          <div class="text-sm text-ink-500 mt-2">
+            Gennemsnit af ${measured.length} målt${measured.length === 1 ? '' : 'e'} område${measured.length === 1 ? '' : 'r'}.
+          </div>
+        </div>
+        ${latest.analyze?.summary ? `
+          <div class="text-sm text-ink-700 max-w-md">${escapeHtml(String(latest.analyze.summary).split(' — ').slice(-1)[0] || '')}</div>
+        ` : ''}
+      </div>
     </div>
   ` : '';
 
-  const latestRun = recent[0];
-  const latestBlock = latestRun ? `
-    <div class="mt-8">
-      <h2 class="text-xs uppercase tracking-wider text-ink-500 mb-2">Seneste brev</h2>
-      <a href="/r/${escapeHtml(latestRun.id)}" class="block bg-paper-100 border border-paper-200 rounded-xl p-6 hover:border-accent-600 transition group">
-        <div class="flex items-start gap-4">
-          <div class="text-2xl">${toolEmoji(latestRun.tool_name)}</div>
-          <div class="flex-1">
-            <div class="font-medium text-ink-900 group-hover:text-accent-600 transition">${escapeHtml(toolLabel(latestRun.tool_name))}</div>
-            <div class="text-sm text-ink-500 mt-0.5">${timeAgo(latestRun.started_at)}</div>
-            ${latestRun.summary ? `<p class="text-sm text-ink-700 mt-2 line-clamp-2">${escapeHtml(latestRun.summary)}</p>` : ''}
-          </div>
-          <div class="text-ink-300 group-hover:text-accent-600 transition">→</div>
-        </div>
-      </a>
+  const gridBlock = `
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      ${tile('Samarbejde', 'Hvor godt vi arbejder sammen', scores.samarbejde, latest.analyze?.id, 'lav en samarbejds-rapport')}
+      ${tile('Sikkerhed', 'Secrets, injection, RLS, CVEs', scores.sikkerhed, latest.security?.id, 'kør sikkerhedstjek')}
+      ${tile('System-sundhed', 'Om dit setup stadig hænger sammen', scores.systemSundhed, latest.systemHealth?.id, 'kør system-sundhed')}
     </div>
-  ` : '';
+  `;
 
   const pendingBlock = pending.length > 0 ? `
     <div class="mt-10">
@@ -281,18 +319,18 @@ function renderLanding(): string {
           `;
         }).join('')}
       </ul>
-      ${pending.length > 0 ? `<a href="/forbedringer" class="inline-block mt-3 text-sm text-accent-600 hover:text-accent-500 transition">Se alle forslag →</a>` : ''}
+      <a href="/forbedringer" class="inline-block mt-3 text-sm text-accent-600 hover:text-accent-500 transition">Se alle forslag →</a>
     </div>
   ` : '';
 
   return page('Forside', `
     <section>
       <h1 class="text-3xl font-semibold mb-2">${escapeHtml(greeting())},</h1>
-      <p class="text-ink-500">Her er det vi ved om dit samarbejde med din AI-assistent.</p>
+      <p class="text-ink-500">Her er tilstanden i dag — tre områder jeg holder øje med for dig, plus et samlet tal.</p>
     </section>
     <section class="mt-8">
-      ${scoreBlock}
-      ${latestBlock}
+      ${combinedBlock}
+      ${gridBlock}
       ${pendingBlock}
     </section>
   `, 'oversigt');

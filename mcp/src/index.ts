@@ -223,16 +223,21 @@ Example prompts that should trigger this tool:
   }
 );
 
-// Tool 2: audit — system coherence (vs analyze which looks at language)
+// Tool 2: system-health — checks whether your stack still hangs together.
+// Named "system_health" (was "audit") — audit implied compliance paperwork;
+// what this does is measure the operational health of your agent stack.
 server.tool(
-  'audit',
-  `Audit your AI setup for structural incoherence. Complement to analyze: where analyze looks at collaboration language, audit looks at system architecture.
+  'system_health',
+  `Check the health of your AI stack. Returns a 0-100 system-sundhed score with category breakdown, plus findings ranked by severity. Complement to analyze: where analyze scores how well you and the agent communicate, system_health scores whether your skills, hooks, scheduled tasks, and MCP servers are still hanging together or have started drifting apart.
 
 Detects:
 - **Orphan scheduled jobs** — task produces output nothing reads
+- **Stale schedules** — jobs that stopped firing silently despite being enabled
 - **Overlap** — skills/tasks/commands with similar purpose or same output path
 - **Missing closure** — non-scheduled producers with no downstream reader
 - **Substrate mismatch** — memory files that look like databases in disguise
+- **Unregistered MCP tools** — skills calling tools whose server isn't registered
+- **Unbacked-up substrate** — active ~/.claude/ files outside version control
 
 What this tool does NOT do:
 - Does NOT fix problems — it identifies them for you to decide
@@ -240,18 +245,18 @@ What this tool does NOT do:
 - Does NOT contact external services — pure local filesystem analysis
 
 IMPORTANT — Presenting results:
-The user cannot see raw tool results. You MUST output the full report as your response text — do NOT summarize, shorten, or add commentary around it. The report is pre-formatted for direct display. Show the closure rate prominently. Lead with critical findings, then recommended, then nice-to-have. Each finding has a stable id users can reference to dismiss. Be careful: heuristic-based detection has some false positives — frame findings as "likely" not "definitely".
+The user cannot see raw tool results. You MUST output the full report as your response text — do NOT summarize, shorten, or add commentary around it. The report is pre-formatted for direct display. Show the score and ceiling prominently. Lead with critical findings, then recommended, then nice-to-have. Each finding has a stable id users can reference to dismiss. Heuristic-based detection has some false positives — frame findings as "likely" not "definitely".
 
 Example prompts that should trigger this tool:
-- "Audit my Claude setup for structural issues"
+- "Check my system's health"
 - "Are any of my scheduled tasks orphaned?"
-- "Check if my hooks and skills overlap"
+- "Kør system-sundhed"
 - "Is my agent substrate well-structured?"`,
   {
     projectRoot: z.string().optional().describe('Project root (e.g., "/Users/me/my-project"). Defaults to cwd. Audit is most useful in global scope.'),
     scope: z.enum(['global', 'project']).optional().describe('Default global.'),
-    focus: z.enum(['orphan', 'overlap', 'closure', 'substrate', 'mcp_refs', 'backup', 'all']).optional()
-      .describe('Narrow to one finding type, or "all" (default). `mcp_refs` = tools calling unregistered MCP servers; `backup` = ~/.claude/ not in version control.'),
+    focus: z.enum(['orphan', 'overlap', 'closure', 'substrate', 'mcp_refs', 'backup', 'stale_schedule', 'all']).optional()
+      .describe('Narrow to one finding type, or "all" (default). `stale_schedule` = jobs that stopped firing; `mcp_refs` = tools calling unregistered MCP servers; `backup` = ~/.claude/ not in version control.'),
   },
   async ({ projectRoot, scope, focus }) => {
     try {
