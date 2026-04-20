@@ -223,6 +223,7 @@ function renderMarkdown(md: string): string {
 function renderLanding(): string {
   const recent = getRecentRuns(20).filter((r: any) => r.details && r.details.trim().length > 0).slice(0, 5);
   const latest = getLatestScoresByTool();
+  reconcilePendingRecommendations();
   const pending = getRecommendations('pending').slice(0, 3);
 
   // Normalise null/undefined/non-number to null so the tile renderer has a
@@ -1092,6 +1093,7 @@ function pickSmallThings(
 // ============================================================================
 
 function renderForbedringer(): string {
+  reconcilePendingRecommendations();
   const pending = getRecommendations('pending');
   const implemented = getRecommendations('implemented');
   const dismissed = getRecommendations('dismissed');
