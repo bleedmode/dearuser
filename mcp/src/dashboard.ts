@@ -19,6 +19,7 @@ import { serve } from '@hono/node-server';
 import { marked } from 'marked';
 import { getRecentRuns, getRunById, getScoreHistory, getRecommendations, updateRecommendationStatus } from './engine/db.js';
 import { getUserName, updatePreferences } from './engine/user-preferences.js';
+import { friendlyLabel } from './engine/friendly-labels.js';
 import { runOnboard } from './tools/onboard.js';
 import type { OnboardResult } from './tools/onboard.js';
 
@@ -52,35 +53,9 @@ function toolEmoji(toolName: string): string {
   }
 }
 
-// ============================================================================
-// Recommendation title rewriter — hide developer jargon
-//
-// Analyze writes recommendation titles like "Enable Agent Memory" or
-// "Wrap pvs.sh in an MCP server". Rewrite the common ones to plain Danish.
-// Unknown titles pass through unchanged rather than being mangled.
-// ============================================================================
-
-const RECOMMENDATION_REWRITES: Array<{ match: RegExp; title: string; hint?: string }> = [
-  { match: /enable agent memory/i, title: 'Lad din assistent huske dine rettelser', hint: 'Så den ikke glemmer hvad du har lært den, hver gang I starter forfra.' },
-  { match: /add quality hooks/i, title: 'Fang fejl automatisk mens du arbejder', hint: 'Dit system kan køre en hurtig tjekker hver gang en fil ændres — så du opdager problemer med det samme.' },
-  { match: /wrap .+ in an mcp server/i, title: 'Gør dit script til et værktøj din assistent kan bruge', hint: 'Så assistenten kan kalde det direkte i stedet for at du skal køre det manuelt.' },
-  { match: /catch scope creep/i, title: 'Stop med at lave mere end aftalt', hint: 'Nævn det når assistenten begynder at lave ekstra ting udover det du bad om.' },
-  { match: /don.?t accept .it should work|demand verification/i, title: 'Bed altid om bevis for at det virker', hint: 'I stedet for at stole på "det burde virke": bed om et konkret tjek.' },
-  { match: /calibrate the ask\/do line/i, title: 'Aftal hvornår assistenten må handle selv', hint: 'Skriv det ned — så du ikke skal forklare det forfra hver gang.' },
-  { match: /name the tone mismatch/i, title: 'Sig til når tonen ikke passer', hint: 'Hvis svaret føles for teknisk eller for fladt, sig det — den tilpasser sig.' },
-  { match: /upgrade repeating manual tasks/i, title: 'Automatiser de ting du laver igen og igen', hint: 'Det du gentager manuelt hver uge kan som regel køre af sig selv.' },
-  { match: /^\d+ project.*uncommitted/i, title: 'Du har ting der ikke er gemt i Git', hint: 'Hvis din computer crasher nu, mister du arbejdet.' },
-  { match: /stale project.*haven.?t been touched/i, title: 'Et projekt ligger og samler støv', hint: 'Overvej om det skal genoptages eller arkiveres.' },
-  { match: /show repeated .fix again. commits/i, title: 'Du fixer det samme flere gange', hint: 'Typisk et tegn på at noget er uklart — enten koden eller instruktionen til assistenten.' },
-];
-
-function friendlyRec(title: string): { title: string; hint?: string } {
-  for (const rule of RECOMMENDATION_REWRITES) {
-    if (rule.match.test(title)) return { title: rule.title, hint: rule.hint };
-  }
-  // Unknown titles: pass through, but strip markdown-like backticks
-  return { title: title.replace(/`/g, '') };
-}
+// Friendly labels live in a shared module so the chat action-menu and the
+// analyze report use the same wording as the dashboard. See
+// src/engine/friendly-labels.ts for the mapping table.
 
 // ============================================================================
 // Time helpers — "for 3 timer siden" in plain Danish
@@ -296,11 +271,11 @@ function renderLanding(): string {
       <h2 class="text-xs uppercase tracking-wider text-ink-500 mb-3">Forslag der venter på dig</h2>
       <ul class="space-y-2">
         ${pending.map(p => {
-          const f = friendlyRec(p.title);
+          const f = friendlyLabel(p.title);
           return `
             <li class="bg-paper-50 border border-paper-200 rounded-lg px-4 py-3">
               <div class="font-medium text-ink-900">${escapeHtml(f.title)}</div>
-              ${f.hint ? `<div class="text-sm text-ink-500 mt-0.5">${escapeHtml(f.hint)}</div>` : ''}
+              ${f.summary ? `<div class="text-sm text-ink-500 mt-0.5">${escapeHtml(f.summary)}</div>` : ''}
             </li>
           `;
         }).join('')}
@@ -427,7 +402,10 @@ function renderForbedringer(): string {
     return `
       <ul class="space-y-3">
         ${items.map(r => {
-          const f = friendlyRec(r.title);
+          const f = friendlyLabel(r.title);
+          // Fall back to the DB text_snippet when we don't have a curated
+          // summary — better than showing just the raw tool name.
+          const summary = f.summary || (r.text_snippet ? r.text_snippet.toString() : '');
           const dropForm = canDrop ? `
             <form method="POST" action="/forbedringer/${escapeHtml(r.id)}/dismiss" class="ml-3 shrink-0">
               <button type="submit"
@@ -442,8 +420,19 @@ function renderForbedringer(): string {
                 <div class="text-accent-600 mt-1">•</div>
                 <div class="flex-1">
                   <div class="font-medium text-ink-900">${escapeHtml(f.title)}</div>
-                  ${f.hint ? `<div class="text-sm text-ink-500 mt-1 leading-relaxed">${escapeHtml(f.hint)}</div>` : ''}
-                  <div class="font-mono text-xs text-ink-300 mt-2">${timeAgo(r.given_at)}</div>
+                  ${summary ? `
+                    <div class="mt-2">
+                      <div class="text-xs uppercase tracking-wider text-ink-300 mb-0.5">Hvad er det?</div>
+                      <div class="text-sm text-ink-700 leading-relaxed">${escapeHtml(summary)}</div>
+                    </div>
+                  ` : ''}
+                  ${f.benefit ? `
+                    <div class="mt-2">
+                      <div class="text-xs uppercase tracking-wider text-ink-300 mb-0.5">Hvad bliver bedre?</div>
+                      <div class="text-sm text-ink-700 leading-relaxed">${escapeHtml(f.benefit)}</div>
+                    </div>
+                  ` : ''}
+                  <div class="font-mono text-xs text-ink-300 mt-3">${timeAgo(r.given_at)}</div>
                 </div>
                 ${dropForm}
               </div>

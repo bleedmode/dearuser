@@ -11,8 +11,9 @@ import type { AnalyzeFormat } from './tools/analyze.js';
 import { runAudit, formatAuditReport } from './tools/audit.js';
 import { runOnboard, formatOnboardResult } from './tools/onboard.js';
 import { runSecurity, formatSecurityReport } from './tools/security.js';
-import { insertAgentRun, updateRunDetails, getRecommendationById, updateRecommendationStatus } from './engine/db.js';
+import { insertAgentRun, updateRunDetails, getRecommendationById, updateRecommendationStatus, getRecommendations } from './engine/db.js';
 import { implementClaudeMdAppend, implementSettingsMerge, prepareShellExec, prepareManual } from './engine/implementer.js';
+import { friendlyLabel } from './engine/friendly-labels.js';
 import { existsSync, mkdirSync, openSync, readFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
@@ -70,14 +71,13 @@ function openInBrowser(url: string): void {
  */
 function buildActionMenu(): string | null {
   try {
-    const { getRecommendations } = require('./engine/db.js');
     const pending = getRecommendations('pending') as any[];
     const actionable = pending
       .filter(r => r.action_type && r.action_type !== 'manual' && r.action_data)
       .slice(0, 3);
     if (actionable.length === 0) return null;
 
-    const labelFor = (r: any): string => {
+    const hintFor = (r: any): string => {
       switch (r.action_type) {
         case 'settings_merge':  return 'sætter det op automatisk';
         case 'claude_md_append': return 'tilføjer reglen til CLAUDE.md';
@@ -97,9 +97,12 @@ function buildActionMenu(): string | null {
     ];
 
     actionable.forEach((r, i) => {
-      const hint = labelFor(r);
-      lines.push(`${i + 1}. **${r.title}** — ${r.text_snippet || ''}`);
-      if (hint) lines.push(`   _(jeg ${hint} for dig)_`);
+      const f = friendlyLabel(r.title);
+      const autoHint = hintFor(r);
+      lines.push(`${i + 1}. **${f.title}**`);
+      if (f.summary) lines.push(`   _Hvad er det:_ ${f.summary}`);
+      if (f.benefit) lines.push(`   _Hvad bliver bedre:_ ${f.benefit}`);
+      if (autoHint) lines.push(`   _(jeg ${autoHint} for dig)_`);
       lines.push(`   \`recommendation_id: ${r.id}\``);
       lines.push('');
     });

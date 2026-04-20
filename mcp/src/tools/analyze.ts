@@ -10,6 +10,7 @@ import { generateRecommendations } from '../templates/recommendations.js';
 import { generateUserCoaching } from '../templates/user-coaching.js';
 import { analyzeSession } from '../engine/session-analyzer.js';
 import { trackRecommendations, trackToolRecommendations, checkImplementation } from '../engine/feedback-tracker.js';
+import { friendlyLabel } from '../engine/friendly-labels.js';
 import { insertAgentRun, insertScoreHistory } from '../engine/db.js';
 import { scanGitRepos } from '../engine/git-scanner.js';
 import type { GitScanResult } from '../engine/git-scanner.js';
@@ -497,14 +498,23 @@ function formatToolRecs(report: AnalysisReport): string[] {
   const toolRecs = report.toolRecs;
 
   if (toolRecs.length > 0) {
-    lines.push('', '## Recommended Tools', '');
-    lines.push('*These tools address specific problems found in your setup. I can install most of them for you — just say which ones you want.*', '');
+    lines.push('', '## Værktøjer jeg kan anbefale', '');
+    lines.push('*Disse værktøjer adresserer konkrete ting jeg fandt i dit setup. Jeg kan installere de fleste for dig — sig bare hvilke du vil have.*', '');
     for (const tool of toolRecs.slice(0, 5)) {
-      const typeLabel = tool.type === 'mcp_server' ? 'MCP' : tool.type === 'hook' ? 'Hook' : tool.type === 'github_repo' ? 'GitHub' : 'Skill';
+      const typeLabel = tool.type === 'mcp_server' ? 'MCP-server'
+        : tool.type === 'hook' ? 'Automatisk tjek'
+        : tool.type === 'github_repo' ? 'GitHub-projekt'
+        : 'Skill';
       const starsStr = tool.stars ? ` · ${(tool.stars / 1000).toFixed(0)}K⭐` : '';
-      lines.push(`### ${tool.name} [${typeLabel}${starsStr}]`);
-      lines.push(tool.userFriendlyDescription || tool.description);
-      if (tool.whoActs) lines.push('', `**${tool.whoActs}**`);
+      const f = friendlyLabel(tool.name);
+      lines.push(`### ${f.title} [${typeLabel}${starsStr}]`);
+      if (f.summary) {
+        lines.push('**Hvad er det:** ' + f.summary);
+      } else {
+        lines.push(tool.userFriendlyDescription || tool.description);
+      }
+      if (f.benefit) lines.push('**Hvad bliver bedre:** ' + f.benefit);
+      if (tool.whoActs) lines.push('', `_${tool.whoActs}_`);
       const install = tool.install.trim();
       if (install.includes('\n')) {
         lines.push('', '```', install, '```');
