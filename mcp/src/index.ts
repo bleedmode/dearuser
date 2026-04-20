@@ -12,6 +12,7 @@ import { runAudit, formatAuditReport } from './tools/audit.js';
 import { runOnboard, formatOnboardResult } from './tools/onboard.js';
 import { runSecurity, formatSecurityReport } from './tools/security.js';
 import { insertAgentRun, updateRunDetails, updateRunJson, getRecommendationById, updateRecommendationStatus, getRecommendations } from './engine/db.js';
+import { reconcilePendingRecommendations } from './engine/reconcile-recommendations.js';
 import { implementClaudeMdAppend, implementSettingsMerge, prepareShellExec, prepareManual } from './engine/implementer.js';
 import { friendlyLabel } from './engine/friendly-labels.js';
 import { existsSync, mkdirSync, openSync, readFileSync } from 'fs';
@@ -71,6 +72,7 @@ function openInBrowser(url: string): void {
  */
 function buildActionMenu(): string | null {
   try {
+    reconcilePendingRecommendations();
     const pending = getRecommendations('pending') as any[];
     const actionable = pending
       .filter(r => r.action_type && r.action_type !== 'manual' && r.action_data)
@@ -169,7 +171,7 @@ const server = new McpServer({
 
 // Tool 1: analyze — full collaboration analysis
 server.tool(
-  'analyze',
+  'collab',
   `Analyze your human-agent collaboration. Scans CLAUDE.md, memory files, hooks, skills, and more to produce a collaboration report with persona detection, scoring, friction analysis, and recommendations.
 
 Returns a pre-formatted markdown report. Use the format parameter to control detail level:
@@ -227,7 +229,7 @@ Example prompts that should trigger this tool:
 // Named "system_health" (was "audit") — audit implied compliance paperwork;
 // what this does is measure the operational health of your agent stack.
 server.tool(
-  'system_health',
+  'health',
   `Check the health of your AI stack. Returns a 0-100 system-sundhed score with category breakdown, plus findings ranked by severity. Complement to analyze: where analyze scores how well you and the agent communicate, system_health scores whether your skills, hooks, scheduled tasks, and MCP servers are still hanging together or have started drifting apart.
 
 Detects:
@@ -250,6 +252,7 @@ The user cannot see raw tool results. You MUST output the full report as your re
 Example prompts that should trigger this tool:
 - "Check my system's health"
 - "Are any of my scheduled tasks orphaned?"
+- "Kør health"
 - "Kør system-sundhed"
 - "Is my agent substrate well-structured?"`,
   {
@@ -531,7 +534,7 @@ IMPORTANT: Present the ImplementResult back to the user in plain Danish — conf
     try {
       const rec = getRecommendationById(recommendation_id);
       if (!rec) {
-        return { content: [{ type: 'text', text: `Anbefaling med id ${recommendation_id} blev ikke fundet. Prøv at køre /dearuser-analyze igen.` }], isError: true };
+        return { content: [{ type: 'text', text: `Anbefaling med id ${recommendation_id} blev ikke fundet. Prøv at køre /dearuser-collab igen.` }], isError: true };
       }
       if (rec.status === 'implemented') {
         return { content: [{ type: 'text', text: `"${rec.title}" er allerede implementeret (${new Date(rec.checked_at || rec.given_at).toLocaleDateString('da-DK')}).` }] };
