@@ -10,6 +10,13 @@ type CategoryId = 'roleClarity' | 'communication' | 'autonomyBalance' | 'quality
 interface ScoringResult {
   categories: Record<CategoryId, CategoryScore>;
   collaborationScore: number;
+  /**
+   * True when CLAUDE.md has an explicit "do yourself / without asking" section
+   * plus >= 3 autonomous rules. Passed through so downstream consumers (proactive
+   * recommender, ceiling calculator) can soften corrections-related messaging:
+   * with intentional autonomy, corrections are refinement rather than overreach.
+   */
+  intentionalAutonomy: boolean;
 }
 
 const WEIGHTS: Record<CategoryId, number> = {
@@ -360,5 +367,9 @@ export function score(parsed: ParseResult, scan: ScanResult, session?: SessionAn
     Object.values(categories).reduce((sum, cat) => sum + cat.score * cat.weight, 0)
   );
 
-  return { categories, collaborationScore };
+  return {
+    categories,
+    collaborationScore,
+    intentionalAutonomy: !!autonomyResult.intentionalAutonomy,
+  };
 }

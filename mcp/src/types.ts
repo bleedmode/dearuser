@@ -410,6 +410,27 @@ export interface LintSummary {
   byCheck: Partial<Record<LintCheckId, number>>;
 }
 
+/**
+ * Where a user would reach if they implemented every current recommendation.
+ * Computed by engine/ceiling-scorer — kept here so consumers (dashboard,
+ * share-page) can show the ceiling alongside the current score.
+ */
+export interface ScoreCeiling {
+  currentScore: number;
+  ceilingScore: number;
+  delta: number;
+  byCategory: Record<string, {
+    current: number;
+    ceiling: number;
+    delta: number;
+    cap?: { cap: number; reason: string };
+  }>;
+  /** Plain-language reasons why 100 may be structurally unreachable. */
+  unreachable: string[];
+  /** One-sentence summary for the report header. */
+  summary: string;
+}
+
 export interface AnalysisReport {
   /** DB row id — set by runAnalysis, used by index.ts to persist the rendered report for the dashboard. */
   _agentRunId?: string;
@@ -423,6 +444,8 @@ export interface AnalysisReport {
   installedSkills: string[];
   persona: PersonaResult;
   collaborationScore: number;
+  /** Projected ceiling the user reaches if they implement every current recommendation. */
+  scoreCeiling: ScoreCeiling;
   categories: {
     roleClarity: CategoryScore;
     communication: CategoryScore;
