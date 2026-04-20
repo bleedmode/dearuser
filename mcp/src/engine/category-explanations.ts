@@ -123,6 +123,148 @@ export const CATEGORY_EXPLANATIONS: Record<string, CategoryExplanation> = {
       'Store huller — der er områder hvor jeg arbejder i blinde.',
     ),
   },
+
+  // -------- Security categories --------
+
+  secretSafety: {
+    label: 'Beskyttelse af hemmeligheder',
+    summary: 'Om der ligger adgangskoder, API-nøgler eller tokens i åben tekst nogen steder.',
+    whatMatters:
+      'Scoren stiger når dine CLAUDE.md, memory, skills og settings er fri for credentials i klartekst. ' +
+      'Den falder for hver nøgle jeg finder — særligt kritisk hvis den nogensinde har været committet til git.',
+    verdict: verdicts(
+      'Ingen læk — credentials ligger hvor de skal (1Password, miljø-variable, .env ignoreret).',
+      'Jeg fandt noget der ligner en nøgle eller to — tag et kig og rotér dem hvis de har været delte.',
+      'Klare hemmeligheder i åben tekst. Rotér dem NU før det er for sent.',
+    ),
+  },
+
+  injectionResistance: {
+    label: 'Modstand mod injection',
+    summary: 'Om dine hooks og skills kan snydes af manipuleret input.',
+    whatMatters:
+      'Scoren stiger når dine hooks/skills ikke blindt bygger shell-kommandoer af bruger-input. ' +
+      'Den falder hvis jeg finder mønstre som `bash -c "$VAR"` uden escape, eller skills der evaluerer ' +
+      'tekst direkte — klassiske prompt-injection-overflader.',
+    verdict: verdicts(
+      'Jeg ser ingen åbne døre — input bliver håndteret sikkert.',
+      'Et par mønstre der kunne misbruges — ikke kriser, men værd at stramme op.',
+      'Alvorlige åbninger — en ondsindet tekst kan få mig til at køre noget jeg ikke burde.',
+    ),
+  },
+
+  ruleIntegrity: {
+    label: 'Regel-integritet',
+    summary: 'Om dine CLAUDE.md-regler og din faktiske opsætning faktisk siger det samme.',
+    whatMatters:
+      'Scoren stiger når dine regler og dine hooks/skills er enige. Den falder hvis CLAUDE.md siger ' +
+      'ét ("spørg altid før du deployer") men en hook gør noget andet ("deploy automatisk") — det er ' +
+      'den farligste form for drift, fordi du og jeg tror vi er enige mens virkeligheden er en anden.',
+    verdict: verdicts(
+      'Reglerne og opsætningen matcher — ingen skjulte uoverensstemmelser.',
+      'Et par steder hvor reglerne og hooks/skills ikke helt rimer. Kig dem igennem.',
+      'Flere direkte konflikter — reglerne lyver om hvad der faktisk sker.',
+    ),
+  },
+
+  dependencySafety: {
+    label: 'Pakke-sikkerhed',
+    summary: 'Om dine dependencies har kendte sårbarheder.',
+    whatMatters:
+      'Scoren stiger når dine package.json-filer er fri for kendte CVEs. Den falder for hver ' +
+      'sårbarhed npm-advisoren kender til i de pakker du bruger — prioriteret efter hvor alvorlig ' +
+      'sårbarheden er.',
+    verdict: verdicts(
+      'Ingen kendte sårbarheder i de pakker du bruger.',
+      'Et par pakker med kendte problemer — opdatér dem når du får tid.',
+      'Flere alvorlige sårbarheder i aktive dependencies. Opdatér før næste deploy.',
+    ),
+  },
+
+  platformCompliance: {
+    label: 'Platform-compliance',
+    summary: 'Hvad eksterne rådgivere (Supabase, GitHub, npm, Vercel) siger om dit setup.',
+    whatMatters:
+      'Scoren stiger når Supabase RLS er aktiv, GitHub Dependabot er grøn, npm audit er ren, og ' +
+      'Vercel ikke flagger noget. Den falder for hver finding de eksterne advisor-API\'er returnerer.',
+    verdict: verdicts(
+      'Alle eksterne rådgivere melder klart.',
+      'Nogle advarsler fra mindst én platform — værd at kigge igennem.',
+      'Kritiske fund på eksterne platforme. Fix dem før de bliver til incidents.',
+    ),
+  },
+
+  // -------- System-sundhed categories --------
+
+  jobIntegrity: {
+    label: 'Job-integritet',
+    summary: 'Om dine scheduled tasks faktisk kører, og om deres output bliver brugt.',
+    whatMatters:
+      'Scoren stiger når dine scheduled tasks (1) kører på deres planlagte tidspunkter og (2) har ' +
+      'en dokumenteret modtager af deres output. Den falder hvis jobs stopper stille, eller hvis et ' +
+      'job producerer data ingen læser.',
+    verdict: verdicts(
+      'Alle jobs kører som de skal, og deres output bliver brugt.',
+      'Et par jobs er ikke kørt for nyligt, eller deres output bruges ikke — undersøg hvad der sker.',
+      'Flere jobs er tavse eller orphaned. Du risikerer at miste data uden at opdage det.',
+    ),
+  },
+
+  artifactOverlap: {
+    label: 'Overlap mellem værktøjer',
+    summary: 'Om du har næsten-dubletter af skills, hooks eller scheduled tasks der gør det samme.',
+    whatMatters:
+      'Scoren stiger når hvert værktøj har et unikt formål. Den falder hvis flere skills/tasks ' +
+      'dækker samme jord — det skaber drift (de to versioner får forskellige regler over tid) og ' +
+      'gør det uklart for mig hvilken der skal kaldes.',
+    verdict: verdicts(
+      'Ingen dubletter — hver skill og task har sit eget område.',
+      'Et par værktøjer overlapper. Merge dem eller vælg én.',
+      'Flere næsten-dubletter. Jeg risikerer at kalde den forkerte.',
+    ),
+  },
+
+  dataClosure: {
+    label: 'Data-lukning',
+    summary: 'Om alt det der bliver produceret også bliver læst nogen steder.',
+    whatMatters:
+      'Scoren stiger når hvert produces-output har en matching consumes et andet sted. Den falder ' +
+      'hvis hooks skriver filer ingen læser, eller skills genererer data der aldrig bruges — klassiske ' +
+      'hængende data-flows.',
+    verdict: verdicts(
+      'Alt det du producerer har en aftager.',
+      'Et par hængende outputs. Ikke kritisk, men oprydning af dem forhindrer rod.',
+      'Flere data-flows uden modtager. Du skriver til tomme rum.',
+    ),
+  },
+
+  configHealth: {
+    label: 'Config-sundhed',
+    summary: 'Om dine skills faktisk kan kalde de MCP tools de henviser til.',
+    whatMatters:
+      'Scoren stiger når alle `mcp__xxx__yyy` referencer i dine skills peger på MCP servere der ' +
+      'faktisk er registreret. Den falder hvis skills kalder tools fra en server der ikke er ' +
+      'installeret — de fejler stiltiende hver gang.',
+    verdict: verdicts(
+      'Alle MCP-referencer resolvér korrekt.',
+      'Et par skills peger på tools der ikke findes. Registrér serveren eller fjern kaldene.',
+      'Flere MCP-referencer peger på ikke-registrerede servere. Skills fejler tavst hver gang.',
+    ),
+  },
+
+  substrateHealth: {
+    label: 'Substrat-sundhed',
+    summary: 'Om dine memory-filer har de rigtige headers, og om ~/.claude/ er backet op.',
+    whatMatters:
+      'Scoren stiger når memory-filer har frontmatter (så jeg loader dem rigtigt) og hele din ' +
+      'agent-opsætning i ~/.claude/ er i version control. Den falder hvis memories ligger rodet ' +
+      'eller hvis din Mac kunne lynnedbrændes med alt dit agent-arbejde tabt.',
+    verdict: verdicts(
+      'Memories er velstrukturerede, og din opsætning er backet op.',
+      'Et par memories mangler frontmatter eller backup er ikke fuldstændig.',
+      'Dele af din opsætning er sårbar — tabt ved næste disk-problem.',
+    ),
+  },
 };
 
 /**
@@ -134,6 +276,22 @@ export function overallVerdict(score: number): string {
   if (score >= 75) return 'Solidt samarbejde. Nogle ting at stramme op, ingen kriser.';
   if (score >= 60) return 'OK udgangspunkt. Der er 1-2 ting du bør tage fat på først.';
   return 'Der er nogle grundlæggende ting vi bør have på plads. Tag dem i rækkefølge.';
+}
+
+/** Security-domain verdict — same tone as overallVerdict, scoped to security. */
+export function securityVerdict(score: number): string {
+  if (score >= 90) return 'Solid sikkerheds-hygiejne — de åbenlyse fælder er lukket.';
+  if (score >= 75) return 'Overordnet sundt, men et par ting at stramme op på.';
+  if (score >= 60) return 'Der er nogle huller. Ikke alarmerende, men bør fikses.';
+  return 'Flere alvorlige fund. Start med de kritiske før noget andet.';
+}
+
+/** System-sundhed verdict — focused on coherence of the agent stack. */
+export function systemHealthVerdict(score: number): string {
+  if (score >= 90) return 'Setup\'et hænger sammen — værktøjer passer sammen og data flyder.';
+  if (score >= 75) return 'Stort set sammenhængende, men et par steder der har taget afsted.';
+  if (score >= 60) return 'Flere steder hvor dele af setup\'et ikke længere snakker ordentligt sammen.';
+  return 'Dit setup er ved at falde fra hinanden. Ryd op før du bygger mere.';
 }
 
 export function explanationFor(key: string): CategoryExplanation | undefined {
