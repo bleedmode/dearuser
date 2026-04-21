@@ -71,7 +71,7 @@ function detectRepeatedCli(artifacts: AuditArtifact[]): Recommendation[] {
       evidence: [
         { source: 'analysis', excerpt: `${cli} used in ${count} artifacts: ${sourceList}`, kind: 'stat' },
       ],
-      target: 'behavior',
+      actionType: 'manual',
       placementHint: 'Create a new MCP server project or skill that wraps this CLI.',
       why: 'Repeated manual CLI invocations across agent prompts drift. Each skill parses args slightly differently, errors are handled inconsistently, and your agent has no typed contract for what the tool expects.',
       howItLooks: `Before: 5 skills each calling '${cli} status' via Bash\nAfter: server.tool('${cli.replace(/\.\w+$/, '')}.status') returns structured JSON every time`,
@@ -117,7 +117,7 @@ function detectWritePatterns(artifacts: AuditArtifact[]): Recommendation[] {
       evidence: [
         { source: 'analysis', excerpt: `${tasks.size} scheduled tasks write to ${folder}`, kind: 'stat' },
       ],
-      target: 'behavior',
+      actionType: 'manual',
       placementHint: folder,
       why: 'Multiple writers to a folder with ad-hoc file formats means every consumer re-parses. Structured storage is cheap to add and makes the data actually useful.',
     });
@@ -148,7 +148,7 @@ function detectClearPatterns(session: SessionData): Recommendation[] {
     evidence: [
       { source: 'sessions', excerpt: `${clears} /clear commands across ${sessions} sessions`, kind: 'stat' },
     ],
-    target: 'behavior',
+    actionType: 'manual',
     placementHint: 'CLAUDE.md size, auto-loaded memory file count',
     why: 'Frequent /clear usage is a signal that your context load is too heavy. The cost is real: every clear loses the agent\'s in-session learning about what you already tried.',
     howItLooks: 'Before: you clear because context feels sluggish.\nAfter: a condensed CLAUDE.md + on-demand memories mean you can run entire features without clearing.',
@@ -178,7 +178,7 @@ function detectCorrectionFriction(session: SessionData, intentionalAutonomy: boo
       evidence: [
         { source: 'sessions', excerpt: `${corrections} correction signals ("nej", "stop", "wrong") in recent prompts`, kind: 'stat' },
       ],
-      target: 'behavior',
+      actionType: 'manual',
       placementHint: 'Prompt phrasing and upfront context',
       why: 'With intentional autonomy the agent moves fast. Corrections pull it back — each one is rework. Front-loading constraints turns late corrections into early instructions.',
       practiceStep: 'Next time you\'re about to write a short prompt, add one line of constraint you\'d have corrected toward. "Refactor X — but don\'t touch Y" instead of writing "don\'t touch Y" after the fact.',
@@ -194,7 +194,7 @@ function detectCorrectionFriction(session: SessionData, intentionalAutonomy: boo
     evidence: [
       { source: 'sessions', excerpt: `${corrections} correction signals detected`, kind: 'stat' },
     ],
-    target: 'behavior',
+    actionType: 'manual',
     placementHint: 'Prompt quality, autonomy rules',
     why: 'High correction rate means the agent is interpreting your intent wrong often. Either it has too much autonomy for its current understanding of your goals, or prompts lack the context it needs to choose well.',
     howItLooks: 'Before: "refactor this" → agent rewrites everything → "nej, not like that".\nAfter: "refactor the parsing logic; don\'t touch the tests or the types" → agent does what you wanted the first time.',
@@ -225,7 +225,7 @@ function detectShortPromptPattern(session: SessionData): Recommendation[] {
     evidence: [
       { source: 'sessions', excerpt: `${short}/${total} prompts are under 20 characters`, kind: 'stat' },
     ],
-    target: 'behavior',
+    actionType: 'manual',
     placementHint: 'Prompt habits',
     why: 'A two-word prompt lets the agent pick any of ten interpretations. One extra sentence of context — what you\'re trying to accomplish, what not to touch — collapses that ten down to one.',
     howItLooks: 'Before: "fix the bug".\nAfter: "fix the crash when user hits save on an empty form — don\'t rewrite the form component".',
@@ -251,7 +251,7 @@ function detectStaleRepos(git: GitScanResult | null): Recommendation[] {
       excerpt: `${r.name} — last commit ${r.staleDays} days ago`,
       kind: 'stat' as const,
     })),
-    target: 'behavior',
+    actionType: 'manual',
     placementHint: '~/.claude/projects/, CLAUDE.md project list',
     why: 'Every dormant project that Claude enumerates (via CLAUDE.md references or scheduled scans) uses context that could go to live work. Archival is free.',
     howItLooks: 'Before: 14 projects, 6 of them cold, all in CLAUDE.md.\nAfter: 8 active projects in rotation, cold ones in an archive section you can re-enable if revived.',
@@ -282,7 +282,7 @@ function detectRevertHotspots(git: GitScanResult | null): Recommendation[] {
         kind: 'quote' as const,
       }))
     ),
-    target: 'behavior',
+    actionType: 'manual',
     placementHint: 'CLAUDE.md quality section',
     why: 'Commits that revert or re-fix in the same month are the clearest signal that your "done" criteria aren\'t catching real-world failures. Usually means tests aren\'t catching the thing that breaks.',
     practiceStep: 'Pick the most recent revert. Add a test or hook that would have caught it before the commit.',
@@ -309,7 +309,7 @@ function detectUncommittedPile(git: GitScanResult | null): Recommendation[] {
       excerpt: `${r.name} has ${r.uncommittedFiles} uncommitted files`,
       kind: 'stat' as const,
     })),
-    target: 'behavior',
+    actionType: 'manual',
     placementHint: 'ship skill / commit discipline',
     why: 'Uncommitted piles are invisible work. If you stop, you lose context. If you resume, merge risk grows daily.',
     practiceStep: `Open ${top[0].name} and either commit the useful bits or stash + delete the rest.`,

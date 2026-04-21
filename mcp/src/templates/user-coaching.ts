@@ -119,7 +119,7 @@ export function generateUserCoaching(friction: FrictionPattern[]): Recommendatio
       description: template.description,
       textBlock: '', // User recs are structured via why/howItLooks/practiceStep, not a code block
       evidence,
-      target: 'behavior',
+      actionType: 'manual',
       placementHint: 'This is a behavior change — no file to edit.',
       why: template.why,
       howItLooks: template.howItLooks,

@@ -77,42 +77,34 @@ function rowToTracked(row: any): TrackedRecommendation {
 /**
  * Record new recommendations from an analysis run.
  */
+// Derive the semantic type stored in du_recommendations.type from actionType.
+// `type` drives reconciliation strategy (how we check if a rec is implemented).
+// `manual` recs are behavioral — the user changes how they work, nothing in
+// files changes. Everything else surfaces as file content we can grep for.
+function typeFromActionType(actionType: string): string {
+  return actionType === 'manual' ? 'behavior' : 'claude_md_rule';
+}
+
 export function trackRecommendations(
-  recommendations: Array<{ title: string; textBlock: string; target: string; priority?: string }>,
+  recommendations: Array<{ title: string; textBlock: string; actionType: 'claude_md_append' | 'settings_merge' | 'shell_exec' | 'manual'; priority?: string }>,
   collaborationScore: number,
   agentRunId?: string,
 ): void {
-  // Ensure JSON data is migrated
   migrateFromJson();
 
   for (const rec of recommendations) {
-    // Skip if already tracked
     const existing = findRecommendationByTitle(rec.title);
     if (existing) continue;
 
-    const type = rec.target.includes('hook') ? 'hook'
-      : rec.target.includes('skill') ? 'skill'
-      : rec.target.includes('mcp') ? 'mcp_server'
-      : rec.target.includes('behavior') ? 'behavior'
-      : 'claude_md_rule';
-
-    // Map the rec's target into an action_type the implementer understands.
-    // 'settings' → settings_merge (JSON snippet), 'global_claude_md' →
-    // claude_md_append (markdown snippet). Others fall back to 'manual'.
-    const actionType: 'settings_merge' | 'claude_md_append' | 'manual' =
-      rec.target === 'settings' ? 'settings_merge'
-      : rec.target === 'global_claude_md' ? 'claude_md_append'
-      : 'manual';
-
     insertRecommendation({
       agentRunId,
-      type: type as any,
+      type: typeFromActionType(rec.actionType) as any,
       title: rec.title,
       textSnippet: rec.textBlock.slice(0, 100),
       keywords: extractKeywords(rec.title + ' ' + rec.textBlock.slice(0, 200)),
       severity: (rec.priority as any) || 'recommended',
       scoreAtGiven: collaborationScore,
-      actionType,
+      actionType: rec.actionType,
       actionData: rec.textBlock,
     });
   }
