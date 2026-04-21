@@ -103,7 +103,7 @@ export interface Recommendation {
   description: string;
   textBlock: string;
   evidence: EvidenceItem[];
-  target: 'global_claude_md' | 'project_claude_md' | 'settings' | 'hook' | 'skill' | 'behavior';
+  actionType: 'claude_md_append' | 'settings_merge' | 'shell_exec' | 'manual';
   placementHint: string;
   // User-coaching fields (only for audience === 'user' or 'both')
   why?: string;       // Why this hurts collaboration

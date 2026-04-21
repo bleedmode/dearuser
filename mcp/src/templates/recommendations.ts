@@ -16,7 +16,7 @@ const GAP_LABELS: Record<string, string> = {
 };
 
 // Text blocks per gap × persona
-const RECOMMENDATION_BLOCKS: Record<string, Partial<Record<PersonaId, { title: string; description: string; textBlock: string; target: Recommendation['target']; placementHint: string }>>> = {
+const RECOMMENDATION_BLOCKS: Record<string, Partial<Record<PersonaId, { title: string; description: string; textBlock: string; actionType: Recommendation['actionType']; placementHint: string }>>> = {
   missing_roles: {
     vibe_coder: {
       title: 'Add Role Definitions',
@@ -25,7 +25,7 @@ const RECOMMENDATION_BLOCKS: Record<string, Partial<Record<PersonaId, { title: s
 - You (the user) are the CEO and product owner. You set direction, priorities, and make business decisions.
 - Claude is the technical executor. Handle all code, git, builds, deploys, and technical research autonomously.
 - The user's time is the scarcest resource. Only ask when genuinely necessary.`,
-      target: 'global_claude_md',
+      actionType: 'claude_md_append',
       placementHint: 'Add near the top of your CLAUDE.md, before any rules',
     },
     senior_dev: {
@@ -36,7 +36,7 @@ const RECOMMENDATION_BLOCKS: Record<string, Partial<Record<PersonaId, { title: s
 - You handle repetitive tasks, boilerplate, research, and initial implementations.
 - Always explain your architectural choices — I want to understand, not just accept.
 - Never change code I'm actively working on without flagging it first.`,
-      target: 'global_claude_md',
+      actionType: 'claude_md_append',
       placementHint: 'Add near the top of your CLAUDE.md',
     },
     indie_hacker: {
@@ -46,7 +46,7 @@ const RECOMMENDATION_BLOCKS: Record<string, Partial<Record<PersonaId, { title: s
 - I decide what to build and when to ship. You handle the how.
 - Default to action. Ship first, polish later.
 - If something takes less than 5 minutes, just do it. If it takes more, outline the approach first.`,
-      target: 'global_claude_md',
+      actionType: 'claude_md_append',
       placementHint: 'Add at the top of your CLAUDE.md',
     },
     venture_studio: {
@@ -57,7 +57,7 @@ const RECOMMENDATION_BLOCKS: Record<string, Partial<Record<PersonaId, { title: s
 - You are the meta-agent / operating system. Execute autonomously within established patterns.
 - Proactively manage git, builds, deploys, and project health across the portfolio.
 - Think in systems, not tasks. If we'll do it again, automate it.`,
-      target: 'global_claude_md',
+      actionType: 'claude_md_append',
       placementHint: 'Add near the top of your CLAUDE.md, before project-specific instructions',
     },
     team_lead: {
@@ -68,7 +68,7 @@ const RECOMMENDATION_BLOCKS: Record<string, Partial<Record<PersonaId, { title: s
 - Follow team standards and conventions exactly — consistency matters more than cleverness.
 - When reviewing PRs or code from other team members, be constructive and specific.
 - Never make decisions that affect team workflow without checking with me first.`,
-      target: 'global_claude_md',
+      actionType: 'claude_md_append',
       placementHint: 'Add near the top of your CLAUDE.md',
     },
   },
@@ -94,7 +94,7 @@ const RECOMMENDATION_BLOCKS: Record<string, Partial<Record<PersonaId, { title: s
 - Improvements beyond the task
 - New features or ideas
 - Refactoring that isn't necessary for the task`,
-      target: 'global_claude_md',
+      actionType: 'claude_md_append',
       placementHint: 'Add after the Roles section',
     },
     venture_studio: {
@@ -121,7 +121,7 @@ const RECOMMENDATION_BLOCKS: Record<string, Partial<Record<PersonaId, { title: s
 - New features or product ideas
 - Refactoring not required for the task
 - Technology changes`,
-      target: 'global_claude_md',
+      actionType: 'claude_md_append',
       placementHint: 'Add after the Roles section',
     },
   },
@@ -135,7 +135,7 @@ const RECOMMENDATION_BLOCKS: Record<string, Partial<Record<PersonaId, { title: s
 - Use business analogies first, technical details second.
 - Never reference frameworks or tools as shared knowledge — explain what they do.
 - Use the user's vocabulary, not developer jargon.`,
-      target: 'global_claude_md',
+      actionType: 'claude_md_append',
       placementHint: 'Add after autonomy rules',
     },
   },
@@ -154,7 +154,7 @@ const RECOMMENDATION_BLOCKS: Record<string, Partial<Record<PersonaId, { title: s
     ]
   }
 }`,
-      target: 'settings',
+      actionType: 'settings_merge',
       placementHint: 'Add to .claude/settings.json in your project root',
     },
     senior_dev: {
@@ -171,7 +171,7 @@ const RECOMMENDATION_BLOCKS: Record<string, Partial<Record<PersonaId, { title: s
     ]
   }
 }`,
-      target: 'settings',
+      actionType: 'settings_merge',
       placementHint: 'Add to .claude/settings.json — consider adding test hooks too',
     },
   },
@@ -190,7 +190,7 @@ Key memory types:
 - user: your role, expertise, and goals
 - project: ongoing work context
 - reference: where to find things`,
-      target: 'global_claude_md',
+      actionType: 'claude_md_append',
       placementHint: 'Consider adding a "Memory" section to your CLAUDE.md explaining what to remember',
     },
   },
@@ -204,7 +204,7 @@ Key memory types:
 - Timeline: [your deadline]
 - Every decision should be evaluated: "does this bring us closer to the target?"
 - Ship fast. Kill what doesn't work. Double down on what does.`,
-      target: 'global_claude_md',
+      actionType: 'claude_md_append',
       placementHint: 'Add near the top, right after Roles',
     },
     venture_studio: {
@@ -216,7 +216,7 @@ Key memory types:
 - Runway: X months remaining
 - Prioritization: Revenue-generating work ALWAYS first. Kill quickly (70-80% kill rate is healthy). Speed over perfection.
 - Distribution is as important as product — an app nobody knows about is an app nobody uses.`,
-      target: 'global_claude_md',
+      actionType: 'claude_md_append',
       placementHint: 'Add near the top, after Roles and Autonomy',
     },
   },
@@ -240,7 +240,7 @@ export function generateRecommendations(gaps: Gap[], persona: PersonaId): Recomm
     // Strip leading "Any "/"A " to keep the sentence natural.
     const cleanLabel = label.replace(/^(Any |A )/, '');
     const evidence: EvidenceItem[] = [{
-      source: block.target === 'settings' ? '.claude/settings.json' : 'CLAUDE.md',
+      source: block.actionType === 'settings_merge' ? '.claude/settings.json' : 'CLAUDE.md',
       excerpt: `No ${cleanLabel} found in your setup`,
       kind: 'missing',
     }];
@@ -252,7 +252,7 @@ export function generateRecommendations(gaps: Gap[], persona: PersonaId): Recomm
       description: block.description,
       textBlock: block.textBlock,
       evidence,
-      target: block.target,
+      actionType: block.actionType,
       placementHint: block.placementHint,
     });
   }
