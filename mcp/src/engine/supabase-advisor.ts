@@ -4,8 +4,8 @@
 // API for each, and normalizes findings into PlatformAdvisorFinding shape.
 //
 // Token resolution priority:
-//   1. env var SUPABASE_ACCESS_TOKEN (standard for external users)
-//   2. 1Password CLI (internal PVS setup, uses ~/.config/openclaw/op-token)
+//   1. env var SUPABASE_ACCESS_TOKEN (standard)
+//   2. 1Password CLI, if available and OP_SERVICE_ACCOUNT_TOKEN is set
 //   3. give up gracefully with skipped status
 //
 // We do NOT re-scan for RLS — that's what Supabase Advisor already does. We
@@ -82,7 +82,7 @@ export function resolveSupabaseToken(): { token: string; source: string } | unde
     return { token: configToken, source: 'config:~/.dearuser/config.json' };
   }
 
-  // 3. 1Password CLI — internal PVS setup
+  // 3. 1Password CLI (optional, uses OP_SERVICE_ACCOUNT_TOKEN if set)
   const opTokenPath = path.join(os.homedir(), '.config', 'openclaw', 'op-token');
   if (fs.existsSync(opTokenPath)) {
     try {

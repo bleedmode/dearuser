@@ -28,7 +28,7 @@ export interface ProactiveContext {
 
 /**
  * CLI commands repeated across many artifacts → candidate for MCP server or skill.
- * Example: `pvs.sh` appearing in 5 skills → wrap in an MCP server for structured calls.
+ * Example: `./deploy.sh` appearing in 5 skills → wrap in an MCP server for structured calls.
  */
 function detectRepeatedCli(artifacts: AuditArtifact[]): Recommendation[] {
   const cliCommandCounts = new Map<string, { count: number; sources: Set<string> }>();
@@ -84,7 +84,7 @@ function detectRepeatedCli(artifacts: AuditArtifact[]): Recommendation[] {
 
 /**
  * Many scheduled tasks writing to the same folder → candidate for structured storage.
- * Example: 4 tasks write to `~/.pvs/` with various JSON files → SQLite would be better.
+ * Example: 4 tasks write to `~/.myapp/` with various JSON files → SQLite would be better.
  */
 function detectWritePatterns(artifacts: AuditArtifact[]): Recommendation[] {
   const folderWrites = new Map<string, Set<string>>();

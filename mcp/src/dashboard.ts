@@ -89,7 +89,7 @@ function formatLetterDate(ts: number): string {
 }
 
 // ============================================================================
-// Greeting — "Kære Jarl" when we know the name, else "Kære bruger"
+// Greeting — "Kære &lt;name&gt;" when we know the name, else "Kære bruger"
 // ============================================================================
 
 function greeting(): string {
@@ -351,7 +351,7 @@ function renderMarkdown(md: string): string {
 /**
  * Landing page doubles as the product's main dashboard. Shows the three
  * domain scores (samarbejde / sikkerhed / system-sundhed) side-by-side with
- * one combined headline number, keeping the "Kære Jarl" letter tone in the
+ * one combined headline number, keeping the "Kære &lt;name&gt;" letter tone in the
  * intro so the product doesn't feel clinical. Competitors are pure dashboards;
  * we're a dashboard with a voice.
  */
@@ -1289,7 +1289,7 @@ function renderDomainScoreAndCategories(
 ): string {
   // Match the home-page tile treatment: colored bullet + label, big
   // font-serif number in the same color, no surrounding card. Verdict
-  // prose lives in the leadIn paragraph under "Kære Jarl" — showing it
+  // prose lives in the leadIn paragraph under "Kære &lt;name&gt;" — showing it
   // again in a box is redundant. Ceiling-delta is implicit from the
   // per-category rows below, so we drop it too.
   const scoreColor = typeof score !== 'number'

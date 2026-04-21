@@ -43,6 +43,7 @@ function penaltyFor(severity: GapSeverity): number {
 const TYPE_TO_CATEGORY: Record<string, SystemHealthCategoryId> = {
   orphan_job: 'jobIntegrity',
   stale_schedule: 'jobIntegrity',
+  expected_job_missing: 'jobIntegrity',
   overlap: 'artifactOverlap',
   missing_closure: 'dataClosure',
   unregistered_mcp_tool: 'configHealth',

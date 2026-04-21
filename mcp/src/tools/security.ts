@@ -60,7 +60,7 @@ const OWASP_LABELS: Record<OwaspAgenticCategory, string> = {
 export interface SecurityOptions {
   projectRoot?: string;
   scope?: Scope;
-  /** Root directories to scan for projects with platform credentials (e.g. ~/clawd). Defaults to [~/clawd]. */
+  /** Root directories to scan for projects with platform credentials (e.g. ~/dev, ~/projects). Defaults to common dev folders from config. */
   projectSearchRoots?: string[];
   /** Skip platform advisor tier entirely (faster, agent-setup only). */
   skipPlatformAdvisors?: boolean;

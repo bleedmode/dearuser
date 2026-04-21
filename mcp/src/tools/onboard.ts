@@ -201,7 +201,7 @@ function parseAudience(answer: string): OnboardState['audience'] {
 // ============================================================================
 
 /**
- * Parse a name answer. We want the first-name for greetings ("Kære Jarl").
+ * Parse a name answer. We want the first-name for greetings ("Kære &lt;name&gt;").
  * Strip punctuation, take the first word. Empty/whitespace → null.
  */
 function parseName(answer: string): string | null {
@@ -522,7 +522,7 @@ function writeConfigTemplate(state: OnboardState): string | null {
   }
 
   // New config — include search roots and token placeholders for detected platforms
-  const candidates = ['clawd', 'code', 'projects', 'work', 'src'];
+  const candidates = ['code', 'projects', 'work', 'src', 'dev'];
   const searchRoots: string[] = [];
   for (const name of candidates) {
     const p = path.join(os.homedir(), name);

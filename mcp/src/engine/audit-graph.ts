@@ -37,7 +37,7 @@ export function extractProducedPaths(prompt: string): string[] {
   }
 
   // Prose write-verbs — match verb + up to a few words + a path
-  // "writes to ~/foo.json", "saves to .pvs/scan.json", "appends to memory/X.md"
+  // "writes to ~/foo.json", "saves to cache/scan.json", "appends to memory/X.md"
   const writeVerbs = /\b(writes?|saves?|creates?|appends?|updates?|persists?|stores?|outputs?|emits?|logs?|skriver|gemmer|opretter)\s+(?:to\s+|til\s+)?[`"']?([^\s`"'\n,;)\]]+)[`"']?/gi;
   for (const m of prompt.matchAll(writeVerbs)) {
     const p = m[2].trim();

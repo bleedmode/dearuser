@@ -190,7 +190,8 @@ export type AuditFindingType =
   | 'substrate_mismatch'
   | 'unregistered_mcp_tool'
   | 'unbacked_up_substrate'
-  | 'stale_schedule';
+  | 'stale_schedule'
+  | 'expected_job_missing';
 
 /** A thing in the user's AI stack that can produce or consume data. */
 export interface AuditArtifact {
@@ -579,7 +580,7 @@ export interface RuleConflict {
 export interface PlatformAdvisorFinding {
   id: string;
   platform: 'supabase' | 'github' | 'npm' | 'vercel';
-  projectName: string; // e.g. "pvs", "rock-identifier"
+  projectName: string; // e.g. "acme-app", "internal-tools"
   projectRef?: string; // platform-specific ref (Supabase project ref, GitHub repo slug, etc.)
   severity: GapSeverity;
   title: string;
