@@ -1343,6 +1343,14 @@ function renderDomainScoreAndCategories(
   ceiling: any,
 ): string {
   const verdict = typeof score === 'number' ? verdictFn(score) : '';
+  // Match the score-color treatment used on the home page tiles so the
+  // visual language is consistent across the dashboard: green ≥85,
+  // amber ≥70, rose below. No bold weight — font-serif carries the tone.
+  const scoreColor = typeof score !== 'number'
+    ? 'text-ink-300'
+    : score >= 85 ? 'text-emerald-700'
+    : score >= 70 ? 'text-amber-700'
+    : 'text-rose-700';
   const ceilingLine = ceiling && typeof ceiling.ceilingScore === 'number' && ceiling.delta > 0
     ? `<p class="text-sm text-ink-500 mt-3">Fixer du alle fund nedenfor rykker du til <strong class="text-ink-900">${ceiling.ceilingScore}/100</strong> (+${ceiling.delta}).</p>`
     : ceiling && ceiling.ceilingScore === score
@@ -1357,7 +1365,7 @@ function renderDomainScoreAndCategories(
           <div class="text-xs text-ink-300 font-mono">0–100</div>
         </div>
         <div class="flex items-baseline gap-3 mb-2">
-          <div class="font-mono text-6xl font-semibold text-ink-900 leading-none">${typeof score === 'number' ? score : '—'}</div>
+          <div class="font-serif text-6xl ${scoreColor} leading-none">${typeof score === 'number' ? score : '—'}</div>
           <div class="text-xl text-ink-300">/100</div>
         </div>
         ${verdict ? `<p class="text-ink-700 leading-relaxed mt-3">${escapeHtml(verdict)}</p>` : ''}
