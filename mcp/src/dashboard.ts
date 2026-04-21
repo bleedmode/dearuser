@@ -104,11 +104,11 @@ function greetingEn(): string {
 
 function signature(): string {
   return `<span class="inline-flex items-center gap-2">
-    <svg width="18" height="18" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <svg width="22" height="22" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <circle cx="20" cy="20" r="20" fill="#EC5329"/>
       <path class="smile-path" d="M 11 22 Q 20 32 29 22" stroke-width="2.5" stroke-linecap="round" fill="none"/>
     </svg>
-    <span>Dear User</span>
+    <span class="font-serif italic text-lg tracking-tight">Dear User</span>
   </span>`;
 }
 
@@ -1286,10 +1286,18 @@ function renderSystemHealthLetter(run: any, report: any): string {
   const sortedFindings = [...findings].sort((a, b) => (sevOrder[a.severity] ?? 3) - (sevOrder[b.severity] ?? 3));
 
   const ceiling = report.scoreCeiling;
-  const closureRate = typeof report.graph?.closureRate === 'number' ? Math.round(report.graph.closureRate * 100) : null;
-  const leadIn = findings.length === 0
-    ? 'Jeg har kigget dit setup igennem for orphan jobs, døde schedules, overlap og substrat-problemer. Alt hænger sammen.'
-    : `Jeg har kigget dit setup igennem for orphan jobs, døde schedules, overlap og substrat-problemer. Jeg fandt ${findings.length} ${findings.length === 1 ? 'ting' : 'ting'} værd at tage fat på${closureRate !== null ? ` (og ${closureRate}% af dine outputs har en modtager)` : ''}.`;
+  // Prose must match the score. User-facing findings = not in a same-suite
+  // cluster (those are intentional product overlap, already excluded from
+  // the score and from the findings list below). Closure-rate is a raw
+  // graph stat — the scorer already turned it into a category score, so
+  // repeating the percentage here reads as "something's wrong" when it
+  // isn't. Only mention it if there are actual findings to pair it with.
+  const userFindingsCount = findings.filter((f: any) => !f.suitePrefix).length;
+  const leadIn = userFindingsCount === 0
+    ? (typeof score === 'number' && score >= 95
+        ? 'Dit setup er rent — værktøjer, schedules og data passer sammen. Der er ikke noget du skal gøre.'
+        : 'Jeg har kigget dit setup igennem for orphan jobs, døde schedules, overlap og substrat-problemer. Alt hænger sammen.')
+    : `Jeg har kigget dit setup igennem for orphan jobs, døde schedules, overlap og substrat-problemer. Jeg fandt ${userFindingsCount} ${userFindingsCount === 1 ? 'ting' : 'ting'} værd at tage fat på.`;
 
   const body = `
     <article class="max-w-2xl mx-auto letter-prose">
