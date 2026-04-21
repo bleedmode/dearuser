@@ -1,16 +1,16 @@
 ---
-name: dearuser:audit
-description: System coherence check — orphan jobs, overlap, dead hooks, structural issues. Powered by Dear User.
-allowed-tools: "mcp__dearuser__audit"
+name: dearuser:health
+description: System health — 0-100 score for om dit setup (skills, hooks, scheduled tasks, MCP servers) stadig hænger sammen, eller er ved at drive fra hinanden. Powered by Dear User.
+allowed-tools: "mcp__dearuser__health"
 ---
 
-# Dear User — Audit
+# Dear User — Health
 
-Run a structural coherence audit using the Dear User MCP server.
+Run a structural health check using the Dear User MCP server.
 
 ## What to do
 
-1. Call `mcp__dearuser__audit` with default parameters (no arguments needed — global scope, all findings).
+1. Call `mcp__dearuser__health` with default parameters (no arguments needed — global scope, all findings).
 2. Output the ENTIRE returned report as your response text — do NOT summarize, shorten, or add commentary.
 
 ## Rules

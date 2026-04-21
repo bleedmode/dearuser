@@ -19,7 +19,7 @@ import { serve } from '@hono/node-server';
 import { marked } from 'marked';
 import { getRecentRuns, getRunById, getScoreHistory, getRecommendations, updateRecommendationStatus, getLatestScoresByTool } from './engine/db.js';
 import { reconcilePendingRecommendations } from './engine/reconcile-recommendations.js';
-import { getUserName, updatePreferences } from './engine/user-preferences.js';
+import { getUserName, getAgentName, getPreferences, updatePreferences } from './engine/user-preferences.js';
 import { friendlyLabel } from './engine/friendly-labels.js';
 import { CATEGORY_EXPLANATIONS, overallVerdict, securityVerdict, systemHealthVerdict } from './engine/category-explanations.js';
 import { runOnboard } from './tools/onboard.js';
@@ -33,9 +33,11 @@ const MAX_PORT_ATTEMPTS = 10;
 // ============================================================================
 
 const TOOL_LABELS: Record<string, string> = {
-  analyze: 'Din samarbejds-rapport',
-  audit: 'System-sundhed', // legacy runs saved under the old tool name
-  'system-health': 'System-sundhed',
+  collab: 'Din samarbejds-rapport',
+  analyze: 'Din samarbejds-rapport', // legacy
+  health: 'System-sundhed',
+  'system-health': 'System-sundhed', // legacy
+  audit: 'System-sundhed', // legacy
   security: 'Sikkerhedstjek',
   wrapped: 'Samarbejdet i tal',
   onboard: 'Opstart',
@@ -47,9 +49,11 @@ function toolLabel(toolName: string): string {
 
 function toolEmoji(toolName: string): string {
   switch (toolName) {
-    case 'analyze': return '🔍';
-    case 'audit': return '🩺'; // legacy runs — kept for backwards compat
-    case 'system-health': return '🩺';
+    case 'collab': return '🔍';
+    case 'analyze': return '🔍'; // legacy
+    case 'health': return '🩺';
+    case 'system-health': return '🩺'; // legacy
+    case 'audit': return '🩺'; // legacy
     case 'security': return '🔒';
     case 'wrapped': return '🎁';
     case 'onboard': return '👋';
@@ -93,6 +97,11 @@ function greeting(): string {
   return name ? `Kære ${name}` : 'Kære bruger';
 }
 
+function greetingEn(): string {
+  const name = getUserName();
+  return name ? `Dear ${name}` : 'Dear user';
+}
+
 function signature(): string {
   return '— Dear User 💌';
 }
@@ -101,16 +110,17 @@ function signature(): string {
 // HTML shell — cream paper, Geist fonts, Tailwind Play CDN
 // ============================================================================
 
-function page(title: string, body: string, activeNav: 'oversigt' | 'kørsler' | 'forbedringer' = 'oversigt'): string {
+function page(title: string, body: string, activeNav: 'oversigt' | 'kørsler' | 'forbedringer' | 'profil' = 'oversigt'): string {
   return `<!DOCTYPE html>
 <html lang="da">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(title)} — Dear User</title>
+<title>${title ? escapeHtml(title) + ' — Dear User' : 'Dear User'}</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23EC5329'/%3E%3Cpath d='M 11 22 Q 20 32 29 22' stroke='%23FDFBF6' stroke-width='2.5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
 <script>
   tailwind.config = {
@@ -119,83 +129,194 @@ function page(title: string, body: string, activeNav: 'oversigt' | 'kørsler' | 
         fontFamily: {
           sans: ['Geist', 'system-ui', 'sans-serif'],
           mono: ['Geist Mono', 'ui-monospace', 'monospace'],
+          serif: ['Fraunces', 'Georgia', 'serif'],
         },
         colors: {
           paper: {
-            50:  '#FDFBF6',   // near-white, base background
-            100: '#F8F2E7',   // warm cream, card highlight
-            200: '#EFE4CF',   // gentle divider
-            300: '#D8C8A9',   // border
+            50:  'var(--c-paper-50)',
+            100: 'var(--c-paper-100)',
+            200: 'var(--c-paper-200)',
+            300: 'var(--c-paper-300)',
           },
           ink: {
-            900: '#1F1A14',   // body text
-            700: '#3E352A',
-            500: '#72655B',   // muted
-            300: '#AE9F91',   // very muted
+            900: 'var(--c-ink-900)',
+            700: 'var(--c-ink-700)',
+            500: 'var(--c-ink-500)',
+            400: 'var(--c-ink-400)',
+            300: 'var(--c-ink-300)',
           },
           accent: {
-            600: '#C3563B',   // terracotta, primary accent
-            500: '#D77356',   // hover
-            100: '#F6E3D7',   // soft background for pills
+            600: 'var(--c-accent-600)',
+            500: 'var(--c-accent-500)',
+            100: 'var(--c-accent-100)',
           },
-          good: { bg: '#E4EED5', fg: '#4B6B2B' },
-          warn: { bg: '#F6E3D7', fg: '#9C4A2F' },
-          bad:  { bg: '#F2D4CD', fg: '#8F2A1C' },
+          action: {
+            700: 'var(--c-action-700)',
+            600: 'var(--c-action-600)',
+            500: 'var(--c-action-500)',
+            100: 'var(--c-action-100)',
+          },
         },
       },
     },
   };
 </script>
 <style>
+  /* Light theme (default) — cream paper */
+  :root {
+    --c-paper-50:   #FDFBF6;
+    --c-paper-100:  #F8F2E7;
+    --c-paper-200:  #EFE4CF;
+    --c-paper-300:  #D8C8A9;
+    --c-ink-900:    #1F1A14;
+    --c-ink-700:    #3E352A;
+    --c-ink-500:    #72655B;
+    --c-ink-400:    #A69989;
+    --c-ink-300:    #AE9F91;
+    --c-accent-600: #C3563B;
+    --c-accent-500: #D77356;
+    --c-accent-100: #F6E3D7;
+    --c-action-700: #C93F1B;
+    --c-action-600: #EC5329;
+    --c-action-500: #F06B43;
+    --c-action-100: #FCE5DB;
+    --c-smile-fill: #FDFBF6;
+  }
+  /* Dark theme — warm espresso, not harsh black */
+  [data-theme="dark"] {
+    --c-paper-50:   #1A1511;
+    --c-paper-100:  #261F18;
+    --c-paper-200:  #3A2F22;
+    --c-paper-300:  #52422F;
+    --c-ink-900:    #FFFAED;
+    --c-ink-700:    #E5DBC3;
+    --c-ink-500:    #A89A85;
+    --c-ink-400:    #7E7162;
+    --c-ink-300:    #5F5546;
+    --c-accent-600: #E8725A;
+    --c-accent-500: #F0896F;
+    --c-accent-100: #3A241C;
+    --c-action-700: #FF8560;
+    --c-action-600: #FF7048;
+    --c-action-500: #FF8F70;
+    --c-action-100: #3D2218;
+    --c-smile-fill: #1A1511;
+  }
+  /* Brighter score colors in dark mode for readability */
+  [data-theme="dark"] .text-emerald-700 { color: #34D399; }
+  [data-theme="dark"] .bg-emerald-600 { background-color: #34D399; }
+  [data-theme="dark"] .text-amber-700 { color: #FBBF24; }
+  [data-theme="dark"] .bg-amber-500 { background-color: #FBBF24; }
+  [data-theme="dark"] .text-rose-700 { color: #F87171; }
+  [data-theme="dark"] .bg-rose-600 { background-color: #F87171; }
   body {
     font-family: 'Geist', system-ui, sans-serif;
     font-feature-settings: 'ss01';
   }
-  /* Paper texture — very subtle noise for the cream background */
-  body::before {
-    content: '';
-    position: fixed; inset: 0;
-    background-image: radial-gradient(rgba(0,0,0,0.015) 1px, transparent 1px);
-    background-size: 3px 3px;
-    pointer-events: none;
-    z-index: 0;
-  }
+  /* Language toggle — hide the non-active version */
+  [data-lang="da"] .lang-en { display: none; }
+  [data-lang="en"] .lang-da { display: none; }
   main, header { position: relative; z-index: 1; }
-  .letter-prose h1, .letter-prose h2, .letter-prose h3 { font-weight: 600; color: #1F1A14; }
+  .letter-prose h1, .letter-prose h2, .letter-prose h3 { font-weight: 600; color: var(--c-ink-900); }
   .letter-prose h1 { font-size: 1.5rem; margin: 1.5rem 0 0.75rem; }
-  .letter-prose h2 { font-size: 1.2rem; margin: 1.75rem 0 0.5rem; border-top: 1px solid #EFE4CF; padding-top: 1rem; }
+  .letter-prose h2 { font-size: 1.2rem; margin: 1.75rem 0 0.5rem; border-top: 1px solid var(--c-paper-200); padding-top: 1rem; }
   .letter-prose h3 { font-size: 1rem; margin: 1.25rem 0 0.4rem; }
-  .letter-prose p { margin: 0.6rem 0; line-height: 1.65; color: #3E352A; }
+  .letter-prose p { margin: 0.6rem 0; line-height: 1.65; color: var(--c-ink-700); }
   .letter-prose ul, .letter-prose ol { padding-left: 1.4rem; margin: 0.5rem 0; }
-  .letter-prose li { margin: 0.25rem 0; line-height: 1.55; color: #3E352A; }
-  .letter-prose strong { color: #1F1A14; }
-  .letter-prose code { font-family: 'Geist Mono', monospace; font-size: 0.85em; background: #F8F2E7; padding: 0.1em 0.35em; border-radius: 3px; color: #9C4A2F; }
-  .letter-prose pre { background: #FDFBF6; border: 1px solid #EFE4CF; border-radius: 6px; padding: 1rem; overflow-x: auto; font-size: 0.8rem; line-height: 1.5; }
-  .letter-prose pre code { background: none; padding: 0; color: #3E352A; }
-  .letter-prose blockquote { border-left: 3px solid #C3563B; padding-left: 1rem; color: #72655B; margin: 1rem 0; font-style: italic; }
-  .letter-prose a { color: #C3563B; text-decoration: underline; text-underline-offset: 2px; }
+  .letter-prose li { margin: 0.25rem 0; line-height: 1.55; color: var(--c-ink-700); }
+  .letter-prose strong { color: var(--c-ink-900); }
+  .letter-prose code { font-family: 'Geist Mono', monospace; font-size: 0.85em; background: var(--c-paper-100); padding: 0.1em 0.35em; border-radius: 3px; color: var(--c-action-700); }
+  .letter-prose pre { background: var(--c-paper-50); border: 1px solid var(--c-paper-200); border-radius: 6px; padding: 1rem; overflow-x: auto; font-size: 0.8rem; line-height: 1.5; }
+  .letter-prose pre code { background: none; padding: 0; color: var(--c-ink-700); }
+  .letter-prose blockquote { border-left: 3px solid var(--c-accent-600); padding-left: 1rem; color: var(--c-ink-500); margin: 1rem 0; font-style: italic; }
+  .letter-prose a { color: var(--c-action-600); text-decoration: underline; text-underline-offset: 2px; }
+  .smile-path { stroke: var(--c-smile-fill); }
 </style>
 </head>
 <body class="bg-paper-50 text-ink-900 antialiased min-h-screen">
-  <header class="border-b border-paper-200 bg-paper-50/90 backdrop-blur sticky top-0 z-10">
-    <div class="max-w-3xl mx-auto px-6 py-4 flex items-center gap-8">
-      <a href="/" class="flex items-center gap-2 font-semibold text-ink-900 hover:text-accent-600 transition">
-        <span class="text-xl">💌</span>
-        <span>Dear User</span>
+  <header class="bg-paper-50/90 backdrop-blur sticky top-0 z-10">
+    <div class="max-w-2xl mx-auto px-6 py-5 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2 text-ink-900 hover:opacity-80 transition">
+        <svg width="22" height="22" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="20" cy="20" r="20" fill="#EC5329"/>
+          <path class="smile-path" d="M 11 22 Q 20 32 29 22" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        </svg>
+        <span class="font-serif italic text-lg tracking-tight">Dear User</span>
       </a>
-      <nav class="flex gap-6 text-sm">
-        <a href="/" class="${activeNav === 'oversigt' ? 'text-ink-900 font-medium' : 'text-ink-500 hover:text-ink-900'} transition">Forside</a>
-        <a href="/historik" class="${activeNav === 'kørsler' ? 'text-ink-900 font-medium' : 'text-ink-500 hover:text-ink-900'} transition">Mine rapporter</a>
-        <a href="/forbedringer" class="${activeNav === 'forbedringer' ? 'text-ink-900 font-medium' : 'text-ink-500 hover:text-ink-900'} transition">Forslag</a>
+      <nav class="flex items-center gap-6 text-[11px] uppercase tracking-[0.15em]">
+        <a href="/historik" class="${activeNav === 'kørsler' ? 'text-ink-900' : 'text-ink-400 hover:text-ink-900'} transition">
+          <span class="lang-da">Mine breve</span><span class="lang-en">My letters</span>
+        </a>
+        <a href="/forbedringer" class="${activeNav === 'forbedringer' ? 'text-ink-900' : 'text-ink-400 hover:text-ink-900'} transition">
+          <span class="lang-da">Forslag</span><span class="lang-en">Suggestions</span>
+        </a>
+        <a href="/profil" class="${activeNav === 'profil' ? 'text-ink-900' : 'text-ink-400 hover:text-ink-900'} transition">
+          <span class="lang-da">Profil</span><span class="lang-en">Profile</span>
+        </a>
+        <span class="w-px h-4 bg-paper-200"></span>
+        <button id="lang-toggle" aria-label="Switch language" class="text-ink-400 hover:text-ink-900 transition">
+          <span id="lang-label">EN</span>
+        </button>
+        <button id="theme-toggle" aria-label="Toggle theme" class="text-ink-400 hover:text-ink-900 transition flex items-center">
+          <svg id="sun-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          <svg id="moon-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
       </nav>
     </div>
   </header>
-  <main class="max-w-3xl mx-auto px-6 py-10">
+  <main class="max-w-2xl mx-auto px-6 pt-16 pb-24">
 ${body}
   </main>
-  <footer class="max-w-3xl mx-auto px-6 py-10 text-sm text-ink-500">
-    Alt kører lokalt på din computer. Intet forlader maskinen.
-  </footer>
+  <script>
+    (function() {
+      var html = document.documentElement;
+      var savedTheme = localStorage.getItem('dearuser-theme');
+      var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var theme = savedTheme || (prefersDark ? 'dark' : 'light');
+      if (theme === 'dark') html.setAttribute('data-theme', 'dark');
+
+      var savedLang = localStorage.getItem('dearuser-lang');
+      var systemDa = (navigator.language || '').toLowerCase().startsWith('da');
+      var lang = savedLang || (systemDa ? 'da' : 'en');
+      html.setAttribute('data-lang', lang);
+      html.setAttribute('lang', lang);
+
+      function updateIcons() {
+        var isDark = html.getAttribute('data-theme') === 'dark';
+        var sun = document.getElementById('sun-icon');
+        var moon = document.getElementById('moon-icon');
+        if (sun) sun.style.display = isDark ? 'none' : 'block';
+        if (moon) moon.style.display = isDark ? 'block' : 'none';
+      }
+      function updateLangLabel() {
+        var label = document.getElementById('lang-label');
+        if (label) label.textContent = html.getAttribute('data-lang') === 'da' ? 'EN' : 'DA';
+      }
+
+      document.addEventListener('DOMContentLoaded', function() {
+        updateIcons();
+        updateLangLabel();
+
+        var themeBtn = document.getElementById('theme-toggle');
+        if (themeBtn) themeBtn.addEventListener('click', function() {
+          var isDark = html.getAttribute('data-theme') === 'dark';
+          if (isDark) { html.removeAttribute('data-theme'); localStorage.setItem('dearuser-theme', 'light'); }
+          else { html.setAttribute('data-theme', 'dark'); localStorage.setItem('dearuser-theme', 'dark'); }
+          updateIcons();
+        });
+
+        var langBtn = document.getElementById('lang-toggle');
+        if (langBtn) langBtn.addEventListener('click', function() {
+          var current = html.getAttribute('data-lang');
+          var next = current === 'da' ? 'en' : 'da';
+          html.setAttribute('data-lang', next);
+          html.setAttribute('lang', next);
+          localStorage.setItem('dearuser-lang', next);
+          updateLangLabel();
+        });
+      });
+    })();
+  </script>
 </body>
 </html>`;
 }
@@ -248,102 +369,237 @@ function renderLanding(): string {
   const hasContent = recent.length > 0 || pending.length > 0 || measured.length > 0;
 
   if (!hasContent) {
-    return page('Forside', `
-      <section class="py-12 text-center">
-        <div class="text-5xl mb-4">💌</div>
-        <h1 class="text-2xl font-semibold mb-3">${escapeHtml(greeting())}</h1>
-        <p class="text-ink-500 max-w-md mx-auto leading-relaxed">
-          Jeg har ikke hørt fra dig endnu. Gå tilbage til Claude Code og bed mig om at
-          <code class="font-mono text-sm bg-paper-100 px-1.5 py-0.5 rounded text-accent-600">lave min første rapport</code>
-          — så sender jeg et brev her til dig.
+    return page('', `
+      <section>
+        <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-10">
+          <span class="lang-da">${escapeHtml(greeting())},</span><span class="lang-en">${escapeHtml(greetingEn())},</span>
+        </h1>
+        <p class="font-serif text-2xl text-ink-700 leading-snug max-w-xl">
+          <span class="lang-da">Jeg har ikke hørt fra dig endnu. Gå tilbage til Claude Code og bed mig om at <span class="italic">lave min første rapport</span> — så sender jeg et brev her til dig.</span>
+          <span class="lang-en">I haven't heard from you yet. Go back to Claude Code and ask me to <span class="italic">write my first report</span> — and I'll send a letter back here.</span>
         </p>
       </section>
     `, 'oversigt');
   }
 
-  // Score tile — one per domain. Missing scores render a neutral "not yet"
-  // state with a CTA rather than a fake zero.
-  const tile = (label: string, hint: string, score: number | null, reportId?: string, toolHint?: string): string => {
+  // Score tile — clickable card with hover state and arrow, but kept airy.
+  // Colored status dot signals "needs attention" without being a loud badge.
+  const tile = (
+    labelDa: string, labelEn: string,
+    hintDa: string, hintEn: string,
+    score: number | null, reportId?: string,
+    toolHintDa?: string, toolHintEn?: string
+  ): string => {
+    const labelSpan = `<span class="lang-da">${escapeHtml(labelDa)}</span><span class="lang-en">${escapeHtml(labelEn)}</span>`;
+    const hintSpan = `<span class="lang-da">${escapeHtml(hintDa)}</span><span class="lang-en">${escapeHtml(hintEn)}</span>`;
     if (score === null) {
       return `
-        <div class="bg-paper-50 border border-dashed border-paper-300 rounded-xl p-5 flex flex-col justify-between min-h-[160px]">
-          <div>
-            <div class="text-xs uppercase tracking-wider text-ink-400 mb-1">${escapeHtml(label)}</div>
-            <div class="font-mono text-3xl text-ink-300">—/100</div>
+        <div class="rounded-xl p-5 -mx-5 border border-dashed border-paper-200">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="w-1.5 h-1.5 rounded-full bg-ink-300"></span>
+            <span class="text-[11px] uppercase tracking-[0.15em] text-ink-400">${labelSpan}</span>
           </div>
-          <div class="text-xs text-ink-400 mt-3">
-            Jeg har ikke kørt ${escapeHtml(label.toLowerCase())} endnu. Bed mig om <code class="font-mono bg-paper-100 px-1 rounded text-ink-500">${escapeHtml(toolHint || label)}</code>.
-          </div>
+          <div class="font-serif text-5xl text-ink-300 leading-none mb-4">—</div>
+          <p class="text-sm text-ink-400 leading-relaxed">
+            <span class="lang-da">Bed mig om <span class="italic text-ink-500">${escapeHtml(toolHintDa || labelDa)}</span></span>
+            <span class="lang-en">Ask me to <span class="italic text-ink-500">${escapeHtml(toolHintEn || labelEn)}</span></span>
+          </p>
         </div>
       `;
     }
     const color = score >= 85 ? 'text-emerald-700' : score >= 70 ? 'text-amber-700' : 'text-rose-700';
+    const dot = score >= 85 ? 'bg-emerald-600' : score >= 70 ? 'bg-amber-500' : 'bg-rose-600';
     const href = reportId ? `/r/${escapeHtml(reportId)}` : '#';
+    const needsAttention = score < 70;
     return `
-      <a href="${href}" class="bg-paper-100 border border-paper-200 rounded-xl p-5 flex flex-col justify-between min-h-[160px] hover:border-accent-600 transition group">
-        <div>
-          <div class="text-xs uppercase tracking-wider text-ink-500 mb-1 group-hover:text-accent-600 transition">${escapeHtml(label)}</div>
-          <div class="font-mono text-4xl font-medium ${color} leading-none">${score}<span class="text-lg text-ink-300">/100</span></div>
+      <a href="${href}" class="block rounded-xl p-5 -mx-5 hover:bg-paper-100 transition group">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <span class="w-1.5 h-1.5 rounded-full ${dot}"></span>
+            <span class="text-[11px] uppercase tracking-[0.15em] text-ink-500">${labelSpan}</span>
+          </div>
+          ${needsAttention ? `<span class="text-[10px] uppercase tracking-wider bg-action-100 text-action-600 px-1.5 py-0.5 rounded"><span class="lang-da">Tjek</span><span class="lang-en">Check</span></span>` : ''}
         </div>
-        <div class="text-xs text-ink-500 mt-3">${escapeHtml(hint)} <span class="text-ink-300 group-hover:text-accent-600 transition">→</span></div>
+        <div class="font-serif text-6xl ${color} leading-none mb-4">${score}</div>
+        <div class="flex items-center justify-between gap-3">
+          <p class="text-sm text-ink-500 leading-relaxed">${hintSpan}</p>
+          <span class="text-action-600 text-lg opacity-0 group-hover:opacity-100 transition flex-shrink-0">→</span>
+        </div>
       </a>
     `;
   };
 
-  const combinedBlock = combinedScore !== null ? `
-    <div class="bg-gradient-to-br from-accent-50 to-paper-100 border border-accent-200 rounded-xl p-6 mb-6">
-      <div class="flex items-baseline justify-between gap-6 flex-wrap">
-        <div>
-          <div class="text-xs uppercase tracking-wider text-accent-700 mb-1">Samlet</div>
-          <div class="font-mono text-6xl font-medium text-ink-900 leading-none">${combinedScore}<span class="text-2xl text-ink-300">/100</span></div>
-          <div class="text-sm text-ink-500 mt-2">
-            Gennemsnit af ${measured.length} målt${measured.length === 1 ? '' : 'e'} område${measured.length === 1 ? '' : 'r'}.
-          </div>
-        </div>
-        ${latest.analyze?.summary ? `
-          <div class="text-sm text-ink-700 max-w-md">${escapeHtml(String(latest.analyze.summary).split(' — ').slice(-1)[0] || '')}</div>
-        ` : ''}
-      </div>
-    </div>
+  // Natural-language narrative — reads like a letter, not KPI bullets. Built
+  // in both Danish and English so the language toggle can swap them in place.
+  const buildNarrative = (lang: 'da' | 'en'): string => {
+    const strong: Array<{ label: string; score: number }> = [];
+    const weak: Array<{ label: string; score: number }> = [];
+    const okish: Array<{ label: string; score: number }> = [];
+    const labels = lang === 'da'
+      ? { samarbejde: 'vores samarbejde', sikkerhed: 'sikkerheden', systemSundhed: 'dit system' }
+      : { samarbejde: 'our collaboration', sikkerhed: 'your security', systemSundhed: 'your system' };
+    for (const key of ['samarbejde', 'sikkerhed', 'systemSundhed'] as const) {
+      const s = scores[key];
+      if (s === null) continue;
+      const entry = { label: labels[key], score: s };
+      if (s >= 85) strong.push(entry);
+      else if (s >= 70) okish.push(entry);
+      else weak.push(entry);
+    }
+
+    if (strong.length === 0 && okish.length === 0 && weak.length === 0) {
+      return lang === 'da'
+        ? 'Jeg har endnu ikke målt noget for dig. Bed mig om den første rapport, så skriver jeg et brev tilbage.'
+        : 'I haven\'t measured anything yet. Ask me for your first report and I\'ll write back.';
+    }
+
+    const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+    const sentences: string[] = [];
+    if (strong.length > 0) {
+      const list = strong.map(s => `${s.label} (${s.score})`).join(lang === 'da' ? ' og ' : ' and ');
+      sentences.push(lang === 'da'
+        ? (strong.length === 1 ? `${cap(list)} kører godt.` : `${cap(list)} kører begge godt.`)
+        : (strong.length === 1 ? `${cap(list)} is in good shape.` : `${cap(list)} are both doing well.`));
+    }
+    if (okish.length > 0) {
+      const list = okish.map(s => `${s.label} (${s.score})`).join(lang === 'da' ? ' og ' : ' and ');
+      sentences.push(lang === 'da'
+        ? `${cap(list)} er fin, men kunne være bedre.`
+        : `${cap(list)} is fine, but could be better.`);
+    }
+    if (weak.length > 0) {
+      const first = weak[0];
+      if (weak.length === 1) {
+        sentences.push(lang === 'da'
+          ? `Men ${first.label} halter lidt — kun ${first.score} ud af 100, og det er værd at kigge på.`
+          : `But ${first.label} is struggling — only ${first.score} out of 100, and worth a look.`);
+      } else {
+        const list = weak.map(w => `${w.label} (${w.score})`).join(lang === 'da' ? ' og ' : ' and ');
+        sentences.push(lang === 'da'
+          ? `Men ${list} halter — dem skal vi kigge på.`
+          : `But ${list} need attention.`);
+      }
+    }
+    if (combinedScore !== null && measured.length > 1) {
+      sentences.push(lang === 'da'
+        ? `Samlet står vi på ${combinedScore}.`
+        : `Combined, we're at ${combinedScore}.`);
+    }
+
+    return sentences.join(' ');
+  };
+  const narrativeDa = buildNarrative('da');
+  const narrativeEn = buildNarrative('en');
+
+  const scoreSection = measured.length > 0 ? `
+    <section class="mt-20 grid grid-cols-1 md:grid-cols-3 gap-12">
+      ${tile(
+        'Samarbejde', 'Collaboration',
+        'Hvor godt vi arbejder sammen', 'How well we work together',
+        scores.samarbejde, latest.analyze?.id,
+        'lav en samarbejds-rapport', 'run a collaboration report'
+      )}
+      ${tile(
+        'Sikkerhed', 'Security',
+        'Om nogen kan misbruge din kode eller data', 'Whether anyone could misuse your code or data',
+        scores.sikkerhed, latest.security?.id,
+        'kør sikkerhedstjek', 'run a security check'
+      )}
+      ${tile(
+        'System-sundhed', 'System health',
+        'Om dit setup stadig hænger sammen', 'Whether your setup still holds together',
+        scores.systemSundhed, latest.systemHealth?.id,
+        'kør system-sundhed', 'run system health'
+      )}
+    </section>
   ` : '';
 
-  const gridBlock = `
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      ${tile('Samarbejde', 'Hvor godt vi arbejder sammen', scores.samarbejde, latest.analyze?.id, 'lav en samarbejds-rapport')}
-      ${tile('Sikkerhed', 'Secrets, injection, RLS, CVEs', scores.sikkerhed, latest.security?.id, 'kør sikkerhedstjek')}
-      ${tile('System-sundhed', 'Om dit setup stadig hænger sammen', scores.systemSundhed, latest.systemHealth?.id, 'kør system-sundhed')}
-    </div>
-  `;
-
+  const pendingCount = getRecommendations('pending').length;
   const pendingBlock = pending.length > 0 ? `
-    <div class="mt-10">
-      <h2 class="text-xs uppercase tracking-wider text-ink-500 mb-3">Forslag der venter på dig</h2>
-      <ul class="space-y-2">
+    <section class="mt-24 pt-10 border-t border-paper-200">
+      <h2 class="mb-6 text-[11px] uppercase tracking-[0.15em] text-action-600">
+        <span class="lang-da">${pendingCount} forslag venter</span>
+        <span class="lang-en">${pendingCount} suggestion${pendingCount === 1 ? '' : 's'} waiting</span>
+      </h2>
+      <ul class="divide-y divide-paper-200">
         ${pending.map(p => {
           const f = friendlyLabel(p.title);
           return `
-            <li class="bg-paper-50 border border-paper-200 rounded-lg px-4 py-3">
-              <div class="font-medium text-ink-900">${escapeHtml(f.title)}</div>
-              ${f.summary ? `<div class="text-sm text-ink-500 mt-0.5">${escapeHtml(f.summary)}</div>` : ''}
+            <li class="py-5 flex items-start justify-between gap-6">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-action-600"></span>
+                  <div class="font-serif text-xl text-ink-900 leading-snug">${escapeHtml(f.title)}</div>
+                </div>
+                ${f.summary ? `<div class="text-sm text-ink-500 leading-relaxed ml-3.5">${escapeHtml(f.summary)}</div>` : ''}
+              </div>
+              <a href="/forbedringer#${escapeHtml(p.id)}" class="flex-shrink-0 text-sm text-ink-700 hover:text-action-600 transition whitespace-nowrap">
+                <span class="lang-da">Læs mere →</span><span class="lang-en">Read more →</span>
+              </a>
             </li>
           `;
         }).join('')}
       </ul>
-      <a href="/forbedringer" class="inline-block mt-3 text-sm text-accent-600 hover:text-accent-500 transition">Se alle forslag →</a>
-    </div>
+      <a href="/forbedringer" class="inline-block mt-6 text-sm font-medium text-action-600 hover:text-action-600 transition">
+        <span class="lang-da">Se alle forslag →</span><span class="lang-en">See all suggestions →</span>
+      </a>
+    </section>
   ` : '';
 
-  return page('Forside', `
+  const now = new Date();
+  const dateStrDa = now.toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' });
+  const dateStrEn = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const actionStrip = `
+    <div class="flex items-center gap-3 mb-12 pb-4 border-b border-paper-200 text-[11px] uppercase tracking-[0.15em]">
+      <span class="w-1.5 h-1.5 rounded-full bg-action-600"></span>
+      <span class="text-ink-500">
+        <span class="lang-da">${escapeHtml(dateStrDa)}</span><span class="lang-en">${escapeHtml(dateStrEn)}</span>
+      </span>
+    </div>
+  `;
+
+  return page('', `
+    ${actionStrip}
     <section>
-      <h1 class="text-3xl font-semibold mb-2">${escapeHtml(greeting())},</h1>
-      <p class="text-ink-500">Her er tilstanden i dag — tre områder jeg holder øje med for dig, plus et samlet tal.</p>
+      <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">
+        <span class="lang-da">${escapeHtml(greeting())},</span><span class="lang-en">${escapeHtml(greetingEn())},</span>
+      </h1>
+      <p class="font-serif text-2xl text-ink-700 leading-snug max-w-xl">
+        <span class="lang-da">${escapeHtml(narrativeDa)}</span><span class="lang-en">${escapeHtml(narrativeEn)}</span>
+      </p>
     </section>
-    <section class="mt-8">
-      ${combinedBlock}
-      ${gridBlock}
-      ${pendingBlock}
-    </section>
+    ${scoreSection}
+    ${pendingBlock}
+    ${letterSignature()}
   `, 'oversigt');
+}
+
+/**
+ * Shared sign-off used at the bottom of every letter-style page. Combines
+ * the agent's personal note and the privacy assurance into one human-voiced
+ * paragraph — the way a person would actually write it, not two separate
+ * footers.
+ */
+function letterSignature(): string {
+  const agent = escapeHtml(getAgentName());
+  const user = getUserName();
+  const addressedDa = user ? `, ${escapeHtml(user)}` : '';
+  const addressedEn = user ? `, ${escapeHtml(user)}` : '';
+  return `
+    <footer class="mt-24 pt-10 border-t border-paper-200">
+      <p class="font-serif text-lg text-ink-700 leading-relaxed max-w-xl mb-6">
+        <span class="lang-da">Tak fordi jeg får lov at holde øje med dit setup${addressedDa}. Det her er mellem os to — ingen data rejser ud af din computer.</span>
+        <span class="lang-en">Thanks for letting me keep an eye on your setup${addressedEn}. This is just between us — no data leaves your computer.</span>
+      </p>
+      <p class="font-serif text-base text-ink-500 mb-0.5">
+        <span class="lang-da">De bedste hilsner,</span><span class="lang-en">All the best,</span>
+      </p>
+      <p class="font-serif italic text-base text-ink-700">
+        <span class="lang-da">Din agent ${agent}</span><span class="lang-en">Your agent ${agent}</span>
+      </p>
+    </footer>
+  `;
 }
 
 // ============================================================================
@@ -351,42 +607,192 @@ function renderLanding(): string {
 // ============================================================================
 
 function renderHistorik(): string {
-  // Hide runs with no saved body — they happen for older runs (pre-persist
-  // feature) and are useless to the user since /r/:id would show nothing.
   const runs = getRecentRuns(100).filter((r: any) => r.details && r.details.trim().length > 0);
+  const now = new Date();
+  const dateStrDa = now.toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' });
+  const dateStrEn = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const actionStrip = `
+    <div class="flex items-center gap-3 mb-12 pb-4 border-b border-paper-200 text-[11px] uppercase tracking-[0.15em]">
+      <span class="w-1.5 h-1.5 rounded-full bg-action-600"></span>
+      <span class="text-ink-500">
+        <span class="lang-da">${escapeHtml(dateStrDa)}</span><span class="lang-en">${escapeHtml(dateStrEn)}</span>
+      </span>
+    </div>
+  `;
 
   if (runs.length === 0) {
-    return page('Mine rapporter', `
-      <section class="py-12 text-center">
-        <div class="text-5xl mb-4">💌</div>
-        <h1 class="text-2xl font-semibold mb-3">Ingen rapporter endnu</h1>
-        <p class="text-ink-500 max-w-md mx-auto">
-          Åbn Claude Code og bed mig lave din første rapport. Alle mine breve ender her.
+    return page('Mine breve', `
+      ${actionStrip}
+      <section>
+        <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">
+          <span class="lang-da">Ingen breve endnu</span><span class="lang-en">No letters yet</span>
+        </h1>
+        <p class="font-serif text-2xl text-ink-700 leading-snug max-w-xl">
+          <span class="lang-da">Åbn Claude Code og bed mig lave den første rapport. Alle mine breve ender her.</span>
+          <span class="lang-en">Open Claude Code and ask me to write the first report. All my letters land here.</span>
         </p>
       </section>
+      ${letterSignature()}
     `, 'kørsler');
   }
 
-  return page('Mine rapporter', `
-    <section>
-      <h1 class="text-3xl font-semibold mb-2">Mine rapporter</h1>
-      <p class="text-ink-500 mb-8">Hvert brev jeg har sendt til dig — nyeste først.</p>
-      <ul class="space-y-2">
-        ${runs.map(r => `
-          <li>
-            <a href="/r/${escapeHtml(r.id)}" class="flex items-start gap-4 bg-paper-100 border border-paper-200 rounded-lg p-4 hover:border-accent-600 transition group">
-              <div class="text-xl">${toolEmoji(r.tool_name)}</div>
-              <div class="flex-1 min-w-0">
-                <div class="font-medium text-ink-900 group-hover:text-accent-600 transition">${escapeHtml(toolLabel(r.tool_name))}</div>
-                <div class="text-sm text-ink-500 mt-0.5">${timeAgo(r.started_at)}</div>
-                ${r.summary ? `<p class="text-sm text-ink-700 mt-2 truncate">${escapeHtml(r.summary)}</p>` : ''}
+  // Group by relative time bucket so scanning feels natural (today, yesterday,
+  // this week, older). Email-client pattern adapted to letters.
+  const buckets: Record<string, any[]> = { today: [], yesterday: [], week: [], older: [] };
+  const nowTs = Date.now();
+  for (const r of runs) {
+    const ts = new Date(r.started_at).getTime();
+    const hoursAgo = (nowTs - ts) / (1000 * 60 * 60);
+    if (hoursAgo < 24) buckets.today.push(r);
+    else if (hoursAgo < 48) buckets.yesterday.push(r);
+    else if (hoursAgo < 24 * 7) buckets.week.push(r);
+    else buckets.older.push(r);
+  }
+
+  const bucketLabel: Record<string, { da: string; en: string }> = {
+    today: { da: 'I dag', en: 'Today' },
+    yesterday: { da: 'I går', en: 'Yesterday' },
+    week: { da: 'Denne uge', en: 'This week' },
+    older: { da: 'Tidligere', en: 'Earlier' },
+  };
+
+  const toolLabelEn: Record<string, string> = {
+    collab: 'Collaboration report',
+    analyze: 'Collaboration report',
+    security: 'Security check',
+    health: 'System health',
+    'system-health': 'System health',
+    audit: 'System health',
+  };
+
+  const renderRow = (r: any): string => {
+    const subjectDa = toolLabel(r.tool_name);
+    const subjectEn = toolLabelEn[r.tool_name] || subjectDa;
+    const hasScore = r.score !== null && r.score !== undefined;
+    const color = !hasScore ? 'text-ink-300' : r.score >= 85 ? 'text-emerald-700' : r.score >= 70 ? 'text-amber-700' : 'text-rose-700';
+    const dot = !hasScore ? 'bg-ink-300' : r.score >= 85 ? 'bg-emerald-600' : r.score >= 70 ? 'bg-amber-500' : 'bg-rose-600';
+    return `
+      <li>
+        <a href="/r/${escapeHtml(r.id)}" class="block py-5 group">
+          <div class="flex items-start justify-between gap-6">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="w-1.5 h-1.5 rounded-full ${dot}"></span>
+                <h3 class="font-serif text-xl text-ink-900 leading-snug group-hover:text-action-600 transition">
+                  <span class="lang-da">${escapeHtml(subjectDa)}</span><span class="lang-en">${escapeHtml(subjectEn)}</span>
+                </h3>
               </div>
-              ${r.score !== null ? `<div class="font-mono text-lg text-ink-700">${r.score}</div>` : ''}
-            </a>
-          </li>
-        `).join('')}
-      </ul>
+              ${r.summary ? `<p class="text-sm text-ink-500 leading-relaxed ml-3.5 truncate">${escapeHtml(r.summary)}</p>` : ''}
+            </div>
+            <div class="flex-shrink-0 flex items-baseline gap-3">
+              ${hasScore ? `<span class="font-serif text-3xl ${color} leading-none">${r.score}</span>` : ''}
+              <span class="text-action-600 opacity-0 group-hover:opacity-100 transition text-lg">→</span>
+            </div>
+          </div>
+        </a>
+      </li>
+    `;
+  };
+
+  // Featured letter — the most recent one, presented as a rich letter preview
+  // with a score-arc (Probe-inspired). Adds visual weight to "my letters" so
+  // it doesn't read as just a list.
+  const featured = runs[0];
+  const featuredSubjectDa = toolLabel(featured.tool_name);
+  const featuredSubjectEn = toolLabelEn[featured.tool_name] || featuredSubjectDa;
+  const fScore = featured.score;
+  const fHasScore = fScore !== null && fScore !== undefined;
+  const fColor = !fHasScore ? '#AE9F91' : fScore >= 85 ? '#059669' : fScore >= 70 ? '#B45309' : '#BE123C';
+  const fColorClass = !fHasScore ? 'text-ink-300' : fScore >= 85 ? 'text-emerald-700' : fScore >= 70 ? 'text-amber-700' : 'text-rose-700';
+  const circumference = 2 * Math.PI * 38;
+  const offset = fHasScore ? circumference * (1 - fScore / 100) : circumference;
+  const scoreArc = fHasScore ? `
+    <div class="flex-shrink-0 relative w-[120px] h-[120px]">
+      <svg viewBox="0 0 90 90" class="w-full h-full -rotate-90">
+        <circle cx="45" cy="45" r="38" fill="none" stroke="var(--c-paper-200)" stroke-width="5"/>
+        <circle cx="45" cy="45" r="38" fill="none" stroke="${fColor}" stroke-width="5" stroke-linecap="round"
+                stroke-dasharray="${circumference.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}"
+                style="transition: stroke-dashoffset 0.8s ease;"/>
+      </svg>
+      <div class="absolute inset-0 flex items-center justify-center">
+        <span class="font-serif text-4xl ${fColorClass} leading-none">${fScore}</span>
+      </div>
+    </div>
+  ` : '';
+
+  const featuredCard = `
+    <a href="/r/${escapeHtml(featured.id)}" class="block mb-16 p-8 rounded-2xl border border-paper-200 bg-paper-100 hover:border-action-600 transition group">
+      <div class="flex items-center gap-2 mb-6 text-[11px] uppercase tracking-[0.15em]">
+        <span class="w-1.5 h-1.5 rounded-full bg-action-600"></span>
+        <span class="text-ink-500">
+          <span class="lang-da">Seneste brev · ${escapeHtml(timeAgo(featured.started_at))}</span>
+          <span class="lang-en">Latest letter · ${escapeHtml(timeAgo(featured.started_at))}</span>
+        </span>
+      </div>
+      <div class="flex items-center gap-8">
+        ${scoreArc}
+        <div class="flex-1 min-w-0">
+          <h2 class="font-serif text-3xl text-ink-900 leading-tight mb-2 group-hover:text-action-600 transition">
+            <span class="lang-da">${escapeHtml(featuredSubjectDa)}</span><span class="lang-en">${escapeHtml(featuredSubjectEn)}</span>
+          </h2>
+          ${featured.summary ? `<p class="text-ink-700 leading-relaxed">${escapeHtml(featured.summary)}</p>` : ''}
+          <div class="mt-5 text-sm font-medium text-action-600">
+            <span class="lang-da">Læs hele brevet →</span><span class="lang-en">Read the full letter →</span>
+          </div>
+        </div>
+      </div>
+    </a>
+  `;
+
+  // Skip the featured letter in the list below so it doesn't appear twice
+  const olderRuns = runs.slice(1);
+  const olderBuckets: Record<string, any[]> = { today: [], yesterday: [], week: [], older: [] };
+  for (const r of olderRuns) {
+    const ts = new Date(r.started_at).getTime();
+    const hoursAgo = (nowTs - ts) / (1000 * 60 * 60);
+    if (hoursAgo < 24) olderBuckets.today.push(r);
+    else if (hoursAgo < 48) olderBuckets.yesterday.push(r);
+    else if (hoursAgo < 24 * 7) olderBuckets.week.push(r);
+    else olderBuckets.older.push(r);
+  }
+
+  const sections = (['today', 'yesterday', 'week', 'older'] as const)
+    .filter(k => olderBuckets[k].length > 0)
+    .map(k => `
+      <section class="mt-10 first:mt-0">
+        <h2 class="mb-2 text-[11px] uppercase tracking-[0.15em] text-ink-500">
+          <span class="lang-da">${bucketLabel[k].da}</span><span class="lang-en">${bucketLabel[k].en}</span>
+        </h2>
+        <ul class="divide-y divide-paper-200">
+          ${olderBuckets[k].map(renderRow).join('')}
+        </ul>
+      </section>
+    `).join('');
+
+  const archiveHeader = olderRuns.length > 0 ? `
+    <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-6">
+      <span class="lang-da">Tidligere breve</span><span class="lang-en">Earlier letters</span>
+    </h2>
+  ` : '';
+
+  return page('Mine breve', `
+    ${actionStrip}
+    <section>
+      <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">
+        <span class="lang-da">Mine breve</span><span class="lang-en">My letters</span>
+      </h1>
+      <p class="font-serif text-2xl text-ink-700 leading-snug max-w-xl">
+        <span class="lang-da">Hvert brev jeg har sendt dig — nyeste først.</span>
+        <span class="lang-en">Every letter I've sent you — newest first.</span>
+      </p>
     </section>
+    <div class="mt-16">
+      ${featuredCard}
+      ${archiveHeader}
+      ${sections}
+    </div>
+    ${letterSignature()}
   `, 'kørsler');
 }
 
@@ -412,9 +818,9 @@ function renderReport(id: string): string {
   if (run.report_json) {
     try {
       const parsed = JSON.parse(run.report_json);
-      if (run.tool_name === 'analyze') return renderAnalyzeLetter(run, parsed);
+      if (run.tool_name === 'collab' || run.tool_name === 'analyze') return renderAnalyzeLetter(run, parsed);
       if (run.tool_name === 'security') return renderSecurityLetter(run, parsed);
-      if (run.tool_name === 'system-health' || run.tool_name === 'audit') {
+      if (run.tool_name === 'health' || run.tool_name === 'system-health' || run.tool_name === 'audit') {
         return renderSystemHealthLetter(run, parsed);
       }
     } catch { /* fall through to markdown */ }
@@ -1304,12 +1710,109 @@ function renderOnboardDone(plan: string): string {
 // Hono app + server
 // ============================================================================
 
+// ============================================================================
+// Profil — user's name, agent's name, detected archetype, preferences.
+// Persona doesn't belong on the landing page (it's static once detected) —
+// it lives here where you can read what "The System Architect" means and
+// update your profile.
+// ============================================================================
+
+function renderProfil(): string {
+  const prefs = getPreferences();
+  const userName = getUserName();
+  const agentName = getAgentName();
+  const latest = getLatestScoresByTool();
+  const analyze: any = latest.analyze;
+  let report: any = null;
+  if (analyze?.id) {
+    try { report = getRunById(analyze.id); } catch { /* ignore */ }
+  }
+  const persona = report?.persona?.archetypeName || report?.persona?.detected || null;
+  const personaBlurb = report?.persona?.archetypeDescription || null;
+
+  const roleLabel: Record<string, string> = {
+    coder: 'Udvikler',
+    occasional: 'Blander kode og no-code',
+    non_coder: 'Ikke-udvikler',
+  };
+  const cadenceLabel: Record<string, string> = {
+    daily: 'Dagligt',
+    weekly: 'Ugentligt',
+    'on-demand': 'Når der er behov',
+    event: 'Ved bestemte begivenheder',
+  };
+  const audienceLabel: Record<string, string> = {
+    self: 'Mig selv',
+    team: 'Mit team',
+    customers: 'Mine kunder',
+  };
+
+  const row = (label: string, value: string | null | undefined, placeholder = 'Ikke sat') => `
+    <div class="py-5 grid grid-cols-[180px_1fr] gap-6 border-b border-paper-200">
+      <div class="text-[11px] uppercase tracking-[0.15em] text-ink-500 pt-1">${escapeHtml(label)}</div>
+      <div class="text-ink-900">${value ? escapeHtml(value) : `<span class="text-ink-300 italic">${placeholder}</span>`}</div>
+    </div>
+  `;
+
+  const archetypeBlock = persona ? `
+    <section class="mt-16">
+      <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-4">Din arketype</h2>
+      <div class="bg-paper-100 rounded-xl p-6">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="w-1.5 h-1.5 rounded-full bg-action-600"></span>
+          <span class="text-[11px] uppercase tracking-[0.15em] text-action-600">Baseret på seneste rapport</span>
+        </div>
+        <h3 class="font-serif italic text-3xl text-ink-900 mb-3">${escapeHtml(persona)}</h3>
+        ${personaBlurb ? `<p class="text-ink-700 leading-relaxed max-w-xl">${escapeHtml(personaBlurb)}</p>` : ''}
+      </div>
+    </section>
+  ` : `
+    <section class="mt-16">
+      <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-4">Din arketype</h2>
+      <div class="bg-paper-100 rounded-xl p-6">
+        <p class="text-ink-500 leading-relaxed">Jeg har ikke nok til at kende dig endnu. Bed mig om en <span class="italic">samarbejds-rapport</span>, så finder jeg din arketype.</p>
+      </div>
+    </section>
+  `;
+
+  return page('Profil', `
+    <section>
+      <p class="text-[11px] uppercase tracking-[0.15em] text-ink-400 mb-6">Profil</p>
+      <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">Dig og mig</h1>
+      <p class="font-serif text-xl text-ink-700 leading-snug max-w-xl">Her er hvad jeg ved om dig, og hvordan vi arbejder sammen. Ret den i din <span class="italic">config.json</span> eller kør onboarding igen.</p>
+    </section>
+
+    <section class="mt-14">
+      <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-2">Hvem vi er</h2>
+      <div>
+        ${row('Dit navn', userName)}
+        ${row('Mit navn', agentName)}
+      </div>
+    </section>
+
+    ${archetypeBlock}
+
+    <section class="mt-16">
+      <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-2">Hvordan du arbejder</h2>
+      <div>
+        ${row('Rolle', prefs.role ? roleLabel[prefs.role] : null)}
+        ${row('Kadence', prefs.cadence ? cadenceLabel[prefs.cadence] : null)}
+        ${row('Arbejder for', prefs.audience ? audienceLabel[prefs.audience] : null)}
+        ${row('Stack', prefs.stack && prefs.stack.length > 0 ? prefs.stack.join(', ') : null)}
+      </div>
+    </section>
+
+    ${letterSignature()}
+  `, 'profil');
+}
+
 export function createApp(): Hono {
   const app = new Hono();
 
   app.get('/', (c) => c.html(renderLanding()));
   app.get('/historik', (c) => c.html(renderHistorik()));
   app.get('/forbedringer', (c) => c.html(renderForbedringer()));
+  app.get('/profil', (c) => c.html(renderProfil()));
   app.get('/r/:id', (c) => c.html(renderReport(c.req.param('id'))));
 
   // Onboarding — GET starts fresh, POST advances one step.

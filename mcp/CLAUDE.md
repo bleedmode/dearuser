@@ -5,7 +5,8 @@ Open source MCP server der hjælper mennesker og AI-agenter med at forstå hinan
 
 ## Navn
 - **Dear User** = produktnavn (brand)
-- **Dear User Analyze** = diagnose-værktøj (mcp__dearuser__analyze)
+- **Dear User Collab** = collaboration-analyse (mcp__dearuser__collab)
+- **Dear User Health** = system-sundhed (mcp__dearuser__health)
 - **Dear User Wrapped** = viral feature / shareable stats (mcp__dearuser__wrapped)
 - npm pakke: `dearuser-mcp`
 - GitHub: `bleedmode/dearuser` (monorepo med mcp/ + web/)
@@ -37,8 +38,8 @@ Kilde D (dashboard) → Visualisering
 - JSON-fil migration: eksisterende recommendations.json importeres automatisk
 
 ## MCP Tools (6 stk)
-- `analyze` — scan + diagnose + anbefalinger + session-mønstre + feedback loop → skriver du_agent_runs + du_score_history + du_recommendations
-- `audit` — system coherence: orphan jobs, overlap, missing closure, substrate mismatch → skriver du_agent_runs
+- `collab` — collaboration-analyse: scan + diagnose + anbefalinger + session-mønstre + feedback loop → skriver du_agent_runs + du_score_history + du_recommendations (legacy: analyze)
+- `health` — system-sundhed: orphan jobs, overlap, missing closure, substrate mismatch → skriver du_agent_runs (legacy: audit, system_health)
 - `security` — secret scanning, prompt-injection surfaces, CLAUDE.md↔artefakt rule conflicts → skriver du_agent_runs
 - `onboard` — 7-step konversationel setup wizard for nye brugere
 - `wrapped` — shareable stats (text eller JSON)

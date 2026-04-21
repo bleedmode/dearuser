@@ -1,16 +1,16 @@
 ---
-name: dearuser:analyze
-description: Full collaboration analysis — persona, score, friction, recommendations. Powered by Dear User.
-allowed-tools: "mcp__dearuser__analyze"
+name: dearuser:collab
+description: Collaboration analysis — persona, score, friction, recommendations. Powered by Dear User.
+allowed-tools: "mcp__dearuser__collab"
 ---
 
-# Dear User — Analyze
+# Dear User — Collab
 
-Run a full collaboration analysis using the Dear User MCP server.
+Run a collaboration analysis using the Dear User MCP server.
 
 ## What to do
 
-1. Call `mcp__dearuser__analyze` with default parameters (no arguments needed — global scope, text format).
+1. Call `mcp__dearuser__collab` with default parameters (no arguments needed — global scope, text format).
 2. Output the ENTIRE returned report as your response text — do NOT summarize, shorten, or add commentary.
 3. After the report, offer to implement any recommendation marked "Actionable".
 

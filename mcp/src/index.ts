@@ -226,11 +226,11 @@ Example prompts that should trigger this tool:
 );
 
 // Tool 2: system-health — checks whether your stack still hangs together.
-// Named "system_health" (was "audit") — audit implied compliance paperwork;
+// Named "health" (was "audit", then "system_health") — audit implied compliance paperwork;
 // what this does is measure the operational health of your agent stack.
 server.tool(
   'health',
-  `Check the health of your AI stack. Returns a 0-100 system-sundhed score with category breakdown, plus findings ranked by severity. Complement to analyze: where analyze scores how well you and the agent communicate, system_health scores whether your skills, hooks, scheduled tasks, and MCP servers are still hanging together or have started drifting apart.
+  `Check the health of your AI stack. Returns a 0-100 system-sundhed score with category breakdown, plus findings ranked by severity. Complement to collab: where collab scores how well you and the agent communicate, health scores whether your skills, hooks, scheduled tasks, and MCP servers are still hanging together or have started drifting apart.
 
 Detects:
 - **Orphan scheduled jobs** — task produces output nothing reads
