@@ -173,6 +173,29 @@ export function getRunById(id: string): any | undefined {
 }
 
 /**
+ * Runs for a given tool, newest first. The `history` tool uses this for
+ * summary (limit 1), trend (limit 14), and regression (limit 2: latest + prior).
+ *
+ * Accepts legacy tool names so renames (analyze→collab, audit→health) don't
+ * erase history — same mapping logic as getLatestScoresByTool.
+ */
+export function getRunsByTool(tool: 'collab' | 'health' | 'security', limit = 14): any[] {
+  const db = getDb();
+  const alias: Record<string, string[]> = {
+    collab: ['collab', 'analyze'],
+    health: ['health', 'system-health', 'audit'],
+    security: ['security'],
+  };
+  const tools = alias[tool];
+  const placeholders = tools.map(() => '?').join(', ');
+  return db.prepare(`
+    SELECT * FROM du_agent_runs
+    WHERE tool_name IN (${placeholders}) AND status = 'success'
+    ORDER BY started_at DESC LIMIT ?
+  `).all(...tools, limit);
+}
+
+/**
  * Store the full human-readable report body against an existing run. Called
  * after the MCP tool has generated the markdown so the dashboard's /r/:id
  * route can show it. Silent no-op if the row doesn't exist.
