@@ -50,6 +50,7 @@ function emptyFindingCounts(): Record<AuditFindingType, number> {
     unregistered_mcp_tool: 0,
     unbacked_up_substrate: 0,
     stale_schedule: 0,
+    expected_job_missing: 0,
   };
 }
 

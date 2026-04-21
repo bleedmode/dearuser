@@ -132,11 +132,11 @@ function findAllSessionJsonlFiles(claudeDir: string): string[] {
 
 /**
  * Infer the project name from the flattened directory name Claude Code uses:
- *   /Users/karlomacmini/clawd/poised-dk  →  -Users-karlomacmini-clawd-poised-dk
+ *   /Users/alice/dev/my-app  →  -Users-alice-dev-my-app
  * We un-flatten by taking the last non-empty segment after the final dash-group.
  */
 function projectNameFromFlattened(dirName: string): string {
-  // Example dirName: "-Users-karlomacmini-clawd-poised-dk"
+  // Example dirName: "-Users-alice-dev-my-app"
   const segments = dirName.split('-').filter(Boolean);
   return segments[segments.length - 1] || 'unknown';
 }

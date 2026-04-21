@@ -3,7 +3,7 @@
 // Each detector is conservative about severity. A noisy audit gets ignored,
 // so we'd rather miss a finding than report a false one.
 
-import { existsSync, realpathSync } from 'fs';
+import { existsSync, readFileSync, realpathSync } from 'fs';
 import { dirname, join } from 'path';
 import { homedir } from 'os';
 import type {
@@ -23,7 +23,6 @@ const TERMINAL_PATH_PATTERNS: RegExp[] = [
   /CLAUDE\.md$/,
   /\.claude\/memory/,
   /\.dearuser\//,
-  /\.pvs\/dashboard/,
   /stdout|stderr/i,
   /\.log$/, // logs are read by humans, not programs — usually fine
 ];
@@ -39,10 +38,11 @@ function findingId(type: string, parts: string[]): string {
 
 /**
  * Some scheduled tasks have legitimate consumers that aren't files in the user's
- * stack — they push to chat notifications, create PVS tasks via CLI, or write to
- * external DBs. The audit graph can't see these, but the task's own prompt usually
- * documents them. This function checks for those prose-level signals so we don't
- * false-positive jobs that actually have a downstream consumer.
+ * stack — they push to chat notifications, create tickets in an external tracker,
+ * or write to external DBs. The audit graph can't see these, but the task's own
+ * prompt usually documents them. This function checks for those prose-level
+ * signals so we don't false-positive jobs that actually have a downstream
+ * consumer.
  */
 function detectImplicitConsumer(task: AuditArtifact): string | null {
   const text = `${task.description}\n${task.prompt}`;
@@ -54,30 +54,31 @@ function detectImplicitConsumer(task: AuditArtifact): string | null {
     /\bpåmind/i,
     /\bnotifyoncompletion\b/i,
     /\brapport(?:er|ér|ering)\b/i,
-    /\bbesked til (jarl|brugeren|user)\b/i,
+    /\bbesked til (brugeren|user)\b/i,
   ];
   if (notifyPatterns.some(p => p.test(text))) {
     return 'sends notification to the user';
   }
 
-  // Pattern 2 — creates a PVS task. Consumer = the PVS triage pipeline.
-  const pvsTaskPatterns: RegExp[] = [
-    /pvs(\.sh)?\s+task\s+create/i,
-    /\bopret(?:ter)?\s+(?:en\s+)?pvs[\s-]task/i,
-    /\bauto-(?:monitor|sec|build|scan)\b/i, // task tags consumed by triage
+  // Pattern 2 — creates a task/ticket in an external tracker (Linear, Jira,
+  // GitHub Issues, a custom tracker). Consumer = the triage/review flow.
+  const taskCreationPatterns: RegExp[] = [
+    /\b(?:create|add|open|file)\s+(?:a\s+)?(?:linear|jira|github|trello|asana)?\s*(?:issue|ticket|task|story|card)\b/i,
+    /\bopret(?:ter)?\s+(?:en\s+)?(?:task|opgave|sag|ticket)\b/i,
+    /\bgh\s+issue\s+create\b/i,
+    /\blinear\s+issue\s+create\b/i,
   ];
-  if (pvsTaskPatterns.some(p => p.test(text))) {
-    return 'creates PVS task (consumed by triage pipeline)';
+  if (taskCreationPatterns.some(p => p.test(text))) {
+    return 'creates a task/ticket in an external tracker';
   }
 
-  // Pattern 3 — writes to an external system (DB, API, runs log).
+  // Pattern 3 — writes to an external system (DB, API, logging endpoint).
   const externalPatterns: RegExp[] = [
-    /pvs(\.sh)?\s+runs\s+(start|finish)/i,
-    /pvs(\.sh)?\s+research\s+(save|register)/i,
-    /pvs(\.sh)?\s+source\s+add/i,
     /\binsert\s+into\b/i,
     /\bupdate\s+\w+\s+set\b/i,
     /supabase\.co\/rest/i,
+    /\bcurl\s+-X\s+(POST|PUT|PATCH)\b/i,
+    /\bfetch\(.+,\s*\{[^}]*method\s*:\s*['"](?:POST|PUT|PATCH)/i,
   ];
   if (externalPatterns.some(p => p.test(text))) {
     return 'writes to external system (DB/API)';
@@ -163,7 +164,7 @@ function detectOrphanJobs(graph: AuditGraph): AuditFinding[] {
     }
 
     // Implicit consumer check — task's own prompt documents its consumer relationship
-    // (notifications, PVS tasks, external DB writes, one-off reminders).
+    // (notifications, ticket creation, external DB writes, one-off reminders).
     if (detectImplicitConsumer(task)) continue;
 
     // Check each produces-edge from this task
@@ -526,7 +527,7 @@ function detectUnregisteredMcpTools(graph: AuditGraph): AuditFinding[] {
         kind: 'quote' as const,
       })),
       recommendation: `Either (a) register the MCP server in \`~/.claude/mcp.json\` if it exists on disk, (b) remove the tool references if the server was abandoned, or (c) rename to the correct server if you renamed it.`,
-      why: 'Unregistered MCP tool calls fail silently on every invocation. Skills appear to run but produce no effect — the exact class of failure that cost you 24 hours when pvs-mcp was built but never registered.',
+      why: 'Unregistered MCP tool calls fail silently on every invocation. Skills appear to run but produce no effect — a surprisingly common class of failure when a server was built but never wired into Claude Code\'s config.',
     });
   }
 
@@ -558,7 +559,7 @@ function detectUnbackedUpSubstrate(artifacts: AuditArtifact[]): AuditFinding[] {
 
   function isInsideGitRepo(filePath: string): boolean {
     // Resolve symlinks first — ~/.claude/skills is often a symlink into a
-    // separate git-tracked directory (e.g. pvs/agents/skills).
+    // separate git-tracked directory.
     let resolved: string;
     try {
       resolved = realpathSync(filePath);
@@ -760,12 +761,79 @@ function detectStaleSchedule(graph: AuditGraph): AuditFinding[] {
   return findings;
 }
 
+/**
+ * Detect expected jobs that aren't registered with the scheduler at all.
+ *
+ * Catches the class of failure where a job is supposed to exist (e.g. a daily
+ * standup) but nobody ever created the cron entry. `stale_schedule` only sees
+ * registered-but-silent jobs — it can't see jobs that were never registered.
+ *
+ * Reads `~/.dearuser/expected-jobs.json`:
+ * ```
+ * [
+ *   { "name": "morning-standup", "cron": "0 8 * * *", "purpose": "Daily briefing" },
+ *   { "name": "weekly-review", "cron": "0 9 * * 1" }
+ * ]
+ * ```
+ *
+ * If the file doesn't exist or is empty, no findings. This is opt-in —
+ * users declare what they expect to exist.
+ */
+function detectExpectedJobsMissing(graph: AuditGraph): AuditFinding[] {
+  const findings: AuditFinding[] = [];
+  const manifestPath = join(homedir(), '.dearuser', 'expected-jobs.json');
+  if (!existsSync(manifestPath)) return findings;
+
+  let manifest: Array<{ name: string; cron?: string; purpose?: string }> = [];
+  try {
+    const raw = readFileSync(manifestPath, 'utf-8');
+    manifest = JSON.parse(raw);
+    if (!Array.isArray(manifest)) return findings;
+  } catch {
+    return findings;
+  }
+
+  const registeredNames = new Set(
+    graph.nodes.filter(n => n.type === 'scheduled_task').map(n => n.name),
+  );
+
+  for (const expected of manifest) {
+    if (!expected?.name) continue;
+    if (registeredNames.has(expected.name)) continue;
+
+    const purposeSuffix = expected.purpose ? ` (${expected.purpose})` : '';
+    const cronSuffix = expected.cron ? ` with cron \`${expected.cron}\`` : '';
+
+    findings.push({
+      id: findingId('expected_job_missing', [expected.name]),
+      type: 'expected_job_missing',
+      severity: 'critical',
+      title: `Expected scheduled task "${expected.name}" is not registered`,
+      description: `Your expected-jobs manifest declares "${expected.name}"${purposeSuffix}${cronSuffix}, but no such task exists in the scheduler. The job can't run because it was never created — not even as a failed run.`,
+      affectedArtifacts: [],
+      evidence: [
+        {
+          source: manifestPath,
+          excerpt: JSON.stringify(expected),
+          kind: 'quote',
+        },
+      ],
+      recommendation: expected.cron
+        ? `Create the scheduled task "${expected.name}" with cron \`${expected.cron}\`, or remove the entry from expected-jobs.json if it's no longer needed.`
+        : `Create the scheduled task "${expected.name}", or remove the entry from expected-jobs.json if it's no longer needed.`,
+      why: 'A task that was never registered is the silent failure behind "why didn\'t my daily briefing run?" — the scheduler has nothing to tell you because there is nothing to run. The expected-jobs manifest exists specifically to catch this gap.',
+    });
+  }
+
+  return findings;
+}
+
 // ============================================================================
 // Orchestration
 // ============================================================================
 
 export interface DetectorOptions {
-  focus?: 'orphan' | 'overlap' | 'closure' | 'substrate' | 'mcp_refs' | 'backup' | 'stale_schedule' | 'all';
+  focus?: 'orphan' | 'overlap' | 'closure' | 'substrate' | 'mcp_refs' | 'backup' | 'stale_schedule' | 'expected_jobs' | 'all';
 }
 
 export function runDetectors(
@@ -795,6 +863,9 @@ export function runDetectors(
   }
   if (focus === 'all' || focus === 'stale_schedule') {
     findings.push(...detectStaleSchedule(graph));
+  }
+  if (focus === 'all' || focus === 'expected_jobs') {
+    findings.push(...detectExpectedJobsMissing(graph));
   }
 
   // Dedupe by id — one physical issue shouldn't surface twice

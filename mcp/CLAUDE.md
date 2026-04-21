@@ -61,16 +61,11 @@ Kilde D (dashboard) → Visualisering
 - Venture Studio (multi-projekt, automation)
 - Team Lead (koordination, standarder)
 
-## Research-kvalitetssystem
-- `/research` skill med 3 faser: Collect → Rate+Counter → Analyze
-- `pvs source add/rate/list/verify/stats` CLI
+## Research-kvalitetssystem (intern proces, ikke shipped)
+- 3-fase process: Collect → Rate+Counter → Analyze
 - Evidence ratings A-F med objektive kriterier
 - Counter-evidence obligatorisk for A+B kilder
-- Research UI i PVS dashboard
-
-## Sondring: meta-research vs bruger-research
-- **Meta-research** (vores produkt): problemtaksonomi, MCP landskab, industri-tracking → lever i PVS
-- **Bruger-research** (toolet udfører): scanning, diagnose, anbefalinger, feedback → lever i MCP server + ~/.dearuser/
+- Research data lever udenfor Dear User repo'et — kun vores egne produktbeslutninger baseret på research commiteres her
 
 ## Current state (april 2026)
 - MCP server med 9 tools + lokal SQLite database + Hono dashboard + 7 skills shipped via npm

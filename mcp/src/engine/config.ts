@@ -40,14 +40,15 @@ function expandPath(p: string): string {
   return path.resolve(p);
 }
 
-/** Default search roots — tried in order. We don't force ~/clawd on external users. */
+/** Default search roots — common dev folders tried in order. */
 function defaultSearchRoots(): string[] {
   const candidates = [
-    path.join(os.homedir(), 'clawd'),     // PVS internal convention
-    path.join(os.homedir(), 'code'),       // common dev convention
-    path.join(os.homedir(), 'projects'),   // common dev convention
-    path.join(os.homedir(), 'work'),       // common dev convention
-    path.join(os.homedir(), 'src'),        // common dev convention
+    path.join(os.homedir(), 'code'),
+    path.join(os.homedir(), 'projects'),
+    path.join(os.homedir(), 'work'),
+    path.join(os.homedir(), 'src'),
+    path.join(os.homedir(), 'dev'),
+    path.join(os.homedir(), 'Documents', 'GitHub'),
   ];
   const existing = candidates.filter(p => {
     try { return fs.statSync(p).isDirectory(); } catch { return false; }

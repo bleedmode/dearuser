@@ -850,7 +850,7 @@ function formatLintFindings(report: AnalysisReport, plain: boolean): string[] {
     const loc = f.line ? `:${f.line}` : '';
     lines.push(`${severityLabel(f.severity)} **${f.title}**`);
     if (!plain) {
-      const shortPath = f.file.replace(/.*\.claude\//, '~/.claude/').replace(/.*\/clawd\//, '~/clawd/');
+      const shortPath = f.file.replace(/.*\.claude\//, '~/.claude/');
       lines.push(`  *${shortPath}${loc}*`);
     }
     lines.push(`  ${f.description}`);

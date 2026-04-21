@@ -9,7 +9,7 @@ const PROHIBITION_PATTERNS = [
 ];
 
 const ASK_FIRST_PATTERNS = [
-  /\bask\s*(first|before|jarl|user)\b/i, /\bspørg\b/i,
+  /\bask\s*(first|before|user)\b/i, /\bspørg\b/i,
   /\bconfirm\b/i, /\bcheck with\b/i, /\bapproval\b/i,
   /\bgodkend/i, /\btilladelse\b/i,
 ];

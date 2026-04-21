@@ -173,7 +173,7 @@ export function scanRepo(repoPath: string): GitRepoInfo | null {
 
 /**
  * Discover candidate project directories by:
- *   1. Walking common parent dirs one level deep (~/clawd, ~/dev, ~/projects, …)
+ *   1. Walking common parent dirs one level deep (~/dev, ~/projects, ~/code, …)
  *   2. Including any explicit paths the caller passed (e.g. from CLAUDE.md)
  *
  * Returns ONLY paths that actually contain a .git directory — saves `scanRepo`
@@ -182,7 +182,6 @@ export function scanRepo(repoPath: string): GitRepoInfo | null {
 function discoverGitRepos(explicitPaths: string[]): string[] {
   const home = homedir();
   const conventionalParents = [
-    join(home, 'clawd'),
     join(home, 'dev'),
     join(home, 'Dev'),
     join(home, 'projects'),

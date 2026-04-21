@@ -117,7 +117,7 @@ function readSettingsAndMcpConfig(home: string, projectRoot: string | null) {
 
 /**
  * List every project directory under ~/.claude/projects/. Each directory name
- * is a flattened absolute path (e.g. -Users-karlomacmini-clawd-poised-dk).
+ * is a flattened absolute path (e.g. -Users-alice-dev-my-app).
  */
 function listProjectDirs(home: string): string[] {
   const base = join(home, '.claude', 'projects');
@@ -141,7 +141,6 @@ function listProjectDirs(home: string): string[] {
  */
 function discoverProjectRoots(home: string): string[] {
   const conventionalParents = [
-    join(home, 'clawd'),
     join(home, 'dev'),
     join(home, 'Dev'),
     join(home, 'projects'),
@@ -174,7 +173,7 @@ function discoverProjectRoots(home: string): string[] {
 }
 
 /**
- * Un-flatten "-Users-karlomacmini-clawd-poised-dk" → "/Users/karlomacmini/clawd/poised-dk".
+ * Un-flatten "-Users-alice-dev-my-app" → "/Users/alice/dev/my-app".
  * We can't know where segment boundaries originally were (both "/" and "-" become "-"),
  * so we return the reconstructed path for display only — not for opening files.
  */
