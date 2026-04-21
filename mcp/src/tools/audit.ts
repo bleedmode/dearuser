@@ -314,7 +314,8 @@ function generateAssessment(
 
   const actionable = report.findings.filter(
     f => (f.severity === 'critical' || f.severity === 'recommended')
-      && !largeClustedFindingIds.has(f.id),
+      && !largeClustedFindingIds.has(f.id)
+      && !f.suitePrefix,
   );
 
   lines.push(`## What to do`, ``);
@@ -323,11 +324,17 @@ function generateAssessment(
     // Binary: nothing to do
     lines.push(`✅ **Du behøver ikke gøre noget.**`);
     lines.push(``);
-    const benignCount = largeClusters.reduce((sum, c) => sum + c.findings.length, 0)
-      + report.findings.filter(f => f.severity === 'nice_to_have' && !largeClustedFindingIds.has(f.id)).length;
+    // Benign = nice-to-have outside large clusters AND not part of a same-suite
+    // (intentional product overlap). Suite findings are invisible to the user
+    // so we don't count them in the "X findings are low-priority polish" line.
+    const benignCount = report.findings.filter(
+      f => f.severity === 'nice_to_have'
+        && !largeClustedFindingIds.has(f.id)
+        && !f.suitePrefix,
+    ).length;
     if (benignCount > 0) {
       lines.push(
-        `Dit setup er sundt. De ${benignCount} findings er enten forventet overlap mellem relaterede tools eller lav-prioritet polering — ingen handling nødvendig.`,
+        `Dit setup er sundt. ${benignCount} ${benignCount === 1 ? 'finding er' : 'findings er'} lav-prioritet polering — ingen handling nødvendig.`,
       );
     } else {
       lines.push(`Dit setup er rent.`);
@@ -385,9 +392,13 @@ const FOCUS_TO_TYPES: Record<string, AuditFindingType[]> = {
 /** Format an AuditReport as the markdown string we return to the MCP client. */
 export function formatAuditReport(report: AuditReport, focus?: string): string {
   const focusTypes = focus && focus !== 'all' ? FOCUS_TO_TYPES[focus] : undefined;
+  // Drop same-suite findings from the user-facing text — they're expected
+  // intentional overlap that the scorer already ignores. The JSON payload
+  // still includes them so the agent can reason about product structure.
+  const userFacing = report.findings.filter(f => !f.suitePrefix);
   const textFindings = focusTypes
-    ? report.findings.filter(f => focusTypes.includes(f.type))
-    : report.findings;
+    ? userFacing.filter(f => focusTypes.includes(f.type))
+    : userFacing;
   const clusters = clusterOverlapFindings(textFindings);
   const largeClusters = clusters.filter(c => c.findings.length >= 3);
   const largeClustedFindingIds = new Set(
@@ -452,7 +463,10 @@ export function formatAuditReport(report: AuditReport, focus?: string): string {
     }
   }
 
-  const byType = report.summary.byType;
+  const byType = textFindings.reduce((acc, f) => {
+    acc[f.type] = (acc[f.type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
   const typeLabels: Array<[AuditFindingType, string]> = [
     ['orphan_job', 'Orphan scheduled jobs'],
     ['overlap', 'Overlap'],
