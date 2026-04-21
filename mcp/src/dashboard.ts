@@ -103,7 +103,13 @@ function greetingEn(): string {
 }
 
 function signature(): string {
-  return '— Dear User 💌';
+  return `<span class="inline-flex items-center gap-2">
+    <svg width="18" height="18" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="20" cy="20" r="20" fill="#EC5329"/>
+      <path class="smile-path" d="M 11 22 Q 20 32 29 22" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+    </svg>
+    <span>Dear User</span>
+  </span>`;
 }
 
 // ============================================================================
