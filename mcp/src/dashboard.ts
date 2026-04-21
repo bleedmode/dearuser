@@ -1048,12 +1048,14 @@ function renderCategoryRow(key: string, score: number): string {
 
   return `
     <details class="group py-3">
-      <summary class="cursor-pointer list-none hover:bg-paper-50 rounded-lg -mx-2 px-2 py-1.5 transition">
+      <summary class="cursor-pointer list-none hover:bg-paper-50 rounded-lg -mx-2 px-2 py-2 transition">
         <div class="flex items-baseline gap-4">
           <div class="flex-1 min-w-0">
-            <div class="flex items-baseline gap-2">
+            <div class="flex items-center gap-2">
               <span class="font-medium text-ink-900">${escapeHtml(explanation.label)}</span>
-              <span class="text-ink-300 text-xs transition-transform group-open:rotate-90 inline-block">▸</span>
+              <span class="text-accent-600 text-sm transition-transform group-open:rotate-90 inline-block leading-none">▸</span>
+              <span class="text-xs text-accent-600 group-open:hidden"><span class="lang-da">Læs mere</span><span class="lang-en">Read more</span></span>
+              <span class="text-xs text-ink-400 hidden group-open:inline"><span class="lang-da">Skjul</span><span class="lang-en">Hide</span></span>
             </div>
             <div class="text-sm text-ink-500 mt-0.5 leading-snug">${escapeHtml(explanation.summary)}</div>
           </div>
@@ -1253,7 +1255,7 @@ function renderSecurityLetter(run: any, report: any): string {
         <p class="text-ink-700 leading-relaxed" style="margin: 0">${escapeHtml(leadIn)}</p>
       </section>
 
-      ${renderDomainScoreAndCategories(score, catEntries, securityVerdict, ceiling)}
+      ${renderDomainScoreAndCategories(score, catEntries, securityVerdict, ceiling, 'Sikkerhed')}
 
       ${renderSecurityFindings(allFindings)}
 
@@ -1311,7 +1313,7 @@ function renderSystemHealthLetter(run: any, report: any): string {
         <p class="text-ink-700 leading-relaxed" style="margin: 0">${escapeHtml(leadIn)}</p>
       </section>
 
-      ${renderDomainScoreAndCategories(score, catEntries, systemHealthVerdict, ceiling)}
+      ${renderDomainScoreAndCategories(score, catEntries, systemHealthVerdict, ceiling, 'System-sundhed')}
 
       ${renderSystemHealthFindings(sortedFindings)}
 
@@ -1339,37 +1341,34 @@ function renderSystemHealthLetter(run: any, report: any): string {
 function renderDomainScoreAndCategories(
   score: number | null,
   catEntries: Array<{ key: string; score: number }>,
-  verdictFn: (s: number) => string,
-  ceiling: any,
+  _verdictFn: (s: number) => string,
+  _ceiling: any,
+  domainLabel: string = 'Score',
 ): string {
-  const verdict = typeof score === 'number' ? verdictFn(score) : '';
-  // Match the score-color treatment used on the home page tiles so the
-  // visual language is consistent across the dashboard: green ≥85,
-  // amber ≥70, rose below. No bold weight — font-serif carries the tone.
+  // Match the home-page tile treatment: colored bullet + label, big
+  // font-serif number in the same color, no surrounding card. Verdict
+  // prose lives in the leadIn paragraph under "Kære Jarl" — showing it
+  // again in a box is redundant. Ceiling-delta is implicit from the
+  // per-category rows below, so we drop it too.
   const scoreColor = typeof score !== 'number'
     ? 'text-ink-300'
     : score >= 85 ? 'text-emerald-700'
     : score >= 70 ? 'text-amber-700'
     : 'text-rose-700';
-  const ceilingLine = ceiling && typeof ceiling.ceilingScore === 'number' && ceiling.delta > 0
-    ? `<p class="text-sm text-ink-500 mt-3">Fixer du alle fund nedenfor rykker du til <strong class="text-ink-900">${ceiling.ceilingScore}/100</strong> (+${ceiling.delta}).</p>`
-    : ceiling && ceiling.ceilingScore === score
-      ? `<p class="text-sm text-ink-500 mt-3">Du er allerede på loftet for hvad der kan måles lige nu.</p>`
-      : '';
+  const dot = typeof score !== 'number'
+    ? 'bg-ink-300'
+    : score >= 85 ? 'bg-emerald-600'
+    : score >= 70 ? 'bg-amber-500'
+    : 'bg-rose-600';
 
   return `
     <section class="mb-12">
-      <div class="bg-paper-100 border border-paper-200 rounded-2xl p-6 mb-5">
-        <div class="flex items-baseline justify-between mb-3">
-          <div class="text-xs uppercase tracking-wider text-ink-500">Overall</div>
-          <div class="text-xs text-ink-300 font-mono">0–100</div>
+      <div class="mb-8">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="w-1.5 h-1.5 rounded-full ${dot}"></span>
+          <span class="text-[11px] uppercase tracking-[0.15em] text-ink-500">${escapeHtml(domainLabel)}</span>
         </div>
-        <div class="flex items-baseline gap-3 mb-2">
-          <div class="font-serif text-6xl ${scoreColor} leading-none">${typeof score === 'number' ? score : '—'}</div>
-          <div class="text-xl text-ink-300">/100</div>
-        </div>
-        ${verdict ? `<p class="text-ink-700 leading-relaxed mt-3">${escapeHtml(verdict)}</p>` : ''}
-        ${ceilingLine}
+        <div class="font-serif text-6xl ${scoreColor} leading-none">${typeof score === 'number' ? score : '—'}</div>
       </div>
 
       <div class="divide-y divide-paper-200 border-t border-paper-200">
