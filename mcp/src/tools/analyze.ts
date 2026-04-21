@@ -239,9 +239,12 @@ export function runAnalysis(
   let agentRunId: string | undefined;
   if (options.persist !== false) {
     try {
+      const recCrit = recommendations.filter(r => r.priority === 'critical').length;
+      const recRec = recommendations.filter(r => r.priority === 'recommended').length;
+      const recNice = recommendations.filter(r => r.priority === 'nice_to_have').length;
       agentRunId = insertAgentRun({
         toolName: 'collab',
-        summary: `Score: ${collaborationScore}/100 — ${persona.archetypeName}`,
+        summary: `${recCrit + recRec + recNice} findings (${recCrit} critical, ${recRec} recommended, ${recNice} nice-to-have)`,
         score: collaborationScore,
         status: 'success',
       });
@@ -526,7 +529,6 @@ function formatRecommendations(report: AnalysisReport): string[] {
       if (rec.why) lines.push('', `**Why it matters:** ${rec.why}`);
       if (rec.howItLooks) lines.push('', '**How it looks when done right:**', '```', rec.howItLooks, '```');
       if (rec.practiceStep) lines.push('', `**Practice this next time:** ${rec.practiceStep}`);
-      if (rec.actionable) lines.push('', `**Actionable:** I can apply this for you — just say "yes, add it".`);
       lines.push('');
     }
   }
