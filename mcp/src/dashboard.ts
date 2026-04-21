@@ -1485,9 +1485,14 @@ function pickSmallThings(
 
 function renderForbedringer(): string {
   reconcilePendingRecommendations();
-  const pending = getRecommendations('pending');
-  const implemented = getRecommendations('implemented');
-  const dismissed = getRecommendations('dismissed');
+  // Observation-type rows (e.g. "66 course-corrections in recent prompts")
+  // are stats that got pushed into the recommendations table — not actions
+  // the user can take. Filter them out everywhere on this page.
+  const isObservation = (r: any): boolean => /course-correction/i.test(r.title || '');
+  const stripObservations = (rows: any[]) => rows.filter(r => !isObservation(r));
+  const pending = stripObservations(getRecommendations('pending'));
+  const implemented = stripObservations(getRecommendations('implemented'));
+  const dismissed = stripObservations(getRecommendations('dismissed'));
 
   const renderList = (items: any[], canDrop: boolean) => {
     if (items.length === 0) return `<p class="text-ink-500 text-sm">Ingen lige nu.</p>`;
@@ -1549,28 +1554,30 @@ function renderForbedringer(): string {
 
   return page('Forslag', `
     <section>
-      <h1 class="text-3xl font-semibold mb-2">Forslag</h1>
-      <p class="text-ink-500 mb-8">Små ting du kan prøve. Ingen af dem er livsnødvendige — bare idéer.</p>
+      <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">Forslag</h1>
+      <p class="font-serif text-2xl text-ink-700 leading-snug max-w-xl">Små ting du kan prøve. Ingen af dem er livsnødvendige — bare idéer.</p>
+    </section>
 
+    <div class="mt-16">
       <div class="mb-10">
-        <h2 class="text-sm uppercase tracking-wider text-ink-500 mb-3">Venter på dig (${pending.length})</h2>
+        <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-3">Venter på dig (${pending.length})</h2>
         ${renderList(pending, true)}
       </div>
 
       ${implemented.length > 0 ? `
         <div class="mb-10">
-          <h2 class="text-sm uppercase tracking-wider text-ink-500 mb-3">Allerede gjort (${implemented.length})</h2>
+          <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-3">Allerede gjort (${implemented.length})</h2>
           ${renderList(implemented, false)}
         </div>
       ` : ''}
 
       ${dismissed.length > 0 ? `
         <div>
-          <h2 class="text-sm uppercase tracking-wider text-ink-500 mb-3">Droppet (${dismissed.length})</h2>
+          <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-3">Droppet (${dismissed.length})</h2>
           ${renderList(dismissed, false)}
         </div>
       ` : ''}
-    </section>
+    </div>
   `, 'forbedringer');
 }
 
