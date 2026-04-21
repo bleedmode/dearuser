@@ -1,7 +1,7 @@
 ---
 name: dearuser:wrapped
 description: Shareable collaboration stats in Spotify Wrapped style. Powered by Dear User.
-allowed-tools: "mcp__dearuser__wrapped"
+allowed-tools: "mcp__dearuser__wrapped, Bash"
 ---
 
 # Dear User — Wrapped
@@ -10,10 +10,13 @@ Generate shareable collaboration stats using the Dear User MCP server.
 
 ## What to do
 
-1. Call `mcp__dearuser__wrapped` with default parameters (no arguments needed — global scope, text format).
-2. Output the ENTIRE returned report as your response text — do NOT summarize, shorten, or add commentary.
+1. Try calling `mcp__dearuser__wrapped` with default parameters (no arguments needed — global scope, text format).
+2. **If the tool is not available** (first turn of session — MCP tools load lazily), use this Bash fallback:
+   ```
+   node /Users/karlomacmini/clawd/dearuser/mcp/run-tool.mjs wrapped 2>/dev/null
+   ```
+3. Output the ENTIRE returned report as your response text — do NOT summarize, shorten, or add commentary.
 
 ## Rules
 
 - The report is pre-formatted ASCII art. Show it exactly as returned.
-- If the tool is not available, tell the user to check that the Dear User MCP server is running (`claude mcp list`).
