@@ -18,6 +18,14 @@ import Layout from '../layouts/Layout.astro';
       color-mix(in srgb, var(--c-action-600) 18%, transparent) 0%,
       transparent 62%);
   }
+  .hero-eyebrow {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--c-action-600);
+    margin-bottom: 24px;
+  }
   .hero h1 {
     font-family: 'Fraunces', Georgia, serif;
     font-style: italic;
@@ -301,6 +309,10 @@ import Layout from '../layouts/Layout.astro';
 
 <!-- Hero ------------------------------------------------------------- -->
 <section class="hero">
+  <div class="hero-eyebrow">
+    <span class="lang-da">Din AI-samarbejdspartner</span>
+    <span class="lang-en">Your AI collaboration partner</span>
+  </div>
   <h1>
     <span class="lang-da"><span class="accent">Kære bruger,</span><br/>hvordan går det med jeres samarbejde?</span>
     <span class="lang-en"><span class="accent">Dear User,</span><br/>how is your AI collaboration?</span>
