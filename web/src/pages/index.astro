@@ -33,20 +33,40 @@ import Layout from '../layouts/Layout.astro';
     font-family: 'Fraunces', Georgia, serif;
     font-style: italic;
     font-weight: 400;
-    font-size: clamp(44px, 7vw, 76px);
-    line-height: 1.05;
-    letter-spacing: -0.02em;
-    color: var(--c-ink-900);
-    margin: 0 0 20px;
+    font-size: clamp(54px, 9vw, 104px);
+    line-height: 1;
+    letter-spacing: -0.025em;
+    color: var(--c-action-600);
+    margin: 0 0 32px;
   }
-  .hero-greeting .accent { color: var(--c-action-600); }
-  .hero-sub {
+  .hero-letter {
     font-family: 'Fraunces', Georgia, serif;
-    font-size: clamp(18px, 2.2vw, 22px);
-    line-height: 1.5;
+    font-size: clamp(17px, 1.9vw, 21px);
+    line-height: 1.55;
     color: var(--c-ink-700);
-    max-width: 620px;
-    margin: 0 0 40px;
+    max-width: 600px;
+    margin: 0 0 32px;
+  }
+  .hero-letter p { margin: 0 0 14px; }
+  .hero-letter p.hi {
+    font-weight: 500;
+    color: var(--c-ink-900);
+    margin-bottom: 14px;
+  }
+  .hero-sig {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    color: var(--c-ink-700);
+  }
+  .hero-sig svg { width: 24px; height: 24px; flex-shrink: 0; }
+  .hero-sig-name {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-size: 19px;
+    color: var(--c-ink-900);
+    letter-spacing: -0.01em;
   }
 
   /* Install block --------------------------------------------------- */
@@ -310,21 +330,39 @@ import Layout from '../layouts/Layout.astro';
 <!-- Hero ------------------------------------------------------------- -->
 <section class="hero">
   <div class="hero-inner">
-    <span class="hero-eyebrow">
-      <span class="dot" aria-hidden="true"></span>
-      <span class="lang-da">MCP server · Open source · Kører lokalt</span>
-      <span class="lang-en">MCP server · Open source · Runs locally</span>
-    </span>
-
     <h1 class="hero-greeting">
-      <span class="lang-da">Kære bruger,<br/>hvordan har <span class="accent">jeres samarbejde</span> det?</span>
-      <span class="lang-en">Dear user,<br/>how is <span class="accent">your collaboration</span>?</span>
+      <span class="lang-da">Kære bruger,</span>
+      <span class="lang-en">Dear user,</span>
     </h1>
 
-    <p class="hero-sub">
-      <span class="lang-da">Dear User scanner din <em>CLAUDE.md</em>, memory, hooks, skills og sessioner — og orkestrerer sikkerheds­tjekkene, der allerede kigger på din stack. Så skriver den et brev til dig. Ingen dashboards uden stemme. Ingen råd uden konkret kode.</span>
-      <span class="lang-en">Dear User reads your <em>CLAUDE.md</em>, memory, hooks, skills and sessions — and orchestrates the security advisors already watching your stack. Then it writes you a letter. No dashboards without a voice. No advice without concrete code.</span>
-    </p>
+    <div class="hero-letter">
+      <p class="hi">
+        <span class="lang-da">Hej.</span><span class="lang-en">Hi.</span>
+      </p>
+      <p>
+        <span class="lang-da">I år vil du bruge flere timer med din agent end med de fleste mennesker i dit liv.</span>
+        <span class="lang-en">This year, you'll spend more hours with your agent than with most people in your life.</span>
+      </p>
+      <p>
+        <span class="lang-da">Jeg er bygget til at få det bedste ud af de timer. Jeg holder øje med samarbejdet mellem dig og din agent — på samme måde som HR gør det for mennesker.</span>
+        <span class="lang-en">I'm built to make the most of those hours. I look after the collaboration between you and your agent — the same way HR does for people.</span>
+      </p>
+      <p>
+        <span class="lang-da">Jeg kommer med forslag til forbedringer, og tjekker stille og roligt at din opsætning ikke er ved at gå i stykker.</span>
+        <span class="lang-en">I bring recommendations for improvements, and quietly check that your setup doesn't break.</span>
+      </p>
+      <p>
+        <span class="lang-da">Rart at du er her.</span>
+        <span class="lang-en">Nice to have you here.</span>
+      </p>
+      <div class="hero-sig" aria-hidden="true">
+        <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="20" cy="20" r="20" fill="#EC5329" />
+          <path d="M 11 22 Q 20 32 29 22" stroke="var(--c-smile-fill)" stroke-width="2.5" stroke-linecap="round" fill="none" />
+        </svg>
+        <span class="hero-sig-name">Dear User</span>
+      </div>
+    </div>
 
     <div class="install" id="install-cta" title="Click to copy">
       <span class="prompt">$</span>
@@ -359,8 +397,8 @@ import Layout from '../layouts/Layout.astro';
       <span class="lang-en">One question each. Each answer a letter.</span>
     </h2>
     <p class="section-sub">
-      <span class="lang-da">Alle værktøjer kører lokalt via MCP. Kald dem fra Claude Code — eller fra det lille lokale dashboard der følger med.</span>
-      <span class="lang-en">All tools run locally over MCP. Call them from Claude Code — or from the small local dashboard that ships with it.</span>
+      <span class="lang-da">Dear User scanner din <em>CLAUDE.md</em>, memory, hooks, skills og sessioner — og orkestrerer sikkerheds­tjekkene der allerede kigger på din stack. Så skriver den et brev til dig. Alle værktøjer kører lokalt via MCP. Kald dem fra Claude Code — eller fra det lille lokale dashboard der følger med. Ingen dashboards uden stemme. Ingen råd uden konkret kode.</span>
+      <span class="lang-en">Dear User reads your <em>CLAUDE.md</em>, memory, hooks, skills and sessions — and orchestrates the security advisors already watching your stack. Then it writes you a letter. All tools run locally over MCP. Call them from Claude Code — or from the small local dashboard that ships with it. No dashboards without a voice. No advice without concrete code.</span>
     </p>
   </div>
 
@@ -460,8 +498,8 @@ import Layout from '../layouts/Layout.astro';
 <!-- Pull quote from an example letter -------------------------------- -->
 <section class="pullquote">
   <blockquote>
-    <span class="lang-da">"Jeg har bemærket at du kalder den samme CLI på tværs af flere skills, hver med sin egen måde at parse output på. Skal vi wrappe den som en MCP-server? Det ville fjerne en masse stille fragilitet."</span>
-    <span class="lang-en">"I noticed you call the same CLI across several skills, each parsing its output differently. Should we wrap it as an MCP server? It would remove a lot of silent fragility."</span>
+    <span class="lang-da">"Jeg har bemærket at du retter din agent på den samme måde 3-4 gange om ugen — men det står ikke i CLAUDE.md endnu. Skal vi gemme det som en regel, så du slipper for at sige det igen?"</span>
+    <span class="lang-en">"I've noticed you correct your agent the same way three or four times a week — but it's not in CLAUDE.md yet. Should we save it as a rule, so you don't have to say it again?"</span>
   </blockquote>
   <cite>
     <span class="lang-da">Uddrag fra en collab-rapport</span>
