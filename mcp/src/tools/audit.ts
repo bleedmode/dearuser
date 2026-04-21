@@ -13,6 +13,7 @@ import { buildGraph } from '../engine/audit-graph.js';
 import { runDetectors, type DetectorOptions } from '../engine/audit-detectors.js';
 import { reconcileFindings } from '../engine/audit-feedback.js';
 import { insertAgentRun } from '../engine/db.js';
+import { trackFindingsAsRecommendations } from '../engine/feedback-tracker.js';
 import { scoreSystemHealth } from '../engine/system-health-scorer.js';
 import type {
   AuditArtifact,
@@ -154,10 +155,11 @@ export function runAudit(options: AuditOptions = {}): AuditReport {
   try {
     agentRunId = insertAgentRun({
       toolName: 'health',
-      summary: `System-sundhed: ${systemHealthScore}/100 — ${findings.length} findings (${findings.filter(f => f.severity === 'critical').length} critical)`,
+      summary: `${findings.length} findings (${findings.filter(f => f.severity === 'critical').length} critical, ${findings.filter(f => f.severity === 'recommended').length} recommended, ${findings.filter(f => f.severity === 'nice_to_have').length} nice-to-have)`,
       score: systemHealthScore,
       status: 'success',
     });
+    trackFindingsAsRecommendations(findings, systemHealthScore, agentRunId);
   } catch {
     // DB write failure should never break the audit
   }

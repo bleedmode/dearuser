@@ -173,6 +173,93 @@ export function trackToolRecommendations(
 }
 
 /**
+ * Security & health findings also become recommendations so Forslag is a
+ * single pane across all three letter types. We skip nice_to_have to avoid
+ * drowning out actionable items.
+ */
+type FindingLike = {
+  title: string;
+  severity?: 'critical' | 'recommended' | 'nice_to_have';
+  recommendation?: string;
+  // Optional subject hints we use to distinguish findings inside a group:
+  projectName?: string;   // platform findings
+  detail?: string;        // platform findings
+  location?: string;      // secret/cve findings
+  artifactPath?: string;  // injection findings
+  conflictingPath?: string; // rule-conflict findings
+  affectedArtifacts?: string[]; // audit findings
+};
+
+/**
+ * Extract a short identifier that distinguishes one finding from another
+ * with the same title (e.g. the table name for an RLS finding, the file path
+ * for a secret). Falls back to empty string when nothing useful is present.
+ */
+function findingSubject(f: FindingLike): string {
+  // Supabase-style findings have the distinguishing identifier (table name)
+  // in either detail or recommendation, inconsistently. Check both. Skip
+  // backtick matches that are just the projectName (those don't distinguish).
+  const backtick = (s?: string) => {
+    if (!s) return null;
+    const matches = [...s.matchAll(/`([^`]+)`/g)].map(m => m[1]);
+    return matches.find(m => m !== f.projectName) || null;
+  };
+  const fromDetail = backtick(f.detail);
+  if (fromDetail) return f.projectName ? `${f.projectName}/${fromDetail}` : fromDetail;
+  const fromRec = backtick(f.recommendation);
+  if (fromRec) return f.projectName ? `${f.projectName}/${fromRec}` : fromRec;
+  if (f.projectName) return f.projectName;
+  if (f.location) return f.location;
+  if (f.artifactPath) return f.artifactPath;
+  if (f.conflictingPath) return f.conflictingPath;
+  if (f.affectedArtifacts && f.affectedArtifacts[0]) return f.affectedArtifacts[0];
+  return '';
+}
+
+export function trackFindingsAsRecommendations(
+  findings: FindingLike[],
+  scoreAtGiven: number,
+  agentRunId?: string,
+): void {
+  migrateFromJson();
+
+  // Group by title first so a finding class that applies to N artifacts
+  // becomes one card, not N near-identical cards.
+  const groups = new Map<string, { first: FindingLike; subjects: string[] }>();
+  for (const f of findings) {
+    if (!f.title) continue;
+    const severity = f.severity || 'recommended';
+    if (severity === 'nice_to_have') continue;
+    const subject = findingSubject(f);
+    const entry = groups.get(f.title);
+    if (entry) {
+      if (subject && !entry.subjects.includes(subject)) entry.subjects.push(subject);
+    } else {
+      groups.set(f.title, { first: f, subjects: subject ? [subject] : [] });
+    }
+  }
+
+  for (const [title, { first, subjects }] of groups) {
+    if (findRecommendationByTitle(title)) continue;
+    const count = subjects.length;
+    const snippet = count > 1
+      ? `${count} tilfælde: ${subjects.slice(0, 5).join(', ')}${subjects.length > 5 ? `, +${subjects.length - 5} mere` : ''}`
+      : (first.recommendation || '').slice(0, 200);
+    insertRecommendation({
+      agentRunId,
+      type: 'behavior',
+      title,
+      textSnippet: snippet,
+      keywords: extractKeywords(title + ' ' + (first.recommendation || '')),
+      severity: first.severity || 'recommended',
+      scoreAtGiven,
+      actionType: 'manual',
+      actionData: first.recommendation,
+    });
+  }
+}
+
+/**
  * Type-aware implementation check. Uses structural context when available.
  */
 export function checkImplementation(

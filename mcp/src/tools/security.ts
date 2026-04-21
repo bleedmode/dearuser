@@ -27,6 +27,7 @@ import { runNpmAdvisor } from '../engine/npm-advisor.js';
 import { runVercelAdvisor } from '../engine/vercel-advisor.js';
 import { loadConfig } from '../engine/config.js';
 import { insertAgentRun } from '../engine/db.js';
+import { trackFindingsAsRecommendations } from '../engine/feedback-tracker.js';
 import { scoreSecurity } from '../engine/security-scorer.js';
 import type { ScoreCeiling } from '../types.js';
 import type {
@@ -198,10 +199,15 @@ export async function runSecurity(options: SecurityOptions = {}): Promise<Securi
   try {
     agentRunId = insertAgentRun({
       toolName: 'security',
-      summary: `Security: ${securityScore}/100 — ${critical + recommended + niceToHave} findings (${critical} critical, ${secrets.length} secrets, ${cveFindings.length} CVEs)`,
+      summary: `${critical + recommended + niceToHave} findings (${critical} critical, ${recommended} recommended, ${niceToHave} nice-to-have)`,
       score: securityScore,
       status: 'success',
     });
+    trackFindingsAsRecommendations(
+      [...secrets, ...injection, ...ruleConflicts, ...cveFindings, ...platformFindings],
+      securityScore,
+      agentRunId,
+    );
   } catch {
     // DB write failure should never break the security scan
   }

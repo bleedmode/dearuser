@@ -208,13 +208,21 @@ function page(title: string, body: string, activeNav: 'oversigt' | 'kørsler' | 
     --c-action-100: #3D2218;
     --c-smile-fill: #1A1511;
   }
-  /* Brighter score colors in dark mode for readability */
-  [data-theme="dark"] .text-emerald-700 { color: #34D399; }
-  [data-theme="dark"] .bg-emerald-600 { background-color: #34D399; }
-  [data-theme="dark"] .text-amber-700 { color: #FBBF24; }
-  [data-theme="dark"] .bg-amber-500 { background-color: #FBBF24; }
-  [data-theme="dark"] .text-rose-700 { color: #F87171; }
-  [data-theme="dark"] .bg-rose-600 { background-color: #F87171; }
+  /* Score colors — fixed palette across light/dark modes.
+     html prefix bumps specificity above Tailwind Play CDN's runtime-injected
+     utilities (which are plain .class selectors); without this the CDN wins. */
+  html .text-emerald-700 { color: #059669; }
+  html .bg-emerald-600 { background-color: #059669; }
+  html .text-amber-700 { color: #FBBF24; }
+  html .bg-amber-500 { background-color: #FBBF24; }
+  html .text-rose-700 { color: #BE123C; }
+  html .bg-rose-600 { background-color: #BE123C; }
+  html[data-theme="dark"] .text-emerald-700 { color: #34D399; }
+  html[data-theme="dark"] .bg-emerald-600 { background-color: #34D399; }
+  html[data-theme="dark"] .text-amber-700 { color: #FBBF24; }
+  html[data-theme="dark"] .bg-amber-500 { background-color: #FBBF24; }
+  html[data-theme="dark"] .text-rose-700 { color: #F87171; }
+  html[data-theme="dark"] .bg-rose-600 { background-color: #F87171; }
   body {
     font-family: 'Geist', system-ui, sans-serif;
     font-feature-settings: 'ss01';
@@ -254,7 +262,7 @@ function page(title: string, body: string, activeNav: 'oversigt' | 'kørsler' | 
           <span class="lang-da">Mine breve</span><span class="lang-en">My letters</span>
         </a>
         <a href="/forbedringer" class="${activeNav === 'forbedringer' ? 'text-ink-900' : 'text-ink-400 hover:text-ink-900'} transition">
-          <span class="lang-da">Forslag</span><span class="lang-en">Suggestions</span>
+          <span class="lang-da">Anbefalinger</span><span class="lang-en">Recommendations</span>
         </a>
         <a href="/profil" class="${activeNav === 'profil' ? 'text-ink-900' : 'text-ink-400 hover:text-ink-900'} transition">
           <span class="lang-da">Profil</span><span class="lang-en">Profile</span>
@@ -714,7 +722,7 @@ function renderHistorik(): string {
   const featuredSubjectEn = toolLabelEn[featured.tool_name] || featuredSubjectDa;
   const fScore = featured.score;
   const fHasScore = fScore !== null && fScore !== undefined;
-  const fColor = !fHasScore ? '#AE9F91' : fScore >= 85 ? '#059669' : fScore >= 70 ? '#B45309' : '#BE123C';
+  const fColor = !fHasScore ? '#AE9F91' : fScore >= 85 ? '#059669' : fScore >= 70 ? '#FBBF24' : '#BE123C';
   const fColorClass = !fHasScore ? 'text-ink-300' : fScore >= 85 ? 'text-emerald-700' : fScore >= 70 ? 'text-amber-700' : 'text-rose-700';
   const circumference = 2 * Math.PI * 38;
   const offset = fHasScore ? circumference * (1 - fScore / 100) : circumference;
@@ -733,8 +741,10 @@ function renderHistorik(): string {
   ` : '';
 
   const featuredCard = `
-    <a href="/r/${escapeHtml(featured.id)}" class="block mb-16 p-8 rounded-2xl border border-paper-200 bg-paper-100 hover:border-action-600 transition group">
-      <div class="flex items-center gap-2 mb-6 text-[11px] uppercase tracking-[0.15em]">
+    <div class="relative mb-16">
+      <div aria-hidden="true" class="absolute inset-0 translate-x-3 translate-y-6 rotate-2 rounded-2xl border border-paper-200 bg-paper-50 shadow-sm"></div>
+      <a href="/r/${escapeHtml(featured.id)}" class="relative block px-8 py-12 rounded-2xl border border-paper-200 bg-paper-100 shadow-md hover:border-action-600 hover:shadow-lg transition group">
+      <div class="flex items-center gap-2 pb-6 mb-8 border-b border-dashed border-paper-300 text-[11px] uppercase tracking-[0.15em]">
         <span class="w-1.5 h-1.5 rounded-full bg-action-600"></span>
         <span class="text-ink-500">
           <span class="lang-da">Seneste brev · ${escapeHtml(timeAgo(featured.started_at))}</span>
@@ -747,13 +757,13 @@ function renderHistorik(): string {
           <h2 class="font-serif text-3xl text-ink-900 leading-tight mb-2 group-hover:text-action-600 transition">
             <span class="lang-da">${escapeHtml(featuredSubjectDa)}</span><span class="lang-en">${escapeHtml(featuredSubjectEn)}</span>
           </h2>
-          ${featured.summary ? `<p class="text-ink-700 leading-relaxed">${escapeHtml(featured.summary)}</p>` : ''}
           <div class="mt-5 text-sm font-medium text-action-600">
             <span class="lang-da">Læs hele brevet →</span><span class="lang-en">Read the full letter →</span>
           </div>
         </div>
       </div>
     </a>
+    </div>
   `;
 
   // Skip the featured letter in the list below so it doesn't appear twice
@@ -940,7 +950,7 @@ function renderAnalyzeLetter(run: any, report: any): string {
           <div class="space-y-6">
             ${findingItems.map(renderLetterFinding).join('')}
           </div>
-          <a href="/forbedringer" class="inline-block mt-6 text-sm text-accent-600 hover:text-accent-500">Se alle forslag →</a>
+          <a href="/forbedringer" class="inline-block mt-6 text-sm text-accent-600 hover:text-accent-500">Se alle anbefalinger →</a>
         </section>
       ` : ''}
 
@@ -1136,7 +1146,7 @@ function renderCollapsedFeedback(feedback: any): string {
           <span class="text-ink-300 transition-transform group-open:rotate-90">▸</span>
         </summary>
         <div class="px-5 pb-5 pt-2 text-sm text-ink-600 leading-relaxed">
-          Jeg holder styr på hvilke forslag du har taget imod og hvilke der stadig venter. Se detaljerne på <a href="/forbedringer" class="text-accent-600 hover:text-accent-500">Forslag-siden</a>.
+          Jeg holder styr på hvilke anbefalinger du har taget imod og hvilke der stadig venter. Se detaljerne på <a href="/forbedringer" class="text-accent-600 hover:text-accent-500">Anbefalinger-siden</a>.
         </div>
       </details>
     </section>
@@ -1330,20 +1340,78 @@ function renderDomainScoreAndCategories(
 //
 // The `practiceStep` field takes precedence and changes the label. Otherwise
 // whichever of recommendation/fix is non-empty wins.
+// Shared severity chrome — used on both the Anbefalinger page and inside
+// every letter type so findings look identical everywhere.
+const severityRank: Record<string, number> = { critical: 0, recommended: 1, nice_to_have: 2 };
+const severityMeta: Record<string, { color: string; label: string }> = {
+  critical:     { color: 'bg-rose-600', label: 'Kritisk' },
+  recommended:  { color: 'bg-amber-500', label: 'Vigtigt' },
+  nice_to_have: { color: 'bg-ink-300',   label: 'Idé' },
+};
+
+function renderAnbefalingCard(params: {
+  title: string;
+  severity?: string;
+  body?: string;
+  action?: string;
+  actionLabel?: string;
+  dropHref?: string;
+  timestamp?: string;
+  source?: string;
+}): string {
+  const sev = severityMeta[params.severity || 'recommended'] || severityMeta.recommended;
+  const dropForm = params.dropHref ? `
+    <form method="POST" action="${params.dropHref}" class="ml-3 shrink-0">
+      <button type="submit"
+        class="text-xs text-ink-500 hover:text-bad-fg border border-paper-300 hover:border-bad-fg rounded-full px-3 py-1 transition">
+        Drop
+      </button>
+    </form>
+  ` : '';
+  return `
+    <article class="border border-paper-300 rounded-lg px-6 py-5">
+      <div class="flex items-start justify-between gap-3 pb-4 mb-5 border-b border-dashed border-paper-300">
+        <div class="flex items-start gap-3 min-w-0">
+          <span class="w-2.5 h-2.5 rounded-full ${sev.color} mt-2.5 shrink-0" title="${sev.label}"></span>
+          <div class="min-w-0">
+            <h3 class="font-serif text-xl text-ink-900 leading-snug" style="margin:0">${escapeHtml(params.title)}</h3>
+            ${params.source ? `<div class="text-[10px] uppercase tracking-[0.15em] text-ink-400 mt-1">${escapeHtml(params.source)}</div>` : ''}
+          </div>
+        </div>
+        ${dropForm}
+      </div>
+      <div class="space-y-4">
+        ${params.body ? `
+          <div>
+            <div class="text-xs uppercase tracking-wider text-ink-300 mb-1">Hvad er det?</div>
+            <div class="text-sm text-ink-700 leading-relaxed whitespace-pre-line">${escapeHtml(params.body)}</div>
+          </div>
+        ` : ''}
+        ${params.action ? `
+          <div>
+            <div class="text-xs uppercase tracking-wider text-ink-300 mb-1">${params.actionLabel || 'Hvad skal du gøre?'}</div>
+            <div class="text-sm text-ink-700 leading-relaxed whitespace-pre-line">${escapeHtml(params.action)}</div>
+          </div>
+        ` : ''}
+        ${params.timestamp ? `<div class="font-mono text-xs text-ink-300 pt-1">${params.timestamp}</div>` : ''}
+      </div>
+    </article>
+  `;
+}
+
 function renderLetterFinding(f: any): string {
-  const title = f.title || f.category || '';
+  const title = f.title || f.category || f._kind || '';
   const body = f.description || f.summary || f.why || '';
   const practiceStep = f.practiceStep || '';
   const action = practiceStep || f.recommendation || f.fix || '';
-  const actionLabel = practiceStep ? 'Prøv det næste gang: ' : 'Fix: ';
-
-  return `
-    <article class="py-1">
-      <h3>${escapeHtml(title)}</h3>
-      ${body ? `<p>${escapeHtml(body)}</p>` : ''}
-      ${action ? `<p><em class="text-ink-500">${actionLabel}</em>${escapeHtml(action)}</p>` : ''}
-    </article>
-  `;
+  const actionLabel = practiceStep ? 'Prøv det næste gang' : 'Hvad skal du gøre?';
+  return renderAnbefalingCard({
+    title,
+    severity: f.severity,
+    body,
+    action,
+    actionLabel,
+  });
 }
 
 function severityBadge(severity: string): string {
@@ -1360,18 +1428,57 @@ function renderSecurityFindings(findings: any[]): string {
       </section>
     `;
   }
-  const shown = findings.slice(0, 15);
-  const extra = findings.length - shown.length;
 
-  // Feed location/path into the body prose so it doesn't disappear — the
-  // unified renderer intentionally drops mono "where" chips to keep the
-  // letter prose-first.
-  const enriched = shown.map(f => {
-    const where = f.location || f.artifactPath || f.conflictingPath || f.projectName || '';
-    const body = f.description || f.why || '';
-    const merged = where
-      ? (body ? `${body}\n\nSted: ${where}` : `Sted: ${where}`)
-      : body;
+  // Extract a distinguishing subject (table name, file path) so we can group
+  // findings that share a title but affect different artifacts.
+  const backtickOther = (s: string, skip?: string): string | null => {
+    if (!s) return null;
+    const matches = [...s.matchAll(/`([^`]+)`/g)].map(m => m[1]);
+    return matches.find(m => m !== skip) || null;
+  };
+  const subjectOf = (f: any): string => {
+    const fromDetail = backtickOther(f.detail || '', f.projectName);
+    if (fromDetail) return fromDetail;
+    const fromRec = backtickOther(f.recommendation || '', f.projectName);
+    if (fromRec) return fromRec;
+    return f.location || f.artifactPath || f.conflictingPath || f.projectName || '';
+  };
+
+  // Group by title
+  type Group = { first: any; subjects: string[]; count: number };
+  const groups = new Map<string, Group>();
+  for (const f of findings) {
+    const title = f.title || f.category || f._kind || '';
+    if (!title) continue;
+    const subject = subjectOf(f);
+    const g = groups.get(title);
+    if (g) {
+      g.count++;
+      if (subject && !g.subjects.includes(subject)) g.subjects.push(subject);
+    } else {
+      groups.set(title, { first: f, subjects: subject ? [subject] : [], count: 1 });
+    }
+  }
+
+  const groupItems = [...groups.values()];
+  const shown = groupItems.slice(0, 15);
+  const extra = groupItems.length - shown.length;
+
+  // Each rendered item: title (from first), body with count + affected list
+  // (if >1) or plain Sted: <where> (if 1), recommendation once.
+  const enriched = shown.map(g => {
+    const f = g.first;
+    const projectPrefix = f.projectName ? `${f.projectName}: ` : '';
+    let merged: string;
+    if (g.count > 1) {
+      const preview = g.subjects.slice(0, 5).join(', ');
+      const more = g.subjects.length > 5 ? ` +${g.subjects.length - 5} mere` : '';
+      merged = `${g.count} tilfælde${projectPrefix ? ` i ${f.projectName}` : ''}: ${preview}${more}`;
+    } else {
+      const where = g.subjects[0] || f.location || f.artifactPath || f.conflictingPath || f.projectName || '';
+      const body = f.description || f.why || '';
+      merged = where ? (body ? `${body}\n\nSted: ${where}` : `Sted: ${where}`) : body;
+    }
     return { ...f, title: f.title || f.category || f._kind, description: merged };
   });
 
@@ -1381,7 +1488,7 @@ function renderSecurityFindings(findings: any[]): string {
       <div class="space-y-6">
         ${enriched.map(renderLetterFinding).join('')}
       </div>
-      ${extra > 0 ? `<p class="text-sm text-ink-500 mt-4 italic">…og ${extra} fund til. Kør med format="detailed" eller kig i chat-outputtet for alle.</p>` : ''}
+      ${extra > 0 ? `<p class="text-sm text-ink-500 mt-4 italic">…og ${extra} typer til. Kør med format="detailed" for alle.</p>` : ''}
     </section>
   `;
 }
@@ -1474,6 +1581,14 @@ function pickSmallThings(
 // Forbedringer — recommendations, cleaned of jargon
 // ============================================================================
 
+function sourceLabel(toolName?: string | null): string | undefined {
+  if (!toolName) return undefined;
+  if (toolName === 'collab' || toolName === 'analyze') return 'Samarbejde';
+  if (toolName === 'security') return 'Sikkerhed';
+  if (toolName === 'health' || toolName === 'audit') return 'System-sundhed';
+  return undefined;
+}
+
 function renderForbedringer(): string {
   reconcilePendingRecommendations();
   // Observation-type rows (e.g. "66 course-corrections in recent prompts")
@@ -1487,67 +1602,49 @@ function renderForbedringer(): string {
 
   const renderList = (items: any[], canDrop: boolean) => {
     if (items.length === 0) return `<p class="text-ink-500 text-sm">Ingen lige nu.</p>`;
+    const sorted = [...items].sort((a, b) => {
+      const sa = severityRank[a.severity] ?? 1;
+      const sb = severityRank[b.severity] ?? 1;
+      if (sa !== sb) return sa - sb;
+      return (b.given_at || 0) - (a.given_at || 0);
+    });
     return `
-      <ul class="space-y-3">
-        ${items.map(r => {
+      <div class="space-y-3">
+        ${sorted.map(r => {
           const f = friendlyLabel(r.title);
-          // Fall back to the DB text_snippet when we don't have a curated
-          // summary — better than showing just the raw tool name.
-          const summary = f.summary || (r.text_snippet ? r.text_snippet.toString() : '');
-          const dropForm = canDrop ? `
-            <form method="POST" action="/forbedringer/${escapeHtml(r.id)}/dismiss" class="ml-3 shrink-0">
-              <button type="submit"
-                class="text-xs text-ink-500 hover:text-bad-fg border border-paper-300 hover:border-bad-fg rounded-full px-3 py-1 transition">
-                Drop
-              </button>
-            </form>
-          ` : '';
-          return `
-            <li class="border border-paper-300 rounded-lg p-4">
-              <div class="flex items-start gap-3">
-                <div class="text-accent-600 mt-1">•</div>
-                <div class="flex-1">
-                  <div class="font-medium text-ink-900">${escapeHtml(f.title)}</div>
-                  ${summary ? `
-                    <div class="mt-2">
-                      <div class="text-xs uppercase tracking-wider text-ink-300 mb-0.5">Hvad er det?</div>
-                      <div class="text-sm text-ink-700 leading-relaxed">${escapeHtml(summary)}</div>
-                    </div>
-                  ` : ''}
-                  ${f.benefit ? `
-                    <div class="mt-2">
-                      <div class="text-xs uppercase tracking-wider text-ink-300 mb-0.5">Hvad bliver bedre?</div>
-                      <div class="text-sm text-ink-700 leading-relaxed">${escapeHtml(f.benefit)}</div>
-                    </div>
-                  ` : ''}
-                  <div class="font-mono text-xs text-ink-300 mt-3">${timeAgo(r.given_at)}</div>
-                </div>
-                ${dropForm}
-              </div>
-            </li>
-          `;
+          const body = f.summary || (r.text_snippet ? r.text_snippet.toString() : '');
+          const action = r.action_data || '';
+          return renderAnbefalingCard({
+            title: f.title,
+            severity: r.severity,
+            body,
+            action,
+            source: sourceLabel(r.source_tool),
+            dropHref: canDrop ? `/forbedringer/${escapeHtml(r.id)}/dismiss` : undefined,
+            timestamp: timeAgo(r.given_at),
+          });
         }).join('')}
-      </ul>
+      </div>
     `;
   };
 
   if (pending.length === 0 && implemented.length === 0) {
-    return page('Forslag', `
+    return page('Anbefalinger', `
       <section class="py-12 text-center">
         <div class="text-5xl mb-4">💌</div>
-        <h1 class="text-2xl font-semibold mb-3">Ingen forslag endnu</h1>
+        <h1 class="text-2xl font-semibold mb-3">Ingen anbefalinger endnu</h1>
         <p class="text-ink-500 max-w-md mx-auto">
-          Når jeg har lavet min første rapport for dig, samler jeg forslag her — små ting du kan ændre for at få mere ud af din assistent.
+          Når jeg har lavet min første rapport for dig, samler jeg anbefalinger her — ting du kan ændre for at få mere ud af din assistent.
         </p>
       </section>
     `, 'forbedringer');
   }
 
-  return page('Forslag', `
+  return page('Anbefalinger', `
     ${pageDateStrip()}
     <section>
-      <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">Forslag</h1>
-      <p class="font-serif text-2xl text-ink-700 leading-snug max-w-xl">Små ting du kan prøve. Ingen af dem er livsnødvendige — bare idéer.</p>
+      <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">Anbefalinger</h1>
+      <p class="font-serif text-2xl text-ink-700 leading-snug max-w-xl">Ting jeg har lagt mærke til — de vigtigste øverst.</p>
     </section>
 
     <div class="mt-16">
