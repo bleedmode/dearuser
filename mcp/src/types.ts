@@ -253,6 +253,12 @@ export interface AuditFinding {
   evidence: AuditEvidence[];
   recommendation: string;
   why: string;               // why this matters (1-2 sentences)
+  /**
+   * Shared prefix when this finding is part of a same-suite cluster
+   * (e.g. 3+ artifacts named "dearuser-*"). Renderers collapse these
+   * into a single "safe to ignore" notice instead of listing each pair.
+   */
+  suitePrefix?: string;
 }
 
 export interface AuditReport {
