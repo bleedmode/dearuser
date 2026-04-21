@@ -1,0 +1,304 @@
+---
+// Dear User — shared layout.
+// Palette + fonts + light/dark + DA/EN toggles match the local dashboard
+// (mcp/src/dashboard.ts) 1:1 so the public site and the product feel like
+// one continuous surface.
+interface Props {
+  title: string;
+  description?: string;
+  active?: 'home' | 'example' | 'demo';
+}
+const {
+  title,
+  description = 'Understand how you and your AI agent actually work together. Dear User scans your setup and writes you a letter.',
+  active = 'home',
+} = Astro.props;
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{title}</title>
+<meta name="description" content={description} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content="https://dearuser.ai" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23EC5329'/%3E%3Cpath d='M 11 22 Q 20 32 29 22' stroke='%23FDFBF6' stroke-width='2.5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style is:global>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  /* Light theme (default) — cream paper */
+  :root {
+    --c-paper-50:   #FDFBF6;
+    --c-paper-100:  #F8F2E7;
+    --c-paper-200:  #EFE4CF;
+    --c-paper-300:  #D8C8A9;
+    --c-ink-900:    #1F1A14;
+    --c-ink-700:    #3E352A;
+    --c-ink-500:    #72655B;
+    --c-ink-400:    #A69989;
+    --c-ink-300:    #AE9F91;
+    --c-accent-600: #C3563B;
+    --c-accent-500: #D77356;
+    --c-accent-100: #F6E3D7;
+    --c-action-700: #C93F1B;
+    --c-action-600: #EC5329;
+    --c-action-500: #F06B43;
+    --c-action-100: #FCE5DB;
+    --c-smile-fill: #FDFBF6;
+    --c-good:       #059669;
+    --c-warn:       #FBBF24;
+    --c-bad:        #BE123C;
+  }
+  /* Dark theme — warm espresso, matches dashboard */
+  html[data-theme="dark"] {
+    --c-paper-50:   #1A1511;
+    --c-paper-100:  #261F18;
+    --c-paper-200:  #3A2F22;
+    --c-paper-300:  #52422F;
+    --c-ink-900:    #FFFAED;
+    --c-ink-700:    #E5DBC3;
+    --c-ink-500:    #A89A85;
+    --c-ink-400:    #7E7162;
+    --c-ink-300:    #5F5546;
+    --c-accent-600: #E8725A;
+    --c-accent-500: #F0896F;
+    --c-accent-100: #3A241C;
+    --c-action-700: #FF8560;
+    --c-action-600: #FF7048;
+    --c-action-500: #FF8F70;
+    --c-action-100: #3D2218;
+    --c-smile-fill: #1A1511;
+    --c-good:       #34D399;
+    --c-warn:       #FBBF24;
+    --c-bad:        #F87171;
+  }
+
+  html { scroll-behavior: smooth; background: var(--c-paper-50); }
+  body {
+    font-family: 'Geist', system-ui, -apple-system, sans-serif;
+    font-feature-settings: 'ss01';
+    background: var(--c-paper-50);
+    color: var(--c-ink-900);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    transition: background-color 0.2s, color 0.2s;
+  }
+  a { color: inherit; }
+
+  /* Language toggle — hide inactive variant */
+  html[data-lang="da"] .lang-en { display: none; }
+  html[data-lang="en"] .lang-da { display: none; }
+  html:not([data-lang]) .lang-da { display: none; }
+
+  /* Shared primitives */
+  .du-container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+  .du-narrow { max-width: 720px; margin: 0 auto; padding: 0 24px; }
+
+  .du-header {
+    background: color-mix(in srgb, var(--c-paper-50) 90%, transparent);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    border-bottom: 1px solid var(--c-paper-200);
+  }
+  .du-header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+  .du-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--c-ink-900);
+  }
+  .du-logo-mark {
+    width: 26px; height: 26px;
+    flex-shrink: 0;
+  }
+  .du-logo-name {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-size: 20px;
+    letter-spacing: -0.01em;
+    font-weight: 500;
+  }
+  .du-nav {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  .du-nav a {
+    color: var(--c-ink-400);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .du-nav a:hover, .du-nav a.active { color: var(--c-ink-900); }
+  .du-nav-sep { width: 1px; height: 16px; background: var(--c-paper-200); }
+  .du-nav-btn {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    color: var(--c-ink-400);
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.15s;
+  }
+  .du-nav-btn:hover { color: var(--c-ink-900); }
+
+  .du-footer {
+    border-top: 1px solid var(--c-paper-200);
+    padding: 40px 0 64px;
+    color: var(--c-ink-500);
+    font-size: 13px;
+  }
+  .du-footer-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .du-footer a {
+    color: var(--c-ink-500);
+    text-decoration: none;
+    border-bottom: 1px solid var(--c-paper-200);
+    padding-bottom: 1px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .du-footer a:hover { color: var(--c-ink-900); border-color: var(--c-ink-900); }
+  .du-footer-links { display: flex; gap: 24px; flex-wrap: wrap; }
+
+  /* Hide mobile nav labels at narrow widths, keep toggles visible */
+  @media (max-width: 640px) {
+    .du-nav a { display: none; }
+    .du-nav { gap: 14px; }
+  }
+</style>
+</head>
+<body>
+  <header class="du-header">
+    <div class="du-header-inner">
+      <a href="/" class="du-logo" aria-label="Dear User home">
+        <svg class="du-logo-mark" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="20" cy="20" r="20" fill="#EC5329" />
+          <path d="M 11 22 Q 20 32 29 22" stroke="var(--c-smile-fill)" stroke-width="2.5" stroke-linecap="round" fill="none" />
+        </svg>
+        <span class="du-logo-name">Dear User</span>
+      </a>
+      <nav class="du-nav">
+        <a href="/#features" class={active === 'home' ? 'active' : ''}>
+          <span class="lang-da">Funktioner</span><span class="lang-en">Features</span>
+        </a>
+        <a href="/example" class={active === 'example' ? 'active' : ''}>
+          <span class="lang-da">Eksempel</span><span class="lang-en">Example</span>
+        </a>
+        <a href="/demo" class={active === 'demo' ? 'active' : ''}>
+          <span class="lang-da">Samarbejdet i tal</span><span class="lang-en">Wrapped</span>
+        </a>
+        <a href="https://github.com/bleedmode/dearuser" target="_blank" rel="noopener">GitHub</a>
+        <span class="du-nav-sep" aria-hidden="true"></span>
+        <button id="du-lang-toggle" class="du-nav-btn" aria-label="Switch language">
+          <span id="du-lang-label">EN</span>
+        </button>
+        <button id="du-theme-toggle" class="du-nav-btn" aria-label="Toggle theme">
+          <svg id="du-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          <svg id="du-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <slot />
+
+  <footer class="du-footer">
+    <div class="du-container du-footer-inner">
+      <div>
+        <span class="lang-da">© 2026 Dear User · Lavet af <a href="https://poised.dk">Poised Venture Studio</a></span>
+        <span class="lang-en">© 2026 Dear User · Made by <a href="https://poised.dk">Poised Venture Studio</a></span>
+      </div>
+      <div class="du-footer-links">
+        <a href="https://github.com/bleedmode/dearuser" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/bleedmode/dearuser/tree/main/docs" target="_blank" rel="noopener">
+          <span class="lang-da">Dokumentation</span><span class="lang-en">Docs</span>
+        </a>
+        <a href="/example">
+          <span class="lang-da">Eksempel-brev</span><span class="lang-en">Example letter</span>
+        </a>
+      </div>
+    </div>
+  </footer>
+
+  <script is:inline>
+    (function () {
+      var html = document.documentElement;
+      var savedTheme = localStorage.getItem('dearuser-theme');
+      var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var theme = savedTheme || (prefersDark ? 'dark' : 'light');
+      if (theme === 'dark') html.setAttribute('data-theme', 'dark');
+
+      var savedLang = localStorage.getItem('dearuser-lang');
+      var systemDa = (navigator.language || '').toLowerCase().indexOf('da') === 0;
+      var lang = savedLang || (systemDa ? 'da' : 'en');
+      html.setAttribute('data-lang', lang);
+      html.setAttribute('lang', lang);
+
+      function syncIcons() {
+        var isDark = html.getAttribute('data-theme') === 'dark';
+        var sun = document.getElementById('du-sun');
+        var moon = document.getElementById('du-moon');
+        if (sun) sun.style.display = isDark ? 'none' : 'block';
+        if (moon) moon.style.display = isDark ? 'block' : 'none';
+      }
+      function syncLang() {
+        var label = document.getElementById('du-lang-label');
+        if (label) label.textContent = html.getAttribute('data-lang') === 'da' ? 'EN' : 'DA';
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        syncIcons();
+        syncLang();
+
+        var t = document.getElementById('du-theme-toggle');
+        if (t) t.addEventListener('click', function () {
+          var isDark = html.getAttribute('data-theme') === 'dark';
+          if (isDark) { html.removeAttribute('data-theme'); localStorage.setItem('dearuser-theme', 'light'); }
+          else { html.setAttribute('data-theme', 'dark'); localStorage.setItem('dearuser-theme', 'dark'); }
+          syncIcons();
+        });
+
+        var l = document.getElementById('du-lang-toggle');
+        if (l) l.addEventListener('click', function () {
+          var current = html.getAttribute('data-lang');
+          var next = current === 'da' ? 'en' : 'da';
+          html.setAttribute('data-lang', next);
+          html.setAttribute('lang', next);
+          localStorage.setItem('dearuser-lang', next);
+          syncLang();
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
