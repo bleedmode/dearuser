@@ -1325,7 +1325,6 @@ function renderDomainScoreAndCategories(
 function renderLetterFinding(f: any): string {
   const title = f.title || f.category || '';
   const body = f.description || f.summary || f.why || '';
-  const example = f.example || f.howItLooks || '';
   const practiceStep = f.practiceStep || '';
   const action = practiceStep || f.recommendation || f.fix || '';
   const actionLabel = practiceStep ? 'Prøv det næste gang: ' : 'Fix: ';
@@ -1334,15 +1333,6 @@ function renderLetterFinding(f: any): string {
     <article class="py-1">
       <h3>${escapeHtml(title)}</h3>
       ${body ? `<p>${escapeHtml(body)}</p>` : ''}
-      ${example ? `
-        <details class="group">
-          <summary class="cursor-pointer text-sm text-accent-600 hover:text-accent-500 list-none inline-flex items-center gap-1.5">
-            <span class="transition-transform group-open:rotate-90">▸</span>
-            <span>Et eksempel på hvordan det ser ud</span>
-          </summary>
-          <div class="mt-2 text-sm text-ink-700 italic whitespace-pre-wrap leading-relaxed">${escapeHtml(example)}</div>
-        </details>
-      ` : ''}
       ${action ? `<p><em class="text-ink-500">${actionLabel}</em>${escapeHtml(action)}</p>` : ''}
     </article>
   `;
