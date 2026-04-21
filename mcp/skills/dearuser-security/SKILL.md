@@ -13,7 +13,7 @@ Run a security audit using the Dear User MCP server.
 1. Try calling `mcp__dearuser__security` with default parameters (no arguments needed — global scope).
 2. **If the tool is not available** (first turn of session — MCP tools load lazily), use this Bash fallback:
    ```
-   node /Users/karlomacmini/clawd/dearuser/mcp/run-tool.mjs security 2>/dev/null
+   npx -y -p dearuser-mcp dearuser-run security 2>/dev/null
    ```
 3. Output the ENTIRE returned report as your response text — do NOT summarize, shorten, or add commentary.
 

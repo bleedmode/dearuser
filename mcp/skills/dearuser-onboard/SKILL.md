@@ -13,11 +13,11 @@ Run the guided onboarding flow using the Dear User MCP server.
 1. Try calling `mcp__dearuser__onboard` with no arguments to start.
 2. **If the tool is not available** (first turn of session — MCP tools load lazily), use this Bash fallback:
    ```
-   node /Users/karlomacmini/clawd/dearuser/mcp/run-tool.mjs onboard 2>/dev/null
+   npx -y -p dearuser-mcp dearuser-run onboard 2>/dev/null
    ```
    For subsequent steps:
    ```
-   node /Users/karlomacmini/clawd/dearuser/mcp/run-tool.mjs onboard '{"step":"<nextStep>","answer":"<user answer>","state":"<state>"}' 2>/dev/null
+   npx -y -p dearuser-mcp dearuser-run onboard '{"step":"<nextStep>","answer":"<user answer>","state":"<state>"}' 2>/dev/null
    ```
 3. Output the returned text EXACTLY as your response — do NOT summarize, rephrase, or wrap it.
 4. Collect the user's answer.

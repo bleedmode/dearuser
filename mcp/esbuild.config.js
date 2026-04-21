@@ -28,4 +28,6 @@ const shared = {
 await Promise.all([
   build({ ...shared, entryPoints: ['src/index.ts'], outfile: 'dist/index.js' }),
   build({ ...shared, entryPoints: ['src/dashboard-standalone.ts'], outfile: 'dist/dashboard-standalone.js' }),
+  build({ ...shared, entryPoints: ['src/run-tool.ts'], outfile: 'dist/run-tool.js' }),
+  build({ ...shared, entryPoints: ['src/install-skills.ts'], outfile: 'dist/install-skills.js' }),
 ]);
