@@ -150,11 +150,18 @@ export function getLatestScoresByTool(): {
   systemHealth: any | null;
 } {
   const db = getDb();
+  // Filter rows where details is NULL/empty so the tile click-through never
+  // lands on a ghost letter (row was inserted but the render/persist path
+  // aborted before writing the body). Same filter as getRecentRuns on the
+  // landing page — otherwise the user taps "Samarbejde" and sees a greeting
+  // + score line with no content.
   const latest = (tools: string[]): any | null => {
     const placeholders = tools.map(() => '?').join(', ');
     return db.prepare(`
       SELECT * FROM du_agent_runs
-      WHERE tool_name IN (${placeholders}) AND score IS NOT NULL
+      WHERE tool_name IN (${placeholders})
+        AND score IS NOT NULL
+        AND details IS NOT NULL AND details != ''
       ORDER BY started_at DESC LIMIT 1
     `).get(...tools) || null;
   };
@@ -191,6 +198,7 @@ export function getRunsByTool(tool: 'collab' | 'health' | 'security', limit = 14
   return db.prepare(`
     SELECT * FROM du_agent_runs
     WHERE tool_name IN (${placeholders}) AND status = 'success'
+      AND details IS NOT NULL AND details != ''
     ORDER BY started_at DESC LIMIT ?
   `).all(...tools, limit);
 }
@@ -304,10 +312,15 @@ export function getRecommendationById(id: string): any | undefined {
 
 export function getRecommendations(status?: string): any[] {
   const db = getDb();
+  const base = `
+    SELECT r.*, a.tool_name AS source_tool
+    FROM du_recommendations r
+    LEFT JOIN du_agent_runs a ON a.id = r.agent_run_id
+  `;
   if (status) {
-    return db.prepare('SELECT * FROM du_recommendations WHERE status = ? ORDER BY given_at DESC').all(status);
+    return db.prepare(`${base} WHERE r.status = ? ORDER BY r.given_at DESC`).all(status);
   }
-  return db.prepare('SELECT * FROM du_recommendations ORDER BY given_at DESC').all();
+  return db.prepare(`${base} ORDER BY r.given_at DESC`).all();
 }
 
 export function updateRecommendationStatus(id: string, status: string, scoreAtCheck?: number): void {
