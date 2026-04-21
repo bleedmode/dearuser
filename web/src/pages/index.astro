@@ -374,8 +374,8 @@ import Layout from '../layouts/Layout.astro';
         <span class="lang-en">Reads how you two work.</span>
       </h3>
       <p>
-        <span class="lang-da">Scanner CLAUDE.md, memory, hooks, skills, sessioner og lokal git-aktivitet. Returnerer en persona, en samarbejds-score, friktionsmønstre og proaktive anbefalinger baseret på hvad I faktisk gør — for eksempel <em>"wrap det CLI-værktøj du bruger 12 steder som en MCP server"</em>.</span>
-        <span class="lang-en">Reads your CLAUDE.md, memory, hooks, skills, sessions and local git activity. Returns a persona, a collaboration score, friction patterns and proactive recommendations based on what you actually do — for example <em>"wrap this CLI you use in 12 places as an MCP server"</em>.</span>
+        <span class="lang-da">Scanner CLAUDE.md, memory, hooks, skills, sessioner og lokal git-aktivitet. Returnerer en persona, en samarbejds-score, friktionsmønstre og proaktive anbefalinger baseret på hvad I faktisk gør — for eksempel <em>"wrap det CLI-værktøj du kalder fra mange skills som en MCP server"</em>.</span>
+        <span class="lang-en">Reads your CLAUDE.md, memory, hooks, skills, sessions and local git activity. Returns a persona, a collaboration score, friction patterns and proactive recommendations based on what you actually do — for example <em>"wrap the CLI you call from many skills as an MCP server"</em>.</span>
       </p>
       <span class="feature-cmd"><span class="fn">mcp__dearuser__collab</span></span>
     </div>
@@ -460,8 +460,8 @@ import Layout from '../layouts/Layout.astro';
 <!-- Pull quote from an example letter -------------------------------- -->
 <section class="pullquote">
   <blockquote>
-    <span class="lang-da">"Jeg har bemærket at du kalder <em>pvs.sh</em> 14 steder på tværs af dine skills. Skal vi wrappe den som en MCP-server? Det ville fjerne 200+ linjer repetition."</span>
-    <span class="lang-en">"I noticed you call <em>pvs.sh</em> in 14 places across your skills. Should we wrap it as an MCP server? It would remove 200+ lines of repetition."</span>
+    <span class="lang-da">"Jeg har bemærket at du kalder den samme CLI på tværs af flere skills, hver med sin egen måde at parse output på. Skal vi wrappe den som en MCP-server? Det ville fjerne en masse stille fragilitet."</span>
+    <span class="lang-en">"I noticed you call the same CLI across several skills, each parsing its output differently. Should we wrap it as an MCP server? It would remove a lot of silent fragility."</span>
   </blockquote>
   <cite>
     <span class="lang-da">Uddrag fra en collab-rapport</span>
