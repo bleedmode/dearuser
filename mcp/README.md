@@ -150,11 +150,25 @@ Full report in under 10 seconds: persona, score, friction patterns, and specific
 
 | Tool | What it does | Try it |
 |------|-------------|--------|
-| **analyze** | Full collaboration report — persona, score, friction, recommendations | *"How good is my Claude setup?"* |
-| **audit** | Structural coherence — orphan jobs, overlapping skills, dead hooks | *"Are any of my scheduled tasks broken?"* |
+| **collab** | Full collaboration report — persona, score, friction, recommendations | *"How good is my Claude setup?"* |
+| **health** | Structural coherence — orphan jobs, overlapping skills, dead hooks | *"Are any of my scheduled tasks broken?"* |
 | **security** | Leaked secrets, prompt-injection surfaces, rule conflicts | *"Check my config for leaked API keys"* |
 | **onboard** | 7-step guided setup for new users | *"Help me create a CLAUDE.md"* |
 | **wrapped** | Shareable Spotify Wrapped-style collaboration stats | *"Give me my Dear User Wrapped"* |
+| **history** | Show existing reports (trend, regression) without re-scanning | *"What did last night's scan say?"* |
+| **implement_recommendation** | Apply a pending recommendation (CLAUDE.md append, settings merge, or manual) | *"Yes, add that rule"* |
+| **dismiss_recommendation** | Mark a recommendation as irrelevant | *"Skip that one"* |
+| **help** | Capabilities menu | *"What can Dear User do?"* |
+
+## Slash commands (skills)
+
+Dear User ships with 7 slash commands. Install them to `~/.claude/skills/` with:
+
+```bash
+npx dearuser-mcp dearuser-install-skills
+```
+
+Then restart Claude Code. Available commands: `/dearuser-collab`, `/dearuser-health`, `/dearuser-security`, `/dearuser-onboard`, `/dearuser-wrapped`, `/dearuser-history`, `/dearuser-help`.
 
 ## How it works
 
@@ -172,7 +186,7 @@ Persona detection --> Scoring --> Gap analysis --> Recommendations
 
 **7 scoring categories**: Role Clarity, Communication, Autonomy Balance, Quality Standards, Memory Health, System Maturity, Coverage.
 
-**Feedback loop**: Dear User remembers its recommendations. Next time you run analyze, it checks which ones you implemented and shows the score delta.
+**Feedback loop**: Dear User remembers its recommendations. Next time you run collab, it checks which ones you implemented and shows the score delta.
 
 ## Session-start integration
 
@@ -180,7 +194,7 @@ Dear User is most valuable when run at the start of each coding session. Add thi
 
 ```markdown
 ## Session start protocol
-1. Run dearuser analyze (scope: project)
+1. Run dearuser collab (scope: project)
 2. Review any critical recommendations
 3. Check feedback loop for pending items
 ```

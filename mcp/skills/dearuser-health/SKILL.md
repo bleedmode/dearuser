@@ -13,11 +13,11 @@ Kør et strukturelt sundhedstjek med Dear User MCP serveren. Giver en 0-100 scor
 1. Prøv at kalde `mcp__dearuser__health` med default parametre (ingen argumenter — global scope, alle fund).
 2. **Hvis tool'et ikke er tilgængeligt** (første turn i session — MCP tools loader lazy), brug Bash-fallback:
    ```
-   node /Users/karlomacmini/clawd/dearuser/mcp/run-tool.mjs health 2>/dev/null
+   npx -y -p dearuser-mcp dearuser-run health 2>/dev/null
    ```
 3. Output HELE rapporten som dit svar — summér ikke, forkort ikke, tilføj ikke kommentarer i rapport-delen.
 
-Hvis brugeren spørger om en specifik finding-type, send `focus` med relevant værdi (orphan, overlap, closure, substrate, mcp_refs, backup, stale_schedule). Bash: `node /Users/karlomacmini/clawd/dearuser/mcp/run-tool.mjs health '{"focus":"orphan"}' 2>/dev/null`
+Hvis brugeren spørger om en specifik finding-type, send `focus` med relevant værdi (orphan, overlap, closure, substrate, mcp_refs, backup, stale_schedule). Bash: `npx -y -p dearuser-mcp dearuser-run health '{"focus":"orphan"}' 2>/dev/null`
 
 ## Trin 2: Agent-triage (efter verbatim-rapport)
 
@@ -32,7 +32,7 @@ Kald `mcp__pvs__pvs_task_list` med `tag: "auto-system-sundhed"`. For hvert **cri
 ### B. Mekanisk diagnose
 For hvert `stale_schedule` finding:
 - Kald `mcp__scheduled-tasks__list_scheduled_tasks`.
-- Hvis task ikke findes i scheduler → "orphaned state, ryd op via /Users/karlomacmini/.claude/scheduled-tasks/&lt;name&gt;/".
+- Hvis task ikke findes i scheduler → "orphaned state, ryd op via ~/.claude/scheduled-tasks/&lt;name&gt;/".
 - Hvis task findes men har samme `cronExpression` som en anden task → "cron-konflikt med &lt;X&gt;, sandsynligvis superseded".
 - Hvis task er manual-only og flagged stale → "false positive, task er manuel — overvej dismiss".
 
