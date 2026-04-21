@@ -1503,7 +1503,7 @@ function renderForbedringer(): string {
             </form>
           ` : '';
           return `
-            <li class="bg-paper-100 border border-paper-200 rounded-lg p-4">
+            <li class="border border-paper-300 rounded-lg p-4">
               <div class="flex items-start gap-3">
                 <div class="text-accent-600 mt-1">•</div>
                 <div class="flex-1">
