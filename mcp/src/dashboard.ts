@@ -588,22 +588,19 @@ function renderLanding(): string {
  * footers.
  */
 function letterSignature(): string {
-  const agent = escapeHtml(getAgentName());
   const user = getUserName();
   const addressedDa = user ? `, ${escapeHtml(user)}` : '';
   const addressedEn = user ? `, ${escapeHtml(user)}` : '';
   return `
-    <footer class="mt-24 pt-10 border-t border-paper-200">
-      <p class="font-serif text-lg text-ink-700 leading-relaxed max-w-xl mb-6">
+    <footer class="mt-24">
+      <p class="font-serif text-lg text-ink-700 leading-relaxed max-w-xl mb-8">
         <span class="lang-da">Tak fordi jeg får lov at holde øje med dit setup${addressedDa}. Det her er mellem os to — ingen data rejser ud af din computer.</span>
         <span class="lang-en">Thanks for letting me keep an eye on your setup${addressedEn}. This is just between us — no data leaves your computer.</span>
       </p>
-      <p class="font-serif text-base text-ink-500 mb-0.5">
-        <span class="lang-da">De bedste hilsner,</span><span class="lang-en">All the best,</span>
+      <p class="text-ink-700 italic mb-3">
+        <span class="lang-da">Med venlig hilsen,</span><span class="lang-en">Yours,</span>
       </p>
-      <p class="font-serif italic text-base text-ink-700">
-        <span class="lang-da">Din agent ${agent}</span><span class="lang-en">Your agent ${agent}</span>
-      </p>
+      <p class="text-ink-900">${signature()}</p>
     </footer>
   `;
 }
