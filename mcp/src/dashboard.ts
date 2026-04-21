@@ -1451,7 +1451,7 @@ function renderSystemHealthFindings(findings: any[]): string {
           <span class="inline-flex items-center gap-1.5 text-xs font-medium text-ink-400"><span class="w-1.5 h-1.5 rounded-full bg-ink-300"></span>Forventet</span>
           <span class="text-xs uppercase tracking-wider text-ink-400">Same suite</span>
         </div>
-        <h3 class="font-medium text-ink-700 mt-1" style="margin: 0.25rem 0">${escapeHtml(names.length)} "${escapeHtml(prefix)}" værktøjer deler vokabular (${cluster.length} par)</h3>
+        <h3 class="font-medium text-ink-700 mt-1" style="margin: 0.25rem 0">${names.length} "${escapeHtml(prefix)}" værktøjer deler vokabular (${cluster.length} par)</h3>
         <p class="text-sm text-ink-500 mt-2 leading-relaxed" style="margin-top: 0.5rem">Samme produkt-familie — forventet overlap. Tælles ikke med i scoren.</p>
         <p class="text-xs text-ink-400 mt-2 font-mono">${names.map(n => escapeHtml(n)).join(' · ')}</p>
       </article>
