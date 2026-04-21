@@ -91,23 +91,21 @@ export function runAudit(options: AuditOptions = {}): AuditReport {
   const graph = buildGraph(artifacts);
 
   // 3. Detect
-  //    Always run ALL detectors so the score reflects total system health.
-  //    A `focus` option narrows only what's SHOWN to the user, not what's
-  //    measured — otherwise a focused run that finds nothing reports 100/100
-  //    while the other categories still have findings the user didn't see.
-  const allFindings = runDetectors(graph, { ...options, focus: 'all' });
-  const findings = options.focus && options.focus !== 'all'
-    ? runDetectors(graph, options)
-    : allFindings;
+  //    Always run ALL detectors regardless of `focus`. The persisted report
+  //    and dashboard render the complete picture; `focus` only narrows what
+  //    the agent's text output highlights (applied later in formatAuditReport).
+  //    If focus filtered the stored findings, the dashboard would render the
+  //    letter with "no findings" while the score still reflected the full set
+  //    — an impossible contradiction for a user refreshing the browser.
+  const findings = runDetectors(graph, { ...options, focus: 'all' });
 
   // 4. Feedback
   const feedback = reconcileFindings(findings);
 
   // 5. Score — turn findings into a 0-100 number with category breakdown.
   //    Same shape as collaboration and security scores so the dashboard can
-  //    render all three under one visual language. Score always uses the
-  //    full finding set, never the focus-filtered one.
-  const { categories, systemHealthScore } = scoreSystemHealth(allFindings);
+  //    render all three under one visual language.
+  const { categories, systemHealthScore } = scoreSystemHealth(findings);
 
   // 6. Ceiling — fixing every finding takes each category to 100.
   const byCategory: ScoreCeiling['byCategory'] = {};
@@ -347,9 +345,28 @@ function generateAssessment(
 // Report formatter
 // ============================================================================
 
+/**
+ * Map a `focus` option to the set of finding types it should surface in text
+ * output. runAudit always returns all findings for persistence; this filter
+ * only narrows what the agent sees in the chat response.
+ */
+const FOCUS_TO_TYPES: Record<string, AuditFindingType[]> = {
+  orphan: ['orphan_job'],
+  overlap: ['overlap'],
+  closure: ['missing_closure'],
+  substrate: ['substrate_mismatch'],
+  mcp_refs: ['unregistered_mcp_tool'],
+  backup: ['unbacked_up_substrate'],
+  stale_schedule: ['stale_schedule'],
+};
+
 /** Format an AuditReport as the markdown string we return to the MCP client. */
-export function formatAuditReport(report: AuditReport): string {
-  const clusters = clusterOverlapFindings(report.findings);
+export function formatAuditReport(report: AuditReport, focus?: string): string {
+  const focusTypes = focus && focus !== 'all' ? FOCUS_TO_TYPES[focus] : undefined;
+  const textFindings = focusTypes
+    ? report.findings.filter(f => focusTypes.includes(f.type))
+    : report.findings;
+  const clusters = clusterOverlapFindings(textFindings);
   const largeClusters = clusters.filter(c => c.findings.length >= 3);
   const largeClustedFindingIds = new Set(
     largeClusters.flatMap(c => c.findings.map(f => f.id)),
@@ -394,13 +411,24 @@ export function formatAuditReport(report: AuditReport): string {
     for (const sig of cat.signalsMissing.slice(0, 2)) lines.push(`  - → ${sig}`);
   }
 
+  const textCritical = textFindings.filter(f => f.severity === 'critical').length;
+  const textRecommended = textFindings.filter(f => f.severity === 'recommended').length;
+  const textNiceToHave = textFindings.filter(f => f.severity === 'nice_to_have').length;
+
   lines.push(
     ``,
-    `## Findings`,
-    `- 🔴 **${report.summary.critical}** critical`,
-    `- 🟡 **${report.summary.recommended}** recommended`,
-    `- 🟢 **${report.summary.niceToHave}** nice-to-have`,
+    focusTypes ? `## Findings (focus: ${focus})` : `## Findings`,
+    `- 🔴 **${textCritical}** critical`,
+    `- 🟡 **${textRecommended}** recommended`,
+    `- 🟢 **${textNiceToHave}** nice-to-have`,
   );
+
+  if (focusTypes) {
+    const hiddenTotal = report.findings.length - textFindings.length;
+    if (hiddenTotal > 0) {
+      lines.push(`- _(${hiddenTotal} more in other categories — omit \`focus\` to see all)_`);
+    }
+  }
 
   const byType = report.summary.byType;
   const typeLabels: Array<[AuditFindingType, string]> = [
@@ -469,7 +497,7 @@ export function formatAuditReport(report: AuditReport): string {
   ];
 
   for (const [sev, header] of severityHeaders) {
-    const group = report.findings.filter(
+    const group = textFindings.filter(
       f => f.severity === sev && !largeClustedFindingIds.has(f.id),
     );
     if (group.length === 0) continue;

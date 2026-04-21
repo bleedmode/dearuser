@@ -11,6 +11,7 @@ import type { AnalyzeFormat } from './tools/analyze.js';
 import { runAudit, formatAuditReport } from './tools/audit.js';
 import { runOnboard, formatOnboardResult } from './tools/onboard.js';
 import { runSecurity, formatSecurityReport } from './tools/security.js';
+import { runHistory } from './tools/history.js';
 import { insertAgentRun, updateRunDetails, updateRunJson, getRecommendationById, updateRecommendationStatus, getRecommendations } from './engine/db.js';
 import { reconcilePendingRecommendations } from './engine/reconcile-recommendations.js';
 import { implementClaudeMdAppend, implementSettingsMerge, prepareShellExec, prepareManual } from './engine/implementer.js';
@@ -268,7 +269,7 @@ Example prompts that should trigger this tool:
         scope: scope || 'global',
         focus: focus || 'all',
       });
-      const text = formatAuditReport(report);
+      const text = formatAuditReport(report, focus || 'all');
       return { content: [{ type: 'text', text: attachDashboardLink(text, (report as any)._agentRunId, report) }] };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -277,6 +278,54 @@ Example prompts that should trigger this tool:
         : ' Try running with focus="orphan" to narrow the scan.';
       return {
         content: [{ type: 'text', text: `Audit failed: ${msg}${hint}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+// Tool: history — retrieve past reports without re-running
+server.tool(
+  'history',
+  `Retrieve past Dear User reports without re-running the scan. Use this when the user wants to see their latest score, how scores have changed over time, or what got better/worse since the last run. Rapporter er billige (~30 sek) — brug history når brugeren spørger til *eksisterende* resultater, ikke når de vil have en frisk scan.
+
+Three formats:
+- **"summary"** (default): latest stored report per scope (collab / health / security). Fast, no re-scan. Use this when the user says "hvad sagde nattens scan?" or "show me the latest".
+- **"trend"**: score over time as a sparkline per scope. Use this for "er vi blevet bedre?" / "vis trend" / "hvordan går det over tid".
+- **"regression"**: delta vs prior run — score change + new/resolved findings by ID. Use this for "hvad er nyt?" / "hvad gik galt?" / "hvad ændrede sig".
+
+Scope narrows to one area: "collab", "health", "security", or "all" (default).
+
+Pass \`run_id\` to fetch a specific historical report (the run ID is printed after every report).
+
+What this tool does NOT do:
+- Does NOT run any new scans — pure read of stored reports
+- Does NOT delete or modify stored history
+
+IMPORTANT — Presenting results:
+The user cannot see raw tool results. You MUST output the full report as your response text — do NOT summarize or add commentary. Output is pre-formatted markdown.
+
+Example prompts that should trigger this tool:
+- "Vis seneste rapport"
+- "Show me the latest collab score"
+- "Er sikkerheden blevet bedre?"
+- "Hvad fandt nattens scan?"
+- "What changed since last run?"
+- "Vis trend"`,
+  {
+    scope: z.enum(['collab', 'health', 'security', 'all']).optional().describe('Which tool to fetch history for. Default "all" returns latest from each of collab, health, security.'),
+    format: z.enum(['summary', 'trend', 'regression']).optional().describe('"summary" (default) = latest run per scope. "trend" = score sparkline over time. "regression" = delta vs prior run.'),
+    limit: z.number().int().positive().max(90).optional().describe('For trend: number of runs to include (default 14, max 90). Ignored for summary/regression.'),
+    run_id: z.string().optional().describe('Fetch a specific run by ID (shown at the bottom of every report). When set, other params are ignored.'),
+  },
+  async ({ scope, format, limit, run_id }) => {
+    try {
+      const text = runHistory({ scope, format, limit, runId: run_id });
+      return { content: [{ type: 'text', text }] };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: 'text', text: `History failed: ${msg}. Try omitting all parameters for the default summary view.` }],
         isError: true,
       };
     }
@@ -625,37 +674,41 @@ When presenting: return the text verbatim. Do NOT summarize or re-wrap — the f
       ``,
       `Dear User analyzes how you and your AI agent work together. Everything runs locally — no data leaves your machine.`,
       ``,
-      `## Five tools`,
+      `## Tools`,
       ``,
-      `**1. \`analyze\`** — Full collaboration report`,
+      `**\`collab\`** — Collaboration report`,
       `   Scans your CLAUDE.md, memory, hooks, skills, sessions. Detects your persona, scores collaboration,`,
       `   surfaces friction, and recommends concrete fixes.`,
       `   → *"Analyze my collaboration with Claude"*`,
       ``,
-      `**2. \`audit\`** — System coherence check`,
+      `**\`health\`** — System coherence check`,
       `   Finds structural problems: orphan scheduled jobs, dead hooks, unregistered MCP references,`,
-      `   unbacked-up substrate. Complement to analyze (architecture vs. language).`,
-      `   → *"Audit my Claude setup for structural issues"*`,
+      `   unbacked-up substrate. Complement to collab (architecture vs. language).`,
+      `   → *"Check my system's health"*`,
       ``,
-      `**3. \`security\`** — Secret & injection scan`,
+      `**\`security\`** — Secret & injection scan`,
       `   Looks for leaked API keys/tokens in CLAUDE.md, memory, skills, settings.`,
       `   Finds prompt-injection surfaces and unsafe hooks.`,
       `   → *"Scan my Claude setup for security issues"*`,
       ``,
-      `**4. \`onboard\`** — Guided 7-step setup (for new users)`,
+      `**\`history\`** — Past reports without re-running`,
+      `   Latest summary per area, score trend over time, or regression (what changed since last run).`,
+      `   → *"Vis seneste rapport"* · *"Er sikkerheden blevet bedre?"* · *"What changed?"*`,
+      ``,
+      `**\`onboard\`** — Guided setup (for new users)`,
       `   Conversational walkthrough: role → goals → stack → pains → substrate → plan.`,
       `   Outputs a tailored CLAUDE.md + skill/hook recommendations.`,
       `   → *"Onboard me to Dear User"*`,
       ``,
-      `**5. \`wrapped\`** — Shareable stats (Spotify Wrapped style)`,
+      `**\`wrapped\`** — Shareable stats (Spotify Wrapped style)`,
       `   Your archetype, autonomy split, system size, top lesson — fun and shareable.`,
       `   → *"Give me my Dear User Wrapped"*`,
       ``,
       `## First time?`,
-      `Start with \`onboard\` (tailors Dear User to your setup) or \`analyze\` (deep dive on current state).`,
+      `Start with \`onboard\` (tailors Dear User to your setup) or \`collab\` (deep dive on current state).`,
       ``,
       `## Regular use`,
-      `\`analyze\` for depth · \`wrapped\` for sharing · \`audit\` + \`security\` periodically.`,
+      `\`collab\` for depth · \`history\` to re-read past reports · \`health\` + \`security\` periodically · \`wrapped\` for sharing.`,
       ``,
       `v${PKG_VERSION} · Learn more: dearuser.ai`,
     ].join('\n');
