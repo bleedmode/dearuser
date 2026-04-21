@@ -116,8 +116,12 @@ export function runAudit(options: AuditOptions = {}): AuditReport {
   const suiteFindingIds = new Set<string>();
   for (const cluster of scoringClusters) {
     if (cluster.findings.length < 3) continue;
-    if (detectClusterPrefix(cluster.artifactIds)) {
-      for (const f of cluster.findings) suiteFindingIds.add(f.id);
+    const prefix = detectClusterPrefix(cluster.artifactIds);
+    if (prefix) {
+      for (const f of cluster.findings) {
+        suiteFindingIds.add(f.id);
+        f.suitePrefix = prefix;
+      }
     }
   }
   const scorableFindings = suiteFindingIds.size > 0
