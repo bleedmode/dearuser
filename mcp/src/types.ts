@@ -220,6 +220,7 @@ export interface AuditArtifact {
     lastRunAt?: Date;
     cronExpression?: string;
     scheduledEnabled?: boolean;
+    scheduledCreatedAt?: Date;
   };
 }
 
