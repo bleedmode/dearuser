@@ -1330,13 +1330,9 @@ function renderLetterFinding(f: any): string {
   const action = practiceStep || f.recommendation || f.fix || '';
   const actionLabel = practiceStep ? 'Prøv det næste gang: ' : 'Fix: ';
 
-  const dot = f.severity === 'critical'
-    ? '<span class="inline-block w-2 h-2 rounded-full bg-rose-600 mr-2 align-middle"></span>'
-    : '';
-
   return `
     <article class="py-1">
-      <h3>${dot}${escapeHtml(title)}</h3>
+      <h3>${escapeHtml(title)}</h3>
       ${body ? `<p>${escapeHtml(body)}</p>` : ''}
       ${example ? `
         <details class="group">
