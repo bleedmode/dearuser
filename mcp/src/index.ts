@@ -287,23 +287,24 @@ Example prompts that should trigger this tool:
 // Tool: history — retrieve past reports without re-running
 server.tool(
   'history',
-  `Retrieve past Dear User reports without re-running the scan. Use this when the user wants to see their latest score, how scores have changed over time, or what got better/worse since the last run. Rapporter er billige (~30 sek) — brug history når brugeren spørger til *eksisterende* resultater, ikke når de vil have en frisk scan.
+  `Retrieve past Dear User reports without re-running the scan. Reads from local SQLite (~/.dearuser/dearuser.db) — no network, no fresh scan. Use when the user wants to see their latest score, how scores have changed over time, or what got better/worse since the last run. A fresh scan takes ~30s; this returns instantly. Call \`collab\`/\`health\`/\`security\` instead if the user explicitly asks for a new scan.
 
 Three formats:
-- **"summary"** (default): latest stored report per scope (collab / health / security). Fast, no re-scan. Use this when the user says "hvad sagde nattens scan?" or "show me the latest".
-- **"trend"**: score over time as a sparkline per scope. Use this for "er vi blevet bedre?" / "vis trend" / "hvordan går det over tid".
-- **"regression"**: delta vs prior run — score change + new/resolved findings by ID. Use this for "hvad er nyt?" / "hvad gik galt?" / "hvad ændrede sig".
+- **"summary"** (default): latest stored report per scope. Fast, no re-scan. Use when the user asks what the previous/overnight report said.
+- **"trend"**: score sparkline over time per scope, with delta from oldest to newest. Use for "is it getting better?" questions.
+- **"regression"**: delta vs prior run — score change + new/resolved findings by stable ID. Use for "what changed?" / "what's new?" questions.
 
 Scope narrows to one area: "collab", "health", "security", or "all" (default).
 
-Pass \`run_id\` to fetch a specific historical report (the run ID is printed after every report).
+Pass \`run_id\` to fetch a specific historical report by its ID (printed at the bottom of every Dear User report).
 
 What this tool does NOT do:
 - Does NOT run any new scans — pure read of stored reports
 - Does NOT delete or modify stored history
+- Does NOT contact any external service — everything stays on your machine
 
 IMPORTANT — Presenting results:
-The user cannot see raw tool results. You MUST output the full report as your response text — do NOT summarize or add commentary. Output is pre-formatted markdown.
+The user cannot see raw tool results. You MUST output the full report as your response text — do NOT summarize or add commentary. Output is pre-formatted markdown with a "What to do next" section.
 
 Example prompts that should trigger this tool:
 - "Vis seneste rapport"
