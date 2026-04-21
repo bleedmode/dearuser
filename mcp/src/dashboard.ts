@@ -1089,27 +1089,34 @@ function renderCategoryRow(key: string, score: number): string {
 // ----- Three small things -----
 
 function renderSmallThings(items: Array<{ title: string; summary?: string; benefit?: string }>): string {
+  // Match the collapsed-section pattern used for the technical details
+  // blocks further down the letter — same rounded card, same right-aligned
+  // arrow, same hover state. The old design used solid paper-100 boxes
+  // with a crammed inline "Hvad bliver bedre?" toggle that read as broken
+  // spacing next to the cleaner collapsibles below.
   return `
-    <section class="mb-12">
-      <h2 class="text-lg font-semibold text-ink-900 mb-4">Tre små ting jeg lagde mærke til</h2>
-      <p class="text-sm text-ink-500 mb-5">Ikke kritiske, men de kunne gøre dagligdagen lettere.</p>
-      <ul class="space-y-3">
+    <section class="mb-8">
+      <h2 class="text-lg font-semibold text-ink-900 mb-2">Tre små ting jeg lagde mærke til</h2>
+      <p class="text-sm text-ink-500 mb-4">Ikke kritiske, men de kunne gøre dagligdagen lettere.</p>
+      <div class="space-y-3">
         ${items.slice(0, 3).map(item => `
-          <li class="bg-paper-100 border border-paper-200 rounded-xl p-5">
-            <div class="font-medium text-ink-900 mb-1.5">${escapeHtml(item.title)}</div>
-            ${item.summary ? `<div class="text-sm text-ink-700 leading-relaxed">${escapeHtml(item.summary)}</div>` : ''}
+          <details class="group bg-paper-100/60 border border-paper-200 rounded-xl">
+            <summary class="cursor-pointer px-5 py-4 list-none flex items-center justify-between gap-4 hover:bg-paper-100 rounded-xl">
+              <div class="min-w-0">
+                <div class="font-medium text-ink-900">${escapeHtml(item.title)}</div>
+                ${item.summary ? `<div class="text-sm text-ink-500 mt-0.5 leading-snug">${escapeHtml(item.summary)}</div>` : ''}
+              </div>
+              <span class="text-ink-300 transition-transform group-open:rotate-90 shrink-0">▸</span>
+            </summary>
             ${item.benefit ? `
-              <details class="mt-2 group">
-                <summary class="cursor-pointer text-xs text-accent-600 hover:text-accent-500 list-none inline-flex items-center gap-1">
-                  <span class="transition-transform group-open:rotate-90">▸</span>
-                  <span>Hvad bliver bedre?</span>
-                </summary>
-                <div class="mt-2 text-sm text-ink-600 leading-relaxed">${escapeHtml(item.benefit)}</div>
-              </details>
+              <div class="px-5 pb-5 pt-1">
+                <div class="text-xs uppercase tracking-wider text-ink-500 mb-1">Hvad bliver bedre</div>
+                <p class="text-sm text-ink-700 leading-relaxed">${escapeHtml(item.benefit)}</p>
+              </div>
             ` : ''}
-          </li>
+          </details>
         `).join('')}
-      </ul>
+      </div>
       <a href="/forbedringer" class="inline-block mt-4 text-sm text-accent-600 hover:text-accent-500">Se alle forslag →</a>
     </section>
   `;
