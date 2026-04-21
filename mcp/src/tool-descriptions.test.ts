@@ -41,7 +41,7 @@ beforeAll(async () => {
 }, 15000);
 
 describe('MCP tool descriptions', () => {
-  const EXPECTED_TOOLS = ['analyze', 'system_health', 'onboard', 'security', 'wrapped', 'help'];
+  const EXPECTED_TOOLS = ['collab', 'health', 'onboard', 'security', 'wrapped', 'help'];
 
   it('all expected tools are registered', () => {
     const names = tools.map(t => t.name);
@@ -87,24 +87,24 @@ describe('MCP tool descriptions', () => {
   });
 
   // --- Specific tool requirements ---
-  describe('analyze-specific', () => {
+  describe('collab-specific', () => {
     it('documents the format parameter options', () => {
-      const tool = tools.find(t => t.name === 'analyze')!;
+      const tool = tools.find(t => t.name === 'collab')!;
       expect(tool.description).toContain('text');
       expect(tool.description).toContain('detailed');
       expect(tool.description).toContain('json');
     });
 
     it('mentions that data stays local', () => {
-      const tool = tools.find(t => t.name === 'analyze')!;
+      const tool = tools.find(t => t.name === 'collab')!;
       const desc = tool.description.toLowerCase();
       expect(desc).toMatch(/local|no data leaves|never modified/);
     });
   });
 
-  describe('audit-specific', () => {
+  describe('health-specific', () => {
     it('lists detection capabilities', () => {
-      const tool = tools.find(t => t.name === 'audit')!;
+      const tool = tools.find(t => t.name === 'health')!;
       expect(tool.description).toContain('Orphan');
       expect(tool.description).toContain('Overlap');
     });

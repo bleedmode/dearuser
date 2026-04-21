@@ -159,10 +159,10 @@ export function getLatestScoresByTool(): {
     `).get(...tools) || null;
   };
   return {
-    analyze: latest(['analyze']),
+    // Accept legacy tool names so renames didn't erase history
+    analyze: latest(['collab', 'analyze']),
     security: latest(['security']),
-    // Accept legacy 'audit' rows so renaming didn't erase history
-    systemHealth: latest(['system-health', 'audit']),
+    systemHealth: latest(['health', 'system-health', 'audit']),
   };
 }
 

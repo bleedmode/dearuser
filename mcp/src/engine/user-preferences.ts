@@ -16,6 +16,7 @@ const CONFIG_PATH = join(CONFIG_DIR, 'config.json');
 
 export interface UserPreferences {
   name?: string;
+  agentName?: string;
   role?: 'coder' | 'occasional' | 'non_coder' | null;
   cadence?: 'daily' | 'weekly' | 'on-demand' | 'event' | null;
   audience?: 'self' | 'team' | 'customers' | null;
@@ -48,6 +49,13 @@ export function getUserName(): string | null {
   if (!name || typeof name !== 'string') return null;
   // Take just the first word — people sometimes type their full name
   return name.trim().split(/\s+/)[0] || null;
+}
+
+/** Agent's first name. Defaults to "Bobby" if onboarding hasn't set one. */
+export function getAgentName(): string {
+  const name = getPreferences().agentName;
+  if (!name || typeof name !== 'string') return 'Bobby';
+  return name.trim().split(/\s+/)[0] || 'Bobby';
 }
 
 /**

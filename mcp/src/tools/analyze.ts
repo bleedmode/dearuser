@@ -240,7 +240,7 @@ export function runAnalysis(
   if (options.persist !== false) {
     try {
       agentRunId = insertAgentRun({
-        toolName: 'analyze',
+        toolName: 'collab',
         summary: `Score: ${collaborationScore}/100 — ${persona.archetypeName}`,
         score: collaborationScore,
         status: 'success',
@@ -546,6 +546,16 @@ function formatRecommendations(report: AnalysisReport): string[] {
  * directly lifts. Returned to the user so tool recommendations are visibly
  * tied to the score — not floating suggestions disconnected from the number.
  */
+const CATEGORY_TECHNICAL_NAMES: Record<string, string> = {
+  qualityStandards: 'Quality Standards',
+  memoryHealth: 'Memory Health',
+  communication: 'Communication',
+  autonomyBalance: 'Autonomy Balance',
+  systemMaturity: 'System Maturity',
+  roleClarity: 'Role Clarity',
+  coverage: 'Coverage',
+};
+
 function toolSolvesCategory(solves: string[] | undefined): { id: string; label: string } | null {
   if (!solves || solves.length === 0) return null;
   for (const tag of solves) {
@@ -577,7 +587,7 @@ function toolSolvesCategory(solves: string[] | undefined): { id: string; label: 
 
 /** Tool recommendations section. Reads from report.toolRecs (computed in
  *  runAnalysis and persisted to du_recommendations). */
-function formatToolRecs(report: AnalysisReport): string[] {
+function formatToolRecs(report: AnalysisReport, isDetailed = false): string[] {
   const lines: string[] = [];
   const toolRecs = report.toolRecs;
 
@@ -602,10 +612,11 @@ function formatToolRecs(report: AnalysisReport): string[] {
       const category = toolSolvesCategory(tool.solves);
       if (category && report.scoreCeiling) {
         const cat = report.scoreCeiling.byCategory[category.id];
+        const label = isDetailed ? (CATEGORY_TECHNICAL_NAMES[category.id] || category.label) : category.label;
         if (cat && cat.ceiling > cat.current) {
-          lines.push(`**Score-impact:** Lifts **${category.label}** from ${cat.current} toward ${cat.ceiling}.`);
+          lines.push(`**Score-impact:** Lifts **${label}** from ${cat.current} toward ${cat.ceiling}.`);
         } else {
-          lines.push(`**Score-impact:** Contributes to **${category.label}**.`);
+          lines.push(`**Score-impact:** Contributes to **${label}**.`);
         }
       }
 
@@ -891,7 +902,7 @@ export function formatAnalyzeReport(report: AnalysisReport, format: AnalyzeForma
   }
 
   // Tool recommendations and onboarding gaps — in both formats
-  lines.push(...formatToolRecs(report));
+  lines.push(...formatToolRecs(report, isDetailed));
   lines.push(...formatOnboardingGaps(report));
 
   return lines.join('\n');

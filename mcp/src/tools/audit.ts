@@ -125,7 +125,7 @@ export function runAudit(options: AuditOptions = {}): AuditReport {
   let agentRunId: string | undefined;
   try {
     agentRunId = insertAgentRun({
-      toolName: 'system-health',
+      toolName: 'health',
       summary: `System-sundhed: ${systemHealthScore}/100 — ${findings.length} findings (${findings.filter(f => f.severity === 'critical').length} critical)`,
       score: systemHealthScore,
       status: 'success',
@@ -242,7 +242,7 @@ function clusterOverlapFindings(findings: AuditFinding[]): OverlapCluster[] {
 
 /**
  * Detect a shared name prefix among artifact IDs in a cluster.
- * E.g., ["skill:dearuser-analyze", "skill:dearuser-audit", ...] → "dearuser"
+ * E.g., ["skill:dearuser-collab", "skill:dearuser-health", ...] → "dearuser"
  */
 function detectClusterPrefix(artifactIds: Set<string>): string | null {
   // Extract the name part after the type prefix (e.g., "skill:foo" → "foo")
@@ -253,7 +253,7 @@ function detectClusterPrefix(artifactIds: Set<string>): string | null {
 
   if (names.length < 3) return null;
 
-  // Try common separators: hyphen, colon, underscore (e.g., "dearuser-analyze" → "dearuser")
+  // Try common separators: hyphen, colon, underscore (e.g., "dearuser-collab" → "dearuser")
   for (const sep of ['-', ':', '_']) {
     const prefixes = names
       .map(n => n.split(sep)[0])
