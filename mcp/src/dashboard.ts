@@ -1085,35 +1085,32 @@ function renderCategoryRow(key: string, score: number): string {
 // ----- Three small things -----
 
 function renderSmallThings(items: Array<{ title: string; summary?: string; benefit?: string }>): string {
-  // Match the collapsed-section pattern used for the technical details
-  // blocks further down the letter — same rounded card, same right-aligned
-  // arrow, same hover state. The old design used solid paper-100 boxes
-  // with a crammed inline "Hvad bliver bedre?" toggle that read as broken
-  // spacing next to the cleaner collapsibles below.
+  // Render as flat brev-prosa — same treatment as the top-action block
+  // above. Both are curated recommendations; they should share one visual
+  // grammar. Boxes were introduced to match the "Tekniske detaljer"
+  // collapsibles, but those are drill-down data containers, not
+  // recommendations. Different purpose → different treatment.
   return `
-    <section class="mb-8">
-      <h2 class="text-lg font-semibold text-ink-900 mb-2">Tre små ting jeg lagde mærke til</h2>
-      <p class="text-sm text-ink-500 mb-4">Ikke kritiske, men de kunne gøre dagligdagen lettere.</p>
-      <div class="space-y-3">
+    <section class="mb-12">
+      <p class="text-ink-500 italic mb-3">Tre små ting jeg også lagde mærke til:</p>
+      <div class="space-y-8">
         ${items.slice(0, 3).map(item => `
-          <details class="group bg-paper-100/60 border border-paper-200 rounded-xl">
-            <summary class="cursor-pointer px-5 py-4 list-none flex items-center justify-between gap-4 hover:bg-paper-100 rounded-xl">
-              <div class="min-w-0">
-                <div class="font-medium text-ink-900">${escapeHtml(item.title)}</div>
-                ${item.summary ? `<div class="text-sm text-ink-500 mt-0.5 leading-snug">${escapeHtml(item.summary)}</div>` : ''}
-              </div>
-              <span class="text-ink-300 transition-transform group-open:rotate-90 shrink-0">▸</span>
-            </summary>
+          <div>
+            <h3 class="text-lg font-semibold text-ink-900 mb-2 leading-tight">${escapeHtml(item.title)}</h3>
+            ${item.summary ? `<p class="text-ink-700 leading-relaxed">${escapeHtml(item.summary)}</p>` : ''}
             ${item.benefit ? `
-              <div class="px-5 pb-5 pt-1">
-                <div class="text-xs uppercase tracking-wider text-ink-500 mb-1">Hvad bliver bedre</div>
-                <p class="text-sm text-ink-700 leading-relaxed">${escapeHtml(item.benefit)}</p>
-              </div>
+              <details class="mt-3 group">
+                <summary class="cursor-pointer text-sm text-accent-600 hover:text-accent-500 list-none inline-flex items-center gap-1.5">
+                  <span class="transition-transform group-open:rotate-90">▸</span>
+                  <span>Hvad bliver bedre?</span>
+                </summary>
+                <p class="mt-2 text-sm text-ink-700 leading-relaxed italic">${escapeHtml(item.benefit)}</p>
+              </details>
             ` : ''}
-          </details>
+          </div>
         `).join('')}
       </div>
-      <a href="/forbedringer" class="inline-block mt-4 text-sm text-accent-600 hover:text-accent-500">Se alle forslag →</a>
+      <a href="/forbedringer" class="inline-block mt-6 text-sm text-accent-600 hover:text-accent-500">Se alle forslag →</a>
     </section>
   `;
 }
