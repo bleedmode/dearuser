@@ -701,7 +701,7 @@ function detectStaleSchedule(graph: AuditGraph): AuditFinding[] {
 
   for (const task of graph.nodes) {
     if (task.type !== 'scheduled_task') continue;
-    const { lastRunAt, cronExpression, scheduledEnabled } = task.metadata;
+    const { lastRunAt, cronExpression, scheduledEnabled, scheduledCreatedAt } = task.metadata;
     if (scheduledEnabled === false) continue;     // user paused it on purpose
     if (!cronExpression) continue;                // manual-only, no schedule to miss
     const interval = expectedIntervalMs(cronExpression);
@@ -710,6 +710,12 @@ function detectStaleSchedule(graph: AuditGraph): AuditFinding[] {
     const graceMs = interval * 2;
     const ageMs = lastRunAt ? now - lastRunAt.getTime() : Infinity;
     if (ageMs <= graceMs) continue;
+
+    // Newly-created task that hasn't reached its first scheduled fire-time yet.
+    // `lastRunAt=never` is expected here and not a silent-failure signal.
+    if (!lastRunAt && scheduledCreatedAt && now - scheduledCreatedAt.getTime() < graceMs) {
+      continue;
+    }
 
     // Pretty-format the gap so users don't have to do the math
     const humanAge = lastRunAt

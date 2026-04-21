@@ -14,6 +14,8 @@ interface ScheduledTaskState {
   lastRunAt?: Date;
   cronExpression?: string;
   enabled?: boolean;
+  createdAt?: Date;
+  filePath?: string;
 }
 
 /**
@@ -44,6 +46,11 @@ function loadScheduledTaskState(home: string): Map<string, ScheduledTaskState> {
       for (const entry of entries) {
         const full = join(dir, entry.name);
         if (entry.isFile() && entry.name === 'scheduled-tasks.json') {
+          // Skip legacy `local-agent-mode-sessions/` state files — they predate
+          // the rename to `claude-code-sessions/` and linger with stale task ids
+          // that no longer exist in the live scheduler. Merging them resurrects
+          // ghosts (e.g. tasks that were renamed and only the old id survives).
+          if (full.includes('/local-agent-mode-sessions/')) continue;
           stateFiles.push(full);
         } else if (entry.isDirectory()) {
           stack.push({ dir: full, depth: depth + 1 });
@@ -62,6 +69,8 @@ function loadScheduledTaskState(home: string): Map<string, ScheduledTaskState> {
           cronExpression: typeof t.cronExpression === 'string' ? t.cronExpression : undefined,
           enabled: typeof t.enabled === 'boolean' ? t.enabled : undefined,
           lastRunAt: typeof t.lastRunAt === 'string' ? new Date(t.lastRunAt) : undefined,
+          createdAt: typeof t.createdAt === 'number' ? new Date(t.createdAt) : undefined,
+          filePath: typeof t.filePath === 'string' ? t.filePath : undefined,
         };
         const prev = map.get(t.id);
         if (!prev) {
@@ -74,6 +83,12 @@ function loadScheduledTaskState(home: string): Map<string, ScheduledTaskState> {
         if (parsed.enabled !== undefined) merged.enabled = parsed.enabled;
         if (parsed.lastRunAt && (!prev.lastRunAt || parsed.lastRunAt > prev.lastRunAt)) {
           merged.lastRunAt = parsed.lastRunAt;
+        }
+        if (parsed.createdAt && (!prev.createdAt || parsed.createdAt < prev.createdAt)) {
+          merged.createdAt = parsed.createdAt;
+        }
+        if (parsed.filePath && !prev.filePath) {
+          merged.filePath = parsed.filePath;
         }
         map.set(t.id, merged);
       }
@@ -208,6 +223,7 @@ function scanScheduledTasks(home: string): AuditArtifact[] {
             lastRunAt: s?.lastRunAt,
             cronExpression: s?.cronExpression,
             scheduledEnabled: s?.enabled,
+            scheduledCreatedAt: s?.createdAt,
           },
         });
       }
@@ -218,8 +234,41 @@ function scanScheduledTasks(home: string): AuditArtifact[] {
   // These are orphan state entries — the scheduler thinks they exist but there's
   // no definition on disk, so they can't run. We register them as artifacts
   // (path = state file, empty body) so detectors can flag them.
+  //
+  // One nuance: the state's own `filePath` may point to a SKILL.md outside the
+  // default scheduled-tasks directory (e.g. a skill registered as a manual task).
+  // If that file exists, load it instead of faking an empty ghost — otherwise
+  // we double-count the skill's side-effects as an orphan.
   for (const [stateId, s] of state) {
     if (seenNames.has(stateId)) continue;
+
+    if (s.filePath && existsSync(s.filePath)) {
+      try {
+        const stat = statSync(s.filePath);
+        const content = readFileSync(s.filePath, 'utf-8');
+        const { fm, body } = parseFrontmatter(content);
+        const name = fm.name || stateId;
+        artifacts.push({
+          id: `scheduled_task:${name}`,
+          type: 'scheduled_task',
+          name,
+          path: s.filePath,
+          description: fm.description || firstContentLine(body),
+          prompt: body,
+          metadata: {
+            lastModified: stat.mtime,
+            size: stat.size,
+            frontmatter: fm,
+            lastRunAt: s.lastRunAt,
+            cronExpression: s.cronExpression,
+            scheduledEnabled: s.enabled,
+            scheduledCreatedAt: s.createdAt,
+          },
+        });
+        continue;
+      } catch { /* fall through to ghost entry */ }
+    }
+
     artifacts.push({
       id: `scheduled_task:${stateId}`,
       type: 'scheduled_task',
@@ -232,6 +281,7 @@ function scanScheduledTasks(home: string): AuditArtifact[] {
         lastRunAt: s.lastRunAt,
         cronExpression: s.cronExpression,
         scheduledEnabled: s.enabled,
+        scheduledCreatedAt: s.createdAt,
       },
     });
   }
