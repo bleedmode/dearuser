@@ -977,28 +977,24 @@ function renderTopActionInline(rec: any): string {
   return `
     <section class="mb-12">
       <p class="text-ink-500 italic mb-3">${escapeHtml(leadIn)}</p>
+      <h2 class="text-2xl font-semibold text-ink-900 mb-3 leading-tight">${escapeHtml(title)}</h2>
+      ${why ? `<p class="text-ink-700 leading-relaxed mb-4">${escapeHtml(why)}</p>` : ''}
 
-      <!-- Accent rule to the left as a letter-style emphasis mark, no card border -->
-      <div class="pl-5 border-l-2 border-accent-600">
-        <h2 class="text-2xl font-semibold text-ink-900 mb-3 leading-tight" style="font-family: 'Geist', sans-serif">${escapeHtml(title)}</h2>
-        ${why ? `<p class="text-ink-700 leading-relaxed mb-4">${escapeHtml(why)}</p>` : ''}
+      ${howItLooks ? `
+        <details class="mt-3 group">
+          <summary class="cursor-pointer text-sm text-accent-600 hover:text-accent-500 list-none inline-flex items-center gap-1.5">
+            <span class="transition-transform group-open:rotate-90">▸</span>
+            <span>Et eksempel på hvordan det ser ud</span>
+          </summary>
+          <div class="mt-3 text-sm text-ink-700 whitespace-pre-wrap leading-relaxed italic">${escapeHtml(howItLooks)}</div>
+        </details>
+      ` : ''}
 
-        ${howItLooks ? `
-          <details class="mt-3 group">
-            <summary class="cursor-pointer text-sm text-accent-600 hover:text-accent-500 list-none inline-flex items-center gap-1.5">
-              <span class="transition-transform group-open:rotate-90">▸</span>
-              <span>Et eksempel på hvordan det ser ud</span>
-            </summary>
-            <div class="mt-3 text-sm text-ink-700 whitespace-pre-wrap leading-relaxed italic">${escapeHtml(howItLooks)}</div>
-          </details>
-        ` : ''}
-
-        ${practiceStep ? `
-          <p class="mt-4 text-ink-700 leading-relaxed">
-            <span class="text-ink-500 italic">Prøv det næste gang: </span>${escapeHtml(practiceStep)}
-          </p>
-        ` : ''}
-      </div>
+      ${practiceStep ? `
+        <p class="mt-4 text-ink-700 leading-relaxed">
+          <span class="text-ink-500 italic">Prøv det næste gang: </span>${escapeHtml(practiceStep)}
+        </p>
+      ` : ''}
     </section>
   `;
 }
