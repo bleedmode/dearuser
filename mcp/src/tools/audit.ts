@@ -105,7 +105,25 @@ export function runAudit(options: AuditOptions = {}): AuditReport {
   // 5. Score — turn findings into a 0-100 number with category breakdown.
   //    Same shape as collaboration and security scores so the dashboard can
   //    render all three under one visual language.
-  const { categories, systemHealthScore } = scoreSystemHealth(findings);
+  //
+  //    Same-suite overlap (e.g. 5 dearuser-* skills sharing vocabulary) is
+  //    expected — the cluster renderer calls this out as "safe to ignore".
+  //    Scoring should match the rendering: don't penalize intentional
+  //    product-family vocabulary overlap. We detect suite clusters via a
+  //    shared name prefix and exclude their findings from the scored set
+  //    while keeping them in the returned `findings` for transparency.
+  const scoringClusters = clusterOverlapFindings(findings);
+  const suiteFindingIds = new Set<string>();
+  for (const cluster of scoringClusters) {
+    if (cluster.findings.length < 3) continue;
+    if (detectClusterPrefix(cluster.artifactIds)) {
+      for (const f of cluster.findings) suiteFindingIds.add(f.id);
+    }
+  }
+  const scorableFindings = suiteFindingIds.size > 0
+    ? findings.filter(f => !suiteFindingIds.has(f.id))
+    : findings;
+  const { categories, systemHealthScore } = scoreSystemHealth(scorableFindings);
 
   // 6. Ceiling — fixing every finding takes each category to 100.
   const byCategory: ScoreCeiling['byCategory'] = {};
