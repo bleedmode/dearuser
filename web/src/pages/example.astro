@@ -1,0 +1,587 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout
+  title="Example collab letter — Dear User"
+  description="An example collaboration letter from Dear User. Score, persona, friction, recommendations — in the voice of the product."
+  active="example"
+>
+
+<style>
+  .letter-wrap { padding: 64px 0 48px; }
+  .letter-inner {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .sample-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 14px 18px;
+    background: var(--c-paper-100);
+    border: 1px solid var(--c-paper-200);
+    border-left: 3px solid var(--c-action-600);
+    border-radius: 8px;
+    margin-bottom: 48px;
+    font-size: 13px;
+    color: var(--c-ink-700);
+  }
+  .sample-banner strong { color: var(--c-ink-900); font-weight: 600; }
+  .sample-banner a {
+    color: var(--c-action-600);
+    text-decoration: none;
+    border-bottom: 1px solid currentColor;
+    padding-bottom: 1px;
+  }
+
+  .letter-date {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--c-ink-400);
+    margin-bottom: 20px;
+  }
+  .letter-greeting {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(40px, 6vw, 56px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin: 0 0 28px;
+    color: var(--c-ink-900);
+  }
+  .letter-body p {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 19px;
+    line-height: 1.6;
+    color: var(--c-ink-700);
+    margin: 0 0 18px;
+  }
+  .letter-body p strong { color: var(--c-ink-900); font-weight: 500; }
+  .letter-body em { font-style: italic; }
+
+  /* Scores --------------------------------------------------------- */
+  .scores {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 36px 0;
+  }
+  @media (max-width: 640px) { .scores { grid-template-columns: 1fr; } }
+  .score-tile {
+    border: 1px solid var(--c-paper-200);
+    border-radius: 12px;
+    padding: 20px;
+    background: var(--c-paper-50);
+  }
+  .score-label {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--c-ink-500);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .score-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .score-dot.good { background: var(--c-good); }
+  .score-dot.warn { background: var(--c-warn); }
+  .score-dot.bad { background: var(--c-bad); }
+  .score-num {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 56px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .score-num.good { color: var(--c-good); }
+  .score-num.warn { color: var(--c-warn); }
+  .score-num.bad { color: var(--c-bad); }
+  .score-hint {
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--c-ink-500);
+    line-height: 1.5;
+  }
+
+  /* Section heading inside letter --------------------------------- */
+  .letter-body h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 28px;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+    color: var(--c-ink-900);
+    margin: 48px 0 14px;
+  }
+  .letter-body h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 20px;
+    line-height: 1.3;
+    color: var(--c-ink-900);
+    margin: 28px 0 10px;
+  }
+
+  /* Persona card --------------------------------------------------- */
+  .persona {
+    margin: 28px 0;
+    padding: 24px;
+    background: var(--c-accent-100);
+    border: 1px solid var(--c-accent-100);
+    border-radius: 12px;
+  }
+  .persona-label {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--c-accent-600);
+    margin-bottom: 8px;
+  }
+  .persona-name {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 24px;
+    color: var(--c-ink-900);
+    margin-bottom: 10px;
+    letter-spacing: -0.01em;
+  }
+  .persona-traits {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+  }
+  .trait-pill {
+    font-size: 12px;
+    padding: 4px 10px;
+    background: var(--c-paper-50);
+    border: 1px solid var(--c-paper-200);
+    border-radius: 999px;
+    color: var(--c-ink-700);
+  }
+
+  /* Findings list ------------------------------------------------- */
+  .finding {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    gap: 14px;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--c-paper-200);
+  }
+  .finding:last-child { border-bottom: 0; }
+  .finding-num {
+    font-family: 'Geist Mono', monospace;
+    font-size: 13px;
+    color: var(--c-ink-400);
+    padding-top: 2px;
+  }
+  .finding-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 19px;
+    color: var(--c-ink-900);
+    font-weight: 500;
+    margin: 0 0 6px;
+    line-height: 1.35;
+  }
+  .finding-body {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 16px;
+    color: var(--c-ink-700);
+    line-height: 1.55;
+    margin: 0;
+  }
+  .finding-tag {
+    display: inline-block;
+    font-family: 'Geist', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+  .finding-tag.pattern { background: var(--c-action-100); color: var(--c-action-700); }
+  .finding-tag.win { background: color-mix(in srgb, var(--c-good) 14%, transparent); color: var(--c-good); }
+  .finding-tag.risk { background: color-mix(in srgb, var(--c-bad) 14%, transparent); color: var(--c-bad); }
+
+  /* Recommendation card ------------------------------------------- */
+  .rec {
+    margin: 20px 0;
+    padding: 22px 24px;
+    background: var(--c-paper-100);
+    border: 1px solid var(--c-paper-200);
+    border-radius: 12px;
+  }
+  .rec-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .rec-badge {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--c-action-100);
+    color: var(--c-action-700);
+    font-weight: 600;
+  }
+  .rec-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 19px;
+    color: var(--c-ink-900);
+    font-weight: 500;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .rec-body {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 16px;
+    color: var(--c-ink-700);
+    line-height: 1.55;
+    margin: 0 0 14px;
+  }
+  .rec pre {
+    background: var(--c-paper-50);
+    border: 1px solid var(--c-paper-200);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-family: 'Geist Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--c-ink-700);
+    margin: 0;
+  }
+  .rec pre .k { color: var(--c-action-600); }
+
+  /* Signature ----------------------------------------------------- */
+  .signature {
+    margin-top: 48px;
+    padding-top: 28px;
+    border-top: 1px solid var(--c-paper-200);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--c-ink-700);
+  }
+  .signature svg { width: 28px; height: 28px; }
+  .signature-name {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-size: 20px;
+    color: var(--c-ink-900);
+    letter-spacing: -0.01em;
+  }
+
+  .letter-cta {
+    margin-top: 48px;
+    padding: 28px;
+    background: var(--c-paper-100);
+    border: 1px solid var(--c-paper-200);
+    border-radius: 14px;
+    text-align: center;
+  }
+  .letter-cta h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 24px;
+    color: var(--c-ink-900);
+    margin: 0 0 10px;
+    letter-spacing: -0.01em;
+  }
+  .letter-cta p {
+    color: var(--c-ink-700);
+    margin: 0 0 18px;
+    font-size: 15px;
+  }
+  .letter-cta .install-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--c-paper-50);
+    border: 1px solid var(--c-paper-200);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 13px;
+    color: var(--c-ink-900);
+  }
+  .letter-cta .install-inline .prompt { color: var(--c-ink-400); }
+</style>
+
+<section class="letter-wrap">
+  <div class="letter-inner">
+
+    <div class="sample-banner">
+      <span>
+        <strong>
+          <span class="lang-da">Eksempel-brev.</span>
+          <span class="lang-en">Example letter.</span>
+        </strong>
+        <span class="lang-da"> Dit eget vil handle om dig og din opsætning.</span>
+        <span class="lang-en"> Your own will be about you and your setup.</span>
+      </span>
+      <a href="#get-one">
+        <span class="lang-da">Få dit eget →</span>
+        <span class="lang-en">Get your own →</span>
+      </a>
+    </div>
+
+    <div class="letter-date">
+      <span class="lang-da">21. april 2026 · Samarbejds-rapport</span>
+      <span class="lang-en">21 April 2026 · Collaboration letter</span>
+    </div>
+
+    <h1 class="letter-greeting">
+      <span class="lang-da">Kære Jarl,</span>
+      <span class="lang-en">Dear Jarl,</span>
+    </h1>
+
+    <div class="letter-body">
+      <p>
+        <span class="lang-da">Jeg har siddet med din opsætning i aften og læst alt igennem — <strong>CLAUDE.md</strong>, dine 48 memory-filer, 4 hooks, 12 skills, de seneste 30 sessioner. Jeg vil dele tre ting med dig. Én som gør mig glad, én som undrer mig, og én konkret ændring jeg synes du skal lave i morgen.</span>
+        <span class="lang-en">I sat with your setup tonight and read through everything — <strong>CLAUDE.md</strong>, your 48 memory files, 4 hooks, 12 skills, the last 30 sessions. I want to share three things. One that makes me glad, one I'm puzzled by, and one concrete change I think you should make tomorrow.</span>
+      </p>
+
+      <div class="scores">
+        <div class="score-tile">
+          <div class="score-label">
+            <span class="score-dot good"></span>
+            <span class="lang-da">Samarbejde</span><span class="lang-en">Collaboration</span>
+          </div>
+          <div class="score-num good">87</div>
+          <div class="score-hint">
+            <span class="lang-da">Klare regler, hurtig feedback, stærk memory.</span>
+            <span class="lang-en">Clear rules, fast feedback, strong memory.</span>
+          </div>
+        </div>
+        <div class="score-tile">
+          <div class="score-label">
+            <span class="score-dot warn"></span>
+            <span class="lang-da">System-sundhed</span><span class="lang-en">System health</span>
+          </div>
+          <div class="score-num warn">74</div>
+          <div class="score-hint">
+            <span class="lang-da">Lidt overlap mellem dine skills — se anbefaling #2.</span>
+            <span class="lang-en">Some overlap between your skills — see recommendation #2.</span>
+          </div>
+        </div>
+        <div class="score-tile">
+          <div class="score-label">
+            <span class="score-dot good"></span>
+            <span class="lang-da">Sikkerhed</span><span class="lang-en">Security</span>
+          </div>
+          <div class="score-num good">92</div>
+          <div class="score-hint">
+            <span class="lang-da">1Password + Supabase Advisor rydder pladsen.</span>
+            <span class="lang-en">1Password + Supabase Advisor are keeping things clean.</span>
+          </div>
+        </div>
+      </div>
+
+      <h2>
+        <span class="lang-da">Din persona</span>
+        <span class="lang-en">Your persona</span>
+      </h2>
+      <div class="persona">
+        <div class="persona-label">
+          <span class="lang-da">Agent-arketype</span><span class="lang-en">Agent archetype</span>
+        </div>
+        <div class="persona-name">
+          <span class="lang-da">Venture-studio-operatøren</span>
+          <span class="lang-en">The Venture Studio Operator</span>
+        </div>
+        <p style="font-family:'Fraunces',Georgia,serif;font-size:16px;color:var(--c-ink-700);line-height:1.55;margin:0;">
+          <span class="lang-da">Du kører 7 projekter parallelt. Din agent er ikke en udvikler — den er en driftschef. Du optimerer for <em>repeat-ability</em>, ikke elegance. Din CLAUDE.md er 400 linjer lang og læser som en driftsmanual.</span>
+          <span class="lang-en">You run 7 projects in parallel. Your agent isn't a developer — it's an operations manager. You optimize for <em>repeat-ability</em>, not elegance. Your CLAUDE.md is 400 lines long and reads like an operations manual.</span>
+        </p>
+        <div class="persona-traits">
+          <span class="trait-pill">
+            <span class="lang-da">Systemer &gt; features</span><span class="lang-en">Systems &gt; features</span>
+          </span>
+          <span class="trait-pill">
+            <span class="lang-da">Kill hurtigt</span><span class="lang-en">Kill fast</span>
+          </span>
+          <span class="trait-pill">
+            <span class="lang-da">Memory-first</span><span class="lang-en">Memory-first</span>
+          </span>
+          <span class="trait-pill">
+            <span class="lang-da">Automatisér alt</span><span class="lang-en">Automate everything</span>
+          </span>
+        </div>
+      </div>
+
+      <h2>
+        <span class="lang-da">Hvad jeg så</span>
+        <span class="lang-en">What I saw</span>
+      </h2>
+
+      <div class="finding">
+        <div class="finding-num">01</div>
+        <div>
+          <h3 class="finding-title">
+            <span class="finding-tag win">
+              <span class="lang-da">Styrke</span><span class="lang-en">Strength</span>
+            </span>
+            <span class="lang-da">Feedback-loopet lukker faktisk</span>
+            <span class="lang-en">Your feedback loop actually closes</span>
+          </h3>
+          <p class="finding-body">
+            <span class="lang-da">87 % af dine anbefalinger fra sidste 14 dage har en <em>outcome</em>: shipped, abandoned eller evolved. Det er ualmindeligt højt. De fleste opsætninger producerer anbefalinger som aldrig bliver til noget. Dit <code style="font-family:'Geist Mono',monospace;font-size:0.9em;">bobby_tasks.outcome</code>-felt og den ugentlige konsolidering gør arbejdet.</span>
+            <span class="lang-en">87 % of your recommendations from the last 14 days have an <em>outcome</em>: shipped, abandoned or evolved. That's unusually high. Most setups produce recommendations that never land. Your <code style="font-family:'Geist Mono',monospace;font-size:0.9em;">bobby_tasks.outcome</code> field and the weekly consolidation are doing the work.</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="finding-num">02</div>
+        <div>
+          <h3 class="finding-title">
+            <span class="finding-tag pattern">
+              <span class="lang-da">Mønster</span><span class="lang-en">Pattern</span>
+            </span>
+            <span class="lang-da">Du kalder <em>pvs.sh</em> i 14 forskellige skills</span>
+            <span class="lang-en">You call <em>pvs.sh</em> across 14 different skills</span>
+          </h3>
+          <p class="finding-body">
+            <span class="lang-da">Det er ~200 linjer repetition. Og hver gang du flytter scriptet (som du gjorde 15. april), brækker noget stille. Det skriger "MCP-server". Jeg har forslag til migrationen længere nede.</span>
+            <span class="lang-en">That's ~200 lines of repetition. And every time you move the script (like you did on April 15th), something breaks silently. It's screaming "MCP server". I have a migration sketch further down.</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="finding-num">03</div>
+        <div>
+          <h3 class="finding-title">
+            <span class="finding-tag risk">
+              <span class="lang-da">Risiko</span><span class="lang-en">Risk</span>
+            </span>
+            <span class="lang-da">Regel-konflikt i hook-laget</span>
+            <span class="lang-en">Rule conflict in your hook layer</span>
+          </h3>
+          <p class="finding-body">
+            <span class="lang-da">CLAUDE.md siger <em>"Aldrig skip hooks med --no-verify"</em>. Men <code style="font-family:'Geist Mono',monospace;font-size:0.9em;">.claude/hooks/on-commit.sh</code> kører <code style="font-family:'Geist Mono',monospace;font-size:0.9em;">git commit --no-verify</code> når bygningen fejler. Det her er den slags ting du opdager fredag aften.</span>
+            <span class="lang-en">CLAUDE.md says <em>"Never skip hooks with --no-verify"</em>. But <code style="font-family:'Geist Mono',monospace;font-size:0.9em;">.claude/hooks/on-commit.sh</code> runs <code style="font-family:'Geist Mono',monospace;font-size:0.9em;">git commit --no-verify</code> when the build fails. This is the kind of thing you discover on a Friday night.</span>
+          </p>
+        </div>
+      </div>
+
+      <h2>
+        <span class="lang-da">Hvad jeg anbefaler</span>
+        <span class="lang-en">What I recommend</span>
+      </h2>
+
+      <div class="rec">
+        <div class="rec-head">
+          <span class="rec-badge">
+            <span class="lang-da">Anbefaling #1</span><span class="lang-en">Recommendation #1</span>
+          </span>
+          <span style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--c-ink-400);">
+            <span class="lang-da">~10 min · Høj værdi</span>
+            <span class="lang-en">~10 min · High leverage</span>
+          </span>
+        </div>
+        <h4 class="rec-title">
+          <span class="lang-da">Fjern regel-konflikten — én linje</span>
+          <span class="lang-en">Resolve the rule conflict — one line</span>
+        </h4>
+        <p class="rec-body">
+          <span class="lang-da">Enten skal hooket respektere reglen, eller også skal reglen nuanceres. Det nemmeste er at fjerne <code style="font-family:'Geist Mono',monospace;font-size:0.9em;">--no-verify</code> — bygningen skal ikke kunne commit'e broken kode, selv ikke når du har travlt.</span>
+          <span class="lang-en">Either the hook respects the rule, or the rule needs nuance. The easiest fix is to remove <code style="font-family:'Geist Mono',monospace;font-size:0.9em;">--no-verify</code> — the build should not be able to commit broken code, not even when you're in a hurry.</span>
+        </p>
+        <pre><span class="k">-</span> git commit -m "$MSG" <span class="k">--no-verify</span>
+<span class="k">+</span> git commit -m "$MSG"</pre>
+      </div>
+
+      <div class="rec">
+        <div class="rec-head">
+          <span class="rec-badge">
+            <span class="lang-da">Anbefaling #2</span><span class="lang-en">Recommendation #2</span>
+          </span>
+          <span style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--c-ink-400);">
+            <span class="lang-da">~2 timer · Fjerner 200+ linjer</span>
+            <span class="lang-en">~2 hours · Removes 200+ lines</span>
+          </span>
+        </div>
+        <h4 class="rec-title">
+          <span class="lang-da">Wrap pvs.sh som en MCP-server</span>
+          <span class="lang-en">Wrap pvs.sh as an MCP server</span>
+        </h4>
+        <p class="rec-body">
+          <span class="lang-da">14 skills kalder samme CLI. Hver har sin egen måde at parse output på. Hvis du wrapper pvs.sh som en MCP-server, kan dine skills bare sige <code style="font-family:'Geist Mono',monospace;font-size:0.9em;">mcp__pvs__task_create</code> og så er de uafhængige af sti og shell-escaping. Det er samme mønster du allerede bruger til Dear User selv.</span>
+          <span class="lang-en">14 skills call the same CLI. Each has its own way of parsing output. If you wrap pvs.sh as an MCP server, your skills can just say <code style="font-family:'Geist Mono',monospace;font-size:0.9em;">mcp__pvs__task_create</code> and become independent of path and shell-escaping. Same pattern you already use for Dear User itself.</span>
+        </p>
+        <pre><span class="k">+</span> npx create-mcp-server pvs
+<span class="k">+</span> # move 7 pvs.sh subcommands → tools/
+<span class="k">+</span> # update 14 skills to call mcp__pvs__*</pre>
+      </div>
+
+      <div class="rec">
+        <div class="rec-head">
+          <span class="rec-badge">
+            <span class="lang-da">Anbefaling #3</span><span class="lang-en">Recommendation #3</span>
+          </span>
+          <span style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--c-ink-400);">
+            <span class="lang-da">~5 min · Hygiejne</span>
+            <span class="lang-en">~5 min · Hygiene</span>
+          </span>
+        </div>
+        <h4 class="rec-title">
+          <span class="lang-da">Slå automatisk "always use read-only" til i tre MCP-servere</span>
+          <span class="lang-en">Flip "always use read-only" on three MCP servers</span>
+        </h4>
+        <p class="rec-body">
+          <span class="lang-da">Supabase, GitHub og 1Password står alle i write-mode i din <code style="font-family:'Geist Mono',monospace;font-size:0.9em;">~/.claude.json</code>, men du bruger dem 98 % read-only. Skift dem til read-only som default og bed eksplicit om skrivning når du skal.</span>
+          <span class="lang-en">Supabase, GitHub and 1Password are all in write mode in your <code style="font-family:'Geist Mono',monospace;font-size:0.9em;">~/.claude.json</code>, but you use them 98 % read-only. Flip them to read-only by default and explicitly ask for write when you need it.</span>
+        </p>
+      </div>
+
+      <p style="margin-top: 40px;">
+        <span class="lang-da">Hvis du lander #1 i morgen og #2 inden weekenden, er scoren 94+ ved næste scan. Jeg tjekker ind igen søndag. Hav en rolig uge.</span>
+        <span class="lang-en">If you land #1 tomorrow and #2 before the weekend, the score will be 94+ at the next scan. I'll check in again Sunday. Have a calm week.</span>
+      </p>
+
+      <div class="signature">
+        <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="20" cy="20" r="20" fill="#EC5329" />
+          <path d="M 11 22 Q 20 32 29 22" stroke="var(--c-smile-fill)" stroke-width="2.5" stroke-linecap="round" fill="none" />
+        </svg>
+        <span class="signature-name">Dear User</span>
+      </div>
+    </div>
+
+    <div class="letter-cta" id="get-one">
+      <h3>
+        <span class="lang-da">Få dit eget brev.</span>
+        <span class="lang-en">Get your own letter.</span>
+      </h3>
+      <p>
+        <span class="lang-da">En linje installerer det hele. Scanningen kører lokalt. Intet data forlader din maskine.</span>
+        <span class="lang-en">One line installs the whole thing. The scan runs locally. No data leaves your machine.</span>
+      </p>
+      <div class="install-inline">
+        <span class="prompt">$</span>
+        <span>claude mcp add dearuser -- npx dearuser-mcp</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+</Layout>
