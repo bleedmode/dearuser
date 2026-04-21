@@ -1420,78 +1420,43 @@ function renderSystemHealthFindings(findings: any[]): string {
     unbacked_up_substrate: 'Ikke backup\'et',
   };
 
-  // Collapse same-suite overlap findings into a single notice. The scorer
-  // already excludes these from penalty; showing each pair individually is
-  // noise the user can't act on — "should I merge collab+security?" is the
-  // wrong question, they're separate product surfaces by design.
-  const suiteClusters = new Map<string, any[]>();
-  const regularFindings: any[] = [];
-  for (const f of findings) {
-    if (f.suitePrefix) {
-      const list = suiteClusters.get(f.suitePrefix) || [];
-      list.push(f);
-      suiteClusters.set(f.suitePrefix, list);
-    } else {
-      regularFindings.push(f);
-    }
-  }
+  // Drop same-suite overlap findings from the user's report entirely.
+  // The scorer already excludes them from penalty, and they describe
+  // intentional product-family overlap the user can't meaningfully act on.
+  // The agent still sees them in the JSON payload for context; the letter
+  // just doesn't mention them.
+  const regularFindings = findings.filter(f => !f.suitePrefix);
 
-  const suiteNotices = Array.from(suiteClusters.entries()).map(([prefix, cluster]) => {
-    const artifactNames = new Set<string>();
-    for (const f of cluster) {
-      for (const id of f.affectedArtifacts || []) {
-        const colon = id.indexOf(':');
-        artifactNames.add(colon >= 0 ? id.slice(colon + 1) : id);
-      }
-    }
-    const names = Array.from(artifactNames).sort();
-    return `
-      <article class="border-l-2 border-paper-200 pl-4 py-1 opacity-75">
-        <div class="flex items-baseline gap-3 flex-wrap mb-1">
-          <span class="inline-flex items-center gap-1.5 text-xs font-medium text-ink-400"><span class="w-1.5 h-1.5 rounded-full bg-ink-300"></span>Forventet</span>
-          <span class="text-xs uppercase tracking-wider text-ink-400">Same suite</span>
-        </div>
-        <h3 class="font-medium text-ink-700 mt-1" style="margin: 0.25rem 0">${names.length} "${escapeHtml(prefix)}" værktøjer deler vokabular (${cluster.length} par)</h3>
-        <p class="text-sm text-ink-500 mt-2 leading-relaxed" style="margin-top: 0.5rem">Samme produkt-familie — forventet overlap. Tælles ikke med i scoren.</p>
-        <p class="text-xs text-ink-400 mt-2 font-mono">${names.map(n => escapeHtml(n)).join(' · ')}</p>
-      </article>
-    `;
-  }).join('');
-
-  const shown = regularFindings.slice(0, 15);
-  const extra = regularFindings.length - shown.length;
-
-  const regularFindingsHtml = shown.map(f => {
-    const typeLabel = TYPE_LABELS[f.type] || f.type;
-    return `
-      <article class="border-l-2 border-paper-300 pl-4 py-1">
-        <div class="flex items-baseline gap-3 flex-wrap mb-1">
-          ${severityBadge(f.severity)}
-          <span class="text-xs uppercase tracking-wider text-ink-400">${escapeHtml(typeLabel)}</span>
-        </div>
-        <h3 class="font-medium text-ink-900 mt-1" style="margin: 0.25rem 0">${escapeHtml(f.title)}</h3>
-        ${f.description ? `<p class="text-sm text-ink-700 mt-2 leading-relaxed" style="margin-top: 0.5rem">${escapeHtml(f.description)}</p>` : ''}
-        ${f.why ? `<p class="text-sm text-ink-500 italic mt-2 leading-relaxed" style="margin-top: 0.5rem">${escapeHtml(f.why)}</p>` : ''}
-        ${f.recommendation ? `<p class="text-sm text-ink-700 mt-2 leading-relaxed" style="margin-top: 0.5rem"><span class="text-ink-500 italic">Fix: </span>${escapeHtml(f.recommendation)}</p>` : ''}
-      </article>
-    `;
-  }).join('');
-
-  if (regularFindings.length === 0 && suiteNotices) {
+  if (regularFindings.length === 0) {
     return `
       <section class="mb-12">
-        <p class="text-ink-700 leading-relaxed italic mb-6">Ingen ting at rydde op i. Nedenstående er forventet overlap mellem relaterede værktøjer.</p>
-        <div class="space-y-4">${suiteNotices}</div>
+        <p class="text-ink-700 leading-relaxed italic">Ingen ting at rydde op i. Setup\'et hænger sammen.</p>
       </section>
     `;
   }
+
+  const shown = regularFindings.slice(0, 15);
+  const extra = regularFindings.length - shown.length;
 
   return `
     <section class="mb-12">
       <h2 class="text-lg font-semibold text-ink-900 mb-4">Det jeg fandt</h2>
       <div class="space-y-4">
-        ${regularFindingsHtml}
-        ${suiteNotices}
+        ${shown.map(f => {
+          const typeLabel = TYPE_LABELS[f.type] || f.type;
+          return `
+            <article class="border-l-2 border-paper-300 pl-4 py-1">
+              <div class="flex items-baseline gap-3 flex-wrap mb-1">
+                ${severityBadge(f.severity)}
+                <span class="text-xs uppercase tracking-wider text-ink-400">${escapeHtml(typeLabel)}</span>
+              </div>
+              <h3 class="font-medium text-ink-900 mt-1" style="margin: 0.25rem 0">${escapeHtml(f.title)}</h3>
+              ${f.description ? `<p class="text-sm text-ink-700 mt-2 leading-relaxed" style="margin-top: 0.5rem">${escapeHtml(f.description)}</p>` : ''}
+              ${f.why ? `<p class="text-sm text-ink-500 italic mt-2 leading-relaxed" style="margin-top: 0.5rem">${escapeHtml(f.why)}</p>` : ''}
+              ${f.recommendation ? `<p class="text-sm text-ink-700 mt-2 leading-relaxed" style="margin-top: 0.5rem"><span class="text-ink-500 italic">Fix: </span>${escapeHtml(f.recommendation)}</p>` : ''}
+            </article>
+          `;
+        }).join('')}
       </div>
       ${extra > 0 ? `<p class="text-sm text-ink-500 mt-4 italic">…og ${extra} fund til.</p>` : ''}
     </section>
