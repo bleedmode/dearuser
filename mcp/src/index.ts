@@ -259,8 +259,8 @@ Example prompts that should trigger this tool:
   {
     projectRoot: z.string().optional().describe('Project root (e.g., "/Users/me/my-project"). Defaults to cwd. Audit is most useful in global scope.'),
     scope: z.enum(['global', 'project']).optional().describe('Default global.'),
-    focus: z.enum(['orphan', 'overlap', 'closure', 'substrate', 'mcp_refs', 'backup', 'stale_schedule', 'all']).optional()
-      .describe('Narrow to one finding type, or "all" (default). `stale_schedule` = jobs that stopped firing; `mcp_refs` = tools calling unregistered MCP servers; `backup` = ~/.claude/ not in version control.'),
+    focus: z.enum(['orphan', 'overlap', 'closure', 'substrate', 'mcp_refs', 'backup', 'stale_schedule', 'expected_jobs', 'all']).optional()
+      .describe('Narrow to one finding type, or "all" (default). `stale_schedule` = jobs that stopped firing; `expected_jobs` = jobs declared in ~/.dearuser/expected-jobs.json but not registered; `mcp_refs` = tools calling unregistered MCP servers; `backup` = ~/.claude/ not in version control.'),
   },
   async ({ projectRoot, scope, focus }) => {
     try {
