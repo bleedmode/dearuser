@@ -91,15 +91,23 @@ export function runAudit(options: AuditOptions = {}): AuditReport {
   const graph = buildGraph(artifacts);
 
   // 3. Detect
-  const findings = runDetectors(graph, options);
+  //    Always run ALL detectors so the score reflects total system health.
+  //    A `focus` option narrows only what's SHOWN to the user, not what's
+  //    measured — otherwise a focused run that finds nothing reports 100/100
+  //    while the other categories still have findings the user didn't see.
+  const allFindings = runDetectors(graph, { ...options, focus: 'all' });
+  const findings = options.focus && options.focus !== 'all'
+    ? runDetectors(graph, options)
+    : allFindings;
 
   // 4. Feedback
   const feedback = reconcileFindings(findings);
 
   // 5. Score — turn findings into a 0-100 number with category breakdown.
   //    Same shape as collaboration and security scores so the dashboard can
-  //    render all three under one visual language.
-  const { categories, systemHealthScore } = scoreSystemHealth(findings);
+  //    render all three under one visual language. Score always uses the
+  //    full finding set, never the focus-filtered one.
+  const { categories, systemHealthScore } = scoreSystemHealth(allFindings);
 
   // 6. Ceiling — fixing every finding takes each category to 100.
   const byCategory: ScoreCeiling['byCategory'] = {};
