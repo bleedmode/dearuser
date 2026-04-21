@@ -609,13 +609,16 @@ function letterSignature(): string {
 // Historik — alle kørsler
 // ============================================================================
 
-function renderHistorik(): string {
-  const runs = getRecentRuns(100).filter((r: any) => r.details && r.details.trim().length > 0);
+/**
+ * Dated header strip used at the top of every list-page (Mine breve,
+ * Forslag, Profil). Orange bullet + today's date, separator rule. Ties
+ * the three pages together as one brev-collection.
+ */
+function pageDateStrip(): string {
   const now = new Date();
   const dateStrDa = now.toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' });
   const dateStrEn = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-
-  const actionStrip = `
+  return `
     <div class="flex items-center gap-3 mb-12 pb-4 border-b border-paper-200 text-[11px] uppercase tracking-[0.15em]">
       <span class="w-1.5 h-1.5 rounded-full bg-action-600"></span>
       <span class="text-ink-500">
@@ -623,6 +626,11 @@ function renderHistorik(): string {
       </span>
     </div>
   `;
+}
+
+function renderHistorik(): string {
+  const runs = getRecentRuns(100).filter((r: any) => r.details && r.details.trim().length > 0);
+  const actionStrip = pageDateStrip();
 
   if (runs.length === 0) {
     return page('Mine breve', `
@@ -1536,6 +1544,7 @@ function renderForbedringer(): string {
   }
 
   return page('Forslag', `
+    ${pageDateStrip()}
     <section>
       <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">Forslag</h1>
       <p class="font-serif text-2xl text-ink-700 leading-snug max-w-xl">Små ting du kan prøve. Ingen af dem er livsnødvendige — bare idéer.</p>
@@ -1751,6 +1760,7 @@ function renderProfil(): string {
   `;
 
   return page('Profil', `
+    ${pageDateStrip()}
     <section>
       <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">Dig og mig</h1>
       <p class="font-serif text-xl text-ink-700 leading-snug max-w-xl">Her er hvad jeg ved om dig, og hvordan vi arbejder sammen. Ret den i din <span class="italic">config.json</span> eller kør onboarding igen.</p>
