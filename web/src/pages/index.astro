@@ -6,17 +6,16 @@ import Layout from '../layouts/Layout.astro';
 <style>
   /* Hero ----------------------------------------------------------- */
   .hero {
-    min-height: calc(100vh - 66px);
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     text-align: center;
-    padding: 56px 24px 72px;
+    padding: 88px 24px 96px;
     position: relative;
-    background: radial-gradient(ellipse at 50% 80%,
-      color-mix(in srgb, var(--c-action-600) 18%, transparent) 0%,
-      transparent 62%);
+    background: radial-gradient(ellipse at 50% 90%,
+      color-mix(in srgb, var(--c-action-600) 16%, transparent) 0%,
+      transparent 58%);
   }
   .hero-eyebrow {
     font-family: 'Geist Mono', monospace;
@@ -49,40 +48,25 @@ import Layout from '../layouts/Layout.astro';
   .hero-sub p { margin: 0 0 12px; }
   .hero-sub p:last-child { margin-bottom: 0; }
 
-  /* Hero CTA — primary button + subtle alt link */
-  .hero-cta {
-    display: inline-block;
-    background: var(--c-action-600);
-    color: var(--c-paper-50);
-    font-family: 'Geist', sans-serif;
-    font-size: 15px;
-    font-weight: 600;
-    padding: 14px 28px;
-    border-radius: 999px;
-    text-decoration: none;
-    letter-spacing: -0.005em;
-    transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
-    box-shadow: 0 8px 24px -10px color-mix(in srgb, var(--c-action-600) 60%, transparent);
+  /* Hero actions — primary install + secondary example link */
+  .hero-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
   }
-  .hero-cta:hover {
-    background: var(--c-action-700);
-    transform: translateY(-1px);
-    box-shadow: 0 12px 28px -10px color-mix(in srgb, var(--c-action-600) 70%, transparent);
-  }
-  html[data-theme="dark"] .hero-cta { color: #1A1511; }
-  .hero-alt {
-    margin-top: 18px;
-    font-size: 13px;
-    color: var(--c-ink-400);
-  }
-  .hero-alt a {
+  .hero-example-link {
     color: var(--c-ink-500);
     text-decoration: none;
+    font-size: 14px;
     border-bottom: 1px solid var(--c-paper-200);
     padding-bottom: 1px;
     transition: color 0.15s, border-color 0.15s;
   }
-  .hero-alt a:hover { color: var(--c-ink-900); border-color: var(--c-ink-500); }
+  .hero-example-link:hover {
+    color: var(--c-ink-900);
+    border-color: var(--c-ink-500);
+  }
 
   /* Install block --------------------------------------------------- */
   .install {
@@ -360,17 +344,37 @@ import Layout from '../layouts/Layout.astro';
     </p>
   </div>
 
-  <a href="/example" class="hero-cta">
-    <span class="lang-da">Læs et eksempel-brev →</span>
-    <span class="lang-en">Read a sample letter →</span>
-  </a>
-  <div class="hero-alt">
-    <a href="#install">
-      <span class="lang-da">Eller spring direkte til installation →</span>
-      <span class="lang-en">Or jump straight to install →</span>
+  <div class="hero-actions">
+    <div class="install" id="install-cta" title="Click to copy">
+      <span class="prompt">$</span>
+      <span class="cmd">claude mcp add dearuser -- npx dearuser-mcp</span>
+      <span class="copy" id="copy-label">
+        <span class="lang-da">Kopiér</span><span class="lang-en">Copy</span>
+      </span>
+    </div>
+    <a href="/example" class="hero-example-link">
+      <span class="lang-da">Eller se et eksempel →</span>
+      <span class="lang-en">Or see an example →</span>
     </a>
   </div>
 </section>
+
+<script is:inline>
+  var cta = document.getElementById('install-cta');
+  var label = document.getElementById('copy-label');
+  var cmd = 'claude mcp add dearuser -- npx dearuser-mcp';
+  if (cta) {
+    cta.addEventListener('click', function () {
+      if (!navigator.clipboard) return;
+      navigator.clipboard.writeText(cmd).then(function () {
+        if (!label) return;
+        var html = label.innerHTML;
+        label.innerHTML = '<span class="lang-da">Kopieret</span><span class="lang-en">Copied</span>';
+        setTimeout(function () { label.innerHTML = html; }, 1600);
+      }).catch(function () {});
+    });
+  }
+</script>
 
 <!-- Features --------------------------------------------------------- -->
 <section class="features-section" id="features">
