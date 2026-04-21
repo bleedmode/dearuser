@@ -1406,7 +1406,7 @@ function renderSystemHealthFindings(findings: any[]): string {
   if (findings.length === 0) {
     return `
       <section class="mb-12">
-        <p class="text-ink-700 leading-relaxed italic">Ingen ting at rydde op i. Setup\'et hænger sammen.</p>
+        <p class="text-ink-700 leading-relaxed">Ingen ting at rydde op i. Setup\'et hænger sammen.</p>
       </section>
     `;
   }
@@ -1430,7 +1430,7 @@ function renderSystemHealthFindings(findings: any[]): string {
   if (regularFindings.length === 0) {
     return `
       <section class="mb-12">
-        <p class="text-ink-700 leading-relaxed italic">Ingen ting at rydde op i. Setup\'et hænger sammen.</p>
+        <p class="text-ink-700 leading-relaxed">Ingen ting at rydde op i. Setup\'et hænger sammen.</p>
       </section>
     `;
   }
