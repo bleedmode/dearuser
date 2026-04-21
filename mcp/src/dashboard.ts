@@ -223,10 +223,10 @@ function page(title: string, body: string, activeNav: 'oversigt' | 'kørsler' | 
   [data-lang="da"] .lang-en { display: none; }
   [data-lang="en"] .lang-da { display: none; }
   main, header { position: relative; z-index: 1; }
-  .letter-prose h1, .letter-prose h2, .letter-prose h3 { font-weight: 600; color: var(--c-ink-900); }
-  .letter-prose h1 { font-size: 1.5rem; margin: 1.5rem 0 0.75rem; }
-  .letter-prose h2 { font-size: 1.2rem; margin: 1.75rem 0 0.5rem; border-top: 1px solid var(--c-paper-200); padding-top: 1rem; }
-  .letter-prose h3 { font-size: 1rem; margin: 1.25rem 0 0.4rem; }
+  .letter-prose h1, .letter-prose h2, .letter-prose h3 { font-family: var(--font-serif, Georgia, 'Times New Roman', serif); font-weight: 500; color: var(--c-ink-900); letter-spacing: -0.01em; }
+  .letter-prose h1 { font-size: 1.75rem; margin: 1.5rem 0 0.75rem; line-height: 1.25; }
+  .letter-prose h2 { font-size: 1.4rem; margin: 1.75rem 0 0.5rem; line-height: 1.3; }
+  .letter-prose h3 { font-size: 1.15rem; margin: 1.25rem 0 0.4rem; line-height: 1.35; }
   .letter-prose p { margin: 0.6rem 0; line-height: 1.65; color: var(--c-ink-700); }
   .letter-prose ul, .letter-prose ol { padding-left: 1.4rem; margin: 0.5rem 0; }
   .letter-prose li { margin: 0.25rem 0; line-height: 1.55; color: var(--c-ink-700); }
@@ -936,10 +936,6 @@ function renderAnalyzeLetter(run: any, report: any): string {
 
       <!-- Progressive disclosure: technical details -->
       ${lintFindings.length > 0 ? renderCollapsedLint(lintFindings) : ''}
-
-      ${Object.keys(stats).length > 0 ? renderCollapsedStats(stats, session) : ''}
-
-      ${feedback ? renderCollapsedFeedback(feedback) : ''}
 
       <!-- Sign-off -->
       <footer class="mt-10">
