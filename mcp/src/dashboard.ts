@@ -1769,7 +1769,6 @@ function renderProfil(): string {
 
   return page('Profil', `
     <section>
-      <p class="text-[11px] uppercase tracking-[0.15em] text-ink-400 mb-6">Profil</p>
       <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">Dig og mig</h1>
       <p class="font-serif text-xl text-ink-700 leading-snug max-w-xl">Her er hvad jeg ved om dig, og hvordan vi arbejder sammen. Ret den i din <span class="italic">config.json</span> eller kør onboarding igen.</p>
     </section>
