@@ -33,8 +33,8 @@ const MAX_PORT_ATTEMPTS = 10;
 // ============================================================================
 
 const TOOL_LABELS: Record<string, string> = {
-  collab: 'Din samarbejds-rapport',
-  analyze: 'Din samarbejds-rapport', // legacy
+  collab: 'Samarbejde',
+  analyze: 'Samarbejde', // legacy
   health: 'System-sundhed',
   'system-health': 'System-sundhed', // legacy
   audit: 'System-sundhed', // legacy
@@ -913,7 +913,6 @@ function renderAnalyzeLetter(run: any, report: any): string {
     <article class="max-w-2xl mx-auto letter-prose">
       <!-- Header -->
       <header class="mb-10 not-letter">
-        <div class="text-xs uppercase tracking-wider text-ink-500 mb-2">Din samarbejds-rapport</div>
         <div class="font-mono text-xs text-ink-300">${escapeHtml(formatLetterDate(run.started_at))}</div>
       </header>
 
@@ -1012,22 +1011,28 @@ function renderTopActionInline(rec: any): string {
 // "what your score means" — details are progressive, not demanded.
 
 function renderScoreAndCategories(score: number | null, catEntries: Array<{ key: string; score: number }>): string {
-  const pct = typeof score === 'number' ? Math.max(0, Math.min(100, score)) : 0;
-  const verdict = typeof score === 'number' ? overallVerdict(score) : '';
+  // Match the visual pattern used on the home-page tiles and the other
+  // letter types: colored bullet + domain label, big font-serif number
+  // in the same color. No surrounding card. Verdict lives in the leadIn.
+  const scoreColor = typeof score !== 'number'
+    ? 'text-ink-300'
+    : score >= 85 ? 'text-emerald-700'
+    : score >= 70 ? 'text-amber-700'
+    : 'text-rose-700';
+  const dot = typeof score !== 'number'
+    ? 'bg-ink-300'
+    : score >= 85 ? 'bg-emerald-600'
+    : score >= 70 ? 'bg-amber-500'
+    : 'bg-rose-600';
 
   return `
     <section class="mb-12">
-      <!-- Hero score — big number, verdict line. No side-by-side persona card. -->
-      <div class="bg-paper-100 border border-paper-200 rounded-2xl p-6 mb-5">
-        <div class="flex items-baseline justify-between mb-3">
-          <div class="text-xs uppercase tracking-wider text-ink-500">Overall</div>
-          <div class="text-xs text-ink-300 font-mono">0–100</div>
+      <div class="mb-8">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="w-1.5 h-1.5 rounded-full ${dot}"></span>
+          <span class="text-[11px] uppercase tracking-[0.15em] text-ink-500">Samarbejde</span>
         </div>
-        <div class="flex items-baseline gap-3 mb-2">
-          <div class="font-mono text-6xl font-semibold text-ink-900 leading-none">${typeof score === 'number' ? score : '—'}</div>
-          <div class="text-xl text-ink-300">/100</div>
-        </div>
-        ${verdict ? `<p class="text-ink-700 leading-relaxed mt-3">${escapeHtml(verdict)}</p>` : ''}
+        <div class="font-serif text-6xl ${scoreColor} leading-none">${typeof score === 'number' ? score : '—'}</div>
       </div>
 
       <!-- Per-category rows, sorted high→low -->
