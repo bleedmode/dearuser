@@ -904,10 +904,10 @@ function renderAnalyzeLetter(run: any, report: any): string {
     { key: 'qualityStandards',score: categories.qualityStandards?.score?? 0 },
   ].sort((a, b) => b.score - a.score);
 
-  const lintFindings: any[] = report.lint?.findings || [];
-  const stats = report.stats || {};
-  const session = report.session || {};
-  const feedback = report.feedback || null;
+  // Collab findings = topAction + smallThings merged into a single list,
+  // routed through the same renderer that health/security use. Keep the
+  // top action first so the strongest signal leads.
+  const findingItems = collabFindingsFromRecs(topAction, smallThings);
 
   const body = `
     <article class="max-w-2xl mx-auto letter-prose">
@@ -929,13 +929,15 @@ function renderAnalyzeLetter(run: any, report: any): string {
       <!-- Combined: overall score + per-category bars, one section, one glance -->
       ${renderScoreAndCategories(score, catEntries)}
 
-      <!-- Top action — inline brev-prose, not a card -->
-      ${topAction ? renderTopActionInline(topAction) : ''}
-
-      ${smallThings.length > 0 ? renderSmallThings(smallThings) : ''}
-
-      <!-- Progressive disclosure: technical details -->
-      ${lintFindings.length > 0 ? renderCollapsedLint(lintFindings) : ''}
+      ${findingItems.length > 0 ? `
+        <section class="mb-12">
+          <h2>Her er hvad jeg vil foreslå</h2>
+          <div class="space-y-6">
+            ${findingItems.map(renderLetterFinding).join('')}
+          </div>
+          <a href="/forbedringer" class="inline-block mt-6 text-sm text-accent-600 hover:text-accent-500">Se alle forslag →</a>
+        </section>
+      ` : ''}
 
       <!-- Sign-off -->
       <footer class="mt-10">
@@ -951,48 +953,41 @@ function renderAnalyzeLetter(run: any, report: any): string {
   return page(`${toolLabel(run.tool_name)}`, body, 'oversigt');
 }
 
-function lowerFirst(s: string): string {
-  return s.length > 0 ? s[0].toLowerCase() + s.slice(1) : s;
+// Map the top-action rec + the 3 small things into the unified finding shape
+// (description/practiceStep/example + severity). Top action goes first.
+function collabFindingsFromRecs(
+  topAction: any | null,
+  smallThings: Array<{ title: string; summary?: string; benefit?: string }>,
+): any[] {
+  const items: any[] = [];
+
+  if (topAction) {
+    const f = friendlyLabel(topAction.title || '');
+    items.push({
+      severity: topAction.priority === 'critical' ? 'critical' : 'recommended',
+      title: f.title || topAction.title || 'Den vigtigste ting',
+      description: f.benefit || topAction.why || topAction.description || '',
+      example: topAction.howItLooks || '',
+      practiceStep: topAction.practiceStep || '',
+    });
+  }
+
+  for (const s of smallThings) {
+    items.push({
+      severity: 'recommended',
+      title: s.title,
+      description: s.summary || '',
+      // Small things use "Hvad bliver bedre?" benefit as the practice step —
+      // that's what the old UI folded away behind a disclosure triangle.
+      practiceStep: s.benefit || '',
+    });
+  }
+
+  return items;
 }
 
-// ----- Top action — rendered as brev-prose, not a bordered card. A card
-// reads as "dashboard KPI"; a letter reads as "Dear User wants to tell you
-// one thing specifically". Use typography (a thin accent rule, italic lead-in)
-// instead of a heavy border-box to keep the letter tone.
-
-function renderTopActionInline(rec: any): string {
-  const f = friendlyLabel(rec.title || '');
-  const title = f.title || rec.title || 'Den vigtigste ting';
-  const why = f.benefit || rec.why || rec.description || '';
-  const howItLooks = rec.howItLooks || '';
-  const practiceStep = rec.practiceStep || '';
-  const leadIn = rec.priority === 'critical'
-    ? 'Men én ting vil jeg særligt bede dig tage med dig:'
-    : 'En ting jeg særligt lagde mærke til:';
-
-  return `
-    <section class="mb-12">
-      <p class="text-ink-500 italic mb-3">${escapeHtml(leadIn)}</p>
-      <h2 class="text-2xl font-semibold text-ink-900 mb-3 leading-tight">${escapeHtml(title)}</h2>
-      ${why ? `<p class="text-ink-700 leading-relaxed mb-4">${escapeHtml(why)}</p>` : ''}
-
-      ${howItLooks ? `
-        <details class="mt-3 group">
-          <summary class="cursor-pointer text-sm text-accent-600 hover:text-accent-500 list-none inline-flex items-center gap-1.5">
-            <span class="transition-transform group-open:rotate-90">▸</span>
-            <span>Et eksempel på hvordan det ser ud</span>
-          </summary>
-          <div class="mt-3 text-sm text-ink-700 whitespace-pre-wrap leading-relaxed italic">${escapeHtml(howItLooks)}</div>
-        </details>
-      ` : ''}
-
-      ${practiceStep ? `
-        <p class="mt-4 text-ink-700 leading-relaxed">
-          <span class="text-ink-500 italic">Prøv det næste gang: </span>${escapeHtml(practiceStep)}
-        </p>
-      ` : ''}
-    </section>
-  `;
+function lowerFirst(s: string): string {
+  return s.length > 0 ? s[0].toLowerCase() + s.slice(1) : s;
 }
 
 // ----- Combined score + categories — one section, one glance.
@@ -1078,74 +1073,7 @@ function renderCategoryRow(key: string, score: number): string {
   `;
 }
 
-// ----- Three small things -----
-
-function renderSmallThings(items: Array<{ title: string; summary?: string; benefit?: string }>): string {
-  // Render as flat brev-prosa — same treatment as the top-action block
-  // above. Both are curated recommendations; they should share one visual
-  // grammar. Boxes were introduced to match the "Tekniske detaljer"
-  // collapsibles, but those are drill-down data containers, not
-  // recommendations. Different purpose → different treatment.
-  return `
-    <section class="mb-12">
-      <p class="text-ink-500 italic mb-3">Tre små ting jeg også lagde mærke til:</p>
-      <div class="space-y-8">
-        ${items.slice(0, 3).map(item => `
-          <div>
-            <h3 class="text-lg font-semibold text-ink-900 mb-2 leading-tight">${escapeHtml(item.title)}</h3>
-            ${item.summary ? `<p class="text-ink-700 leading-relaxed">${escapeHtml(item.summary)}</p>` : ''}
-            ${item.benefit ? `
-              <details class="mt-3 group">
-                <summary class="cursor-pointer text-sm text-accent-600 hover:text-accent-500 list-none inline-flex items-center gap-1.5">
-                  <span class="transition-transform group-open:rotate-90">▸</span>
-                  <span>Hvad bliver bedre?</span>
-                </summary>
-                <p class="mt-2 text-sm text-ink-700 leading-relaxed italic">${escapeHtml(item.benefit)}</p>
-              </details>
-            ` : ''}
-          </div>
-        `).join('')}
-      </div>
-      <a href="/forbedringer" class="inline-block mt-6 text-sm text-accent-600 hover:text-accent-500">Se alle forslag →</a>
-    </section>
-  `;
-}
-
 // ----- Collapsed sections -----
-
-function renderCollapsedLint(findings: any[]): string {
-  const critical = findings.filter(f => f.severity === 'critical').length;
-  const recommended = findings.filter(f => f.severity === 'recommended').length;
-  const nice = findings.filter(f => f.severity === 'nice_to_have').length;
-  const headline = critical > 0
-    ? `${critical} kritisk, ${recommended} anbefalet, ${nice} nice-to-have`
-    : `${recommended + nice} små ting der kan forbedres (ingen kritiske)`;
-
-  return `
-    <section class="mb-8">
-      <details class="group bg-paper-100/60 border border-paper-200 rounded-xl">
-        <summary class="cursor-pointer px-5 py-4 list-none flex items-center justify-between hover:bg-paper-100 rounded-xl">
-          <div>
-            <div class="font-medium text-ink-900">Tekniske detaljer i dine instruktioner</div>
-            <div class="text-sm text-ink-500 mt-0.5">${escapeHtml(headline)}</div>
-          </div>
-          <span class="text-ink-300 transition-transform group-open:rotate-90">▸</span>
-        </summary>
-        <div class="px-5 pb-5 pt-2">
-          <ul class="space-y-3">
-            ${findings.slice(0, 24).map(f => `
-              <li class="border-l-2 ${f.severity === 'critical' ? 'border-bad-fg' : f.severity === 'recommended' ? 'border-warn-fg' : 'border-paper-300'} pl-3">
-                <div class="text-sm font-medium text-ink-800">${escapeHtml(f.title || f.id || 'Finding')}</div>
-                ${f.description ? `<div class="text-xs text-ink-500 mt-0.5 leading-relaxed">${escapeHtml(f.description)}</div>` : ''}
-                ${f.fix ? `<div class="text-xs text-accent-600 mt-1">→ ${escapeHtml(f.fix)}</div>` : ''}
-              </li>
-            `).join('')}
-          </ul>
-        </div>
-      </details>
-    </section>
-  `;
-}
 
 function renderCollapsedStats(stats: any, session: any): string {
   const activeSessions = session?.stats?.sessionsLast7Days ?? 0;
@@ -1377,6 +1305,56 @@ function renderDomainScoreAndCategories(
   `;
 }
 
+// ----- Unified finding renderer --------------------------------------------
+//
+// One visual grammar for every "here is a thing I found" across health,
+// security, and collab. Flat brev-prose — no chips, no TYPE badges, no kind
+// labels. A single red dot marks critical items; everything else relies on
+// typography and order to carry emphasis.
+//
+// Inputs it knows how to read:
+//   severity:        'critical' | 'recommended' | 'nice_to_have' — only 'critical' shows a dot
+//   title            — plain title (required)
+//   description      — body prose (system-health, collab small-things)
+//   summary / why    — alt body prose (collab, system-health italic)
+//   howItLooks       — optional collapsed example block (collab top-action)
+//   example          — alt collapsed example block
+//   recommendation   — closing action paragraph → "Fix: …"
+//   fix              — alt closing action paragraph
+//   practiceStep     — collab-style closing action → "Prøv det næste gang: …"
+//
+// The `practiceStep` field takes precedence and changes the label. Otherwise
+// whichever of recommendation/fix is non-empty wins.
+function renderLetterFinding(f: any): string {
+  const title = f.title || f.category || '';
+  const body = f.description || f.summary || f.why || '';
+  const example = f.example || f.howItLooks || '';
+  const practiceStep = f.practiceStep || '';
+  const action = practiceStep || f.recommendation || f.fix || '';
+  const actionLabel = practiceStep ? 'Prøv det næste gang: ' : 'Fix: ';
+
+  const dot = f.severity === 'critical'
+    ? '<span class="inline-block w-2 h-2 rounded-full bg-rose-600 mr-2 align-middle"></span>'
+    : '';
+
+  return `
+    <article class="py-1">
+      <h3>${dot}${escapeHtml(title)}</h3>
+      ${body ? `<p>${escapeHtml(body)}</p>` : ''}
+      ${example ? `
+        <details class="group">
+          <summary class="cursor-pointer text-sm text-accent-600 hover:text-accent-500 list-none inline-flex items-center gap-1.5">
+            <span class="transition-transform group-open:rotate-90">▸</span>
+            <span>Et eksempel på hvordan det ser ud</span>
+          </summary>
+          <div class="mt-2 text-sm text-ink-700 italic whitespace-pre-wrap leading-relaxed">${escapeHtml(example)}</div>
+        </details>
+      ` : ''}
+      ${action ? `<p><em class="text-ink-500">${actionLabel}</em>${escapeHtml(action)}</p>` : ''}
+    </article>
+  `;
+}
+
 function severityBadge(severity: string): string {
   if (severity === 'critical') return '<span class="inline-flex items-center gap-1.5 text-xs font-medium text-rose-700"><span class="w-1.5 h-1.5 rounded-full bg-rose-600"></span>Kritisk</span>';
   if (severity === 'recommended') return '<span class="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Anbefalet</span>';
@@ -1394,28 +1372,23 @@ function renderSecurityFindings(findings: any[]): string {
   const shown = findings.slice(0, 15);
   const extra = findings.length - shown.length;
 
+  // Feed location/path into the body prose so it doesn't disappear — the
+  // unified renderer intentionally drops mono "where" chips to keep the
+  // letter prose-first.
+  const enriched = shown.map(f => {
+    const where = f.location || f.artifactPath || f.conflictingPath || f.projectName || '';
+    const body = f.description || f.why || '';
+    const merged = where
+      ? (body ? `${body}\n\nSted: ${where}` : `Sted: ${where}`)
+      : body;
+    return { ...f, title: f.title || f.category || f._kind, description: merged };
+  });
+
   return `
     <section class="mb-12">
-      <h2 class="text-lg font-semibold text-ink-900 mb-4">Det jeg fandt</h2>
-      <div class="space-y-4">
-        ${shown.map(f => {
-          const title = f.title || f.category || f._kind;
-          const where = f.location || f.artifactPath || f.conflictingPath || f.projectName || '';
-          const fix = f.recommendation || f.fix || '';
-          const why = f.why || '';
-          return `
-            <article class="py-1">
-              <div class="flex items-baseline gap-3 flex-wrap mb-1">
-                ${severityBadge(f.severity)}
-                <span class="text-xs uppercase tracking-wider text-ink-400">${escapeHtml(f._kind)}</span>
-              </div>
-              <h3 class="font-medium text-ink-900 mt-1" style="margin: 0.25rem 0">${escapeHtml(title)}</h3>
-              ${where ? `<p class="text-xs text-ink-500 font-mono mt-1" style="margin: 0.25rem 0">${escapeHtml(where)}</p>` : ''}
-              ${why ? `<p class="text-sm text-ink-700 mt-2 leading-relaxed" style="margin-top: 0.5rem">${escapeHtml(why)}</p>` : ''}
-              ${fix ? `<p class="text-sm text-ink-700 mt-2 leading-relaxed" style="margin-top: 0.5rem"><span class="text-ink-500 italic">Fix: </span>${escapeHtml(fix)}</p>` : ''}
-            </article>
-          `;
-        }).join('')}
+      <h2>Det jeg fandt</h2>
+      <div class="space-y-6">
+        ${enriched.map(renderLetterFinding).join('')}
       </div>
       ${extra > 0 ? `<p class="text-sm text-ink-500 mt-4 italic">…og ${extra} fund til. Kør med format="detailed" eller kig i chat-outputtet for alle.</p>` : ''}
     </section>
@@ -1430,15 +1403,6 @@ function renderSystemHealthFindings(findings: any[]): string {
       </section>
     `;
   }
-  const TYPE_LABELS: Record<string, string> = {
-    orphan_job: 'Forældreløst job',
-    stale_schedule: 'Dødt skema',
-    overlap: 'Overlap',
-    missing_closure: 'Manglende modtager',
-    unregistered_mcp_tool: 'Ikke-registreret MCP tool',
-    substrate_mismatch: 'Forkert substrat',
-    unbacked_up_substrate: 'Ikke backup\'et',
-  };
 
   // Drop same-suite overlap findings from the user's report entirely.
   // The scorer already excludes them from penalty, and they describe
@@ -1460,23 +1424,9 @@ function renderSystemHealthFindings(findings: any[]): string {
 
   return `
     <section class="mb-12">
-      <h2 class="text-lg font-semibold text-ink-900 mb-4">Det jeg fandt</h2>
-      <div class="space-y-4">
-        ${shown.map(f => {
-          const typeLabel = TYPE_LABELS[f.type] || f.type;
-          return `
-            <article class="py-1">
-              <div class="flex items-baseline gap-3 flex-wrap mb-1">
-                ${severityBadge(f.severity)}
-                <span class="text-xs uppercase tracking-wider text-ink-400">${escapeHtml(typeLabel)}</span>
-              </div>
-              <h3 class="font-medium text-ink-900 mt-1" style="margin: 0.25rem 0">${escapeHtml(f.title)}</h3>
-              ${f.description ? `<p class="text-sm text-ink-700 mt-2 leading-relaxed" style="margin-top: 0.5rem">${escapeHtml(f.description)}</p>` : ''}
-              ${f.why ? `<p class="text-sm text-ink-500 italic mt-2 leading-relaxed" style="margin-top: 0.5rem">${escapeHtml(f.why)}</p>` : ''}
-              ${f.recommendation ? `<p class="text-sm text-ink-700 mt-2 leading-relaxed" style="margin-top: 0.5rem"><span class="text-ink-500 italic">Fix: </span>${escapeHtml(f.recommendation)}</p>` : ''}
-            </article>
-          `;
-        }).join('')}
+      <h2>Det jeg fandt</h2>
+      <div class="space-y-6">
+        ${shown.map(renderLetterFinding).join('')}
       </div>
       ${extra > 0 ? `<p class="text-sm text-ink-500 mt-4 italic">…og ${extra} fund til.</p>` : ''}
     </section>
@@ -1535,9 +1485,14 @@ function pickSmallThings(
 
 function renderForbedringer(): string {
   reconcilePendingRecommendations();
-  const pending = getRecommendations('pending');
-  const implemented = getRecommendations('implemented');
-  const dismissed = getRecommendations('dismissed');
+  // Observation-type rows (e.g. "66 course-corrections in recent prompts")
+  // are stats that got pushed into the recommendations table — not actions
+  // the user can take. Filter them out everywhere on this page.
+  const isObservation = (r: any): boolean => /course-correction/i.test(r.title || '');
+  const stripObservations = (rows: any[]) => rows.filter(r => !isObservation(r));
+  const pending = stripObservations(getRecommendations('pending'));
+  const implemented = stripObservations(getRecommendations('implemented'));
+  const dismissed = stripObservations(getRecommendations('dismissed'));
 
   const renderList = (items: any[], canDrop: boolean) => {
     if (items.length === 0) return `<p class="text-ink-500 text-sm">Ingen lige nu.</p>`;
@@ -1599,28 +1554,30 @@ function renderForbedringer(): string {
 
   return page('Forslag', `
     <section>
-      <h1 class="text-3xl font-semibold mb-2">Forslag</h1>
-      <p class="text-ink-500 mb-8">Små ting du kan prøve. Ingen af dem er livsnødvendige — bare idéer.</p>
+      <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">Forslag</h1>
+      <p class="font-serif text-2xl text-ink-700 leading-snug max-w-xl">Små ting du kan prøve. Ingen af dem er livsnødvendige — bare idéer.</p>
+    </section>
 
+    <div class="mt-16">
       <div class="mb-10">
-        <h2 class="text-sm uppercase tracking-wider text-ink-500 mb-3">Venter på dig (${pending.length})</h2>
+        <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-3">Venter på dig (${pending.length})</h2>
         ${renderList(pending, true)}
       </div>
 
       ${implemented.length > 0 ? `
         <div class="mb-10">
-          <h2 class="text-sm uppercase tracking-wider text-ink-500 mb-3">Allerede gjort (${implemented.length})</h2>
+          <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-3">Allerede gjort (${implemented.length})</h2>
           ${renderList(implemented, false)}
         </div>
       ` : ''}
 
       ${dismissed.length > 0 ? `
         <div>
-          <h2 class="text-sm uppercase tracking-wider text-ink-500 mb-3">Droppet (${dismissed.length})</h2>
+          <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-3">Droppet (${dismissed.length})</h2>
           ${renderList(dismissed, false)}
         </div>
       ` : ''}
-    </section>
+    </div>
   `, 'forbedringer');
 }
 
@@ -1812,7 +1769,6 @@ function renderProfil(): string {
 
   return page('Profil', `
     <section>
-      <p class="text-[11px] uppercase tracking-[0.15em] text-ink-400 mb-6">Profil</p>
       <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">Dig og mig</h1>
       <p class="font-serif text-xl text-ink-700 leading-snug max-w-xl">Her er hvad jeg ved om dig, og hvordan vi arbejder sammen. Ret den i din <span class="italic">config.json</span> eller kør onboarding igen.</p>
     </section>
