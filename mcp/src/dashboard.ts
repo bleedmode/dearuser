@@ -851,9 +851,9 @@ function renderMarkdownFallback(run: any): string {
       <p class="text-xl text-ink-900 font-medium mb-1">${escapeHtml(greeting())},</p>
       <p class="text-ink-500 mb-8 leading-relaxed">Her er hvad jeg fandt.</p>
       <div class="letter-prose">${rendered}</div>
-      <footer class="mt-12 pt-6 border-t border-paper-200">
-        <p class="text-ink-500 italic">Med venlig hilsen,</p>
-        <p class="text-ink-900 font-medium mt-1">${signature()}</p>
+      <footer class="mt-10">
+        <p class="text-ink-700 italic mb-3">Med venlig hilsen,</p>
+        <p class="text-ink-900">${signature()}</p>
       </footer>
     </article>
     <div class="mt-8 max-w-2xl mx-auto">
@@ -943,9 +943,9 @@ function renderAnalyzeLetter(run: any, report: any): string {
       ${feedback ? renderCollapsedFeedback(feedback) : ''}
 
       <!-- Sign-off -->
-      <footer class="mt-16 pt-8 border-t border-paper-200">
-        <p class="text-ink-500 italic">Med venlig hilsen,</p>
-        <p class="text-ink-900 font-medium mt-1">${signature()}</p>
+      <footer class="mt-10">
+        <p class="text-ink-700 italic mb-3">Med venlig hilsen,</p>
+        <p class="text-ink-900">${signature()}</p>
       </footer>
     </article>
     <div class="mt-8 max-w-2xl mx-auto">
@@ -1258,9 +1258,9 @@ function renderSecurityLetter(run: any, report: any): string {
 
       ${renderSecurityFindings(allFindings)}
 
-      <footer class="mt-16 pt-8 border-t border-paper-200">
-        <p class="text-ink-500 italic">Med venlig hilsen,</p>
-        <p class="text-ink-900 font-medium mt-1">${signature()}</p>
+      <footer class="mt-10">
+        <p class="text-ink-700 italic mb-3">Med venlig hilsen,</p>
+        <p class="text-ink-900">${signature()}</p>
       </footer>
     </article>
     <div class="mt-8 max-w-2xl mx-auto">
@@ -1315,9 +1315,9 @@ function renderSystemHealthLetter(run: any, report: any): string {
 
       ${renderSystemHealthFindings(sortedFindings)}
 
-      <footer class="mt-16 pt-8 border-t border-paper-200">
-        <p class="text-ink-500 italic">Med venlig hilsen,</p>
-        <p class="text-ink-900 font-medium mt-1">${signature()}</p>
+      <footer class="mt-10">
+        <p class="text-ink-700 italic mb-3">Med venlig hilsen,</p>
+        <p class="text-ink-900">${signature()}</p>
       </footer>
     </article>
     <div class="mt-8 max-w-2xl mx-auto">
