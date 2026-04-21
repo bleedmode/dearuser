@@ -1246,7 +1246,6 @@ function renderSecurityLetter(run: any, report: any): string {
   const body = `
     <article class="max-w-2xl mx-auto letter-prose">
       <header class="mb-10 not-letter">
-        <div class="text-xs uppercase tracking-wider text-ink-500 mb-2">Sikkerhedstjek</div>
         <div class="font-mono text-xs text-ink-300">${escapeHtml(formatLetterDate(run.started_at))}</div>
       </header>
 
@@ -1304,7 +1303,6 @@ function renderSystemHealthLetter(run: any, report: any): string {
   const body = `
     <article class="max-w-2xl mx-auto letter-prose">
       <header class="mb-10 not-letter">
-        <div class="text-xs uppercase tracking-wider text-ink-500 mb-2">System-sundhed</div>
         <div class="font-mono text-xs text-ink-300">${escapeHtml(formatLetterDate(run.started_at))}</div>
       </header>
 
