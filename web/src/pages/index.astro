@@ -5,69 +5,41 @@ import Layout from '../layouts/Layout.astro';
 
 <style>
   /* Hero ----------------------------------------------------------- */
-  .hero { padding: 96px 0 64px; }
-  .hero-inner {
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 0 24px;
-  }
-  .hero-eyebrow {
-    display: inline-flex;
+  .hero {
+    min-height: calc(100vh - 66px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     align-items: center;
-    gap: 8px;
-    font-size: 11px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--c-ink-500);
-    margin-bottom: 28px;
-    padding: 6px 12px;
-    border: 1px solid var(--c-paper-200);
-    border-radius: 999px;
-    background: var(--c-paper-100);
+    text-align: center;
+    padding: 56px 24px 72px;
+    position: relative;
+    background: radial-gradient(ellipse at 50% 80%,
+      color-mix(in srgb, var(--c-action-600) 18%, transparent) 0%,
+      transparent 62%);
   }
-  .hero-eyebrow .dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--c-action-600);
-  }
-  .hero-greeting {
+  .hero h1 {
     font-family: 'Fraunces', Georgia, serif;
     font-style: italic;
     font-weight: 400;
-    font-size: clamp(54px, 9vw, 104px);
-    line-height: 1;
+    font-size: clamp(44px, 8.5vw, 96px);
+    line-height: 1.02;
     letter-spacing: -0.025em;
-    color: var(--c-action-600);
-    margin: 0 0 32px;
+    color: var(--c-ink-900);
+    margin: 0;
+    max-width: 900px;
   }
-  .hero-letter {
+  .hero h1 .accent { color: var(--c-action-600); }
+  .hero-sub {
     font-family: 'Fraunces', Georgia, serif;
-    font-size: clamp(17px, 1.9vw, 21px);
+    font-size: clamp(18px, 2vw, 21px);
+    color: var(--c-ink-700);
     line-height: 1.55;
-    color: var(--c-ink-700);
-    max-width: 600px;
-    margin: 0 0 32px;
+    max-width: 620px;
+    margin: 32px 0 40px;
   }
-  .hero-letter p { margin: 0 0 14px; }
-  .hero-letter p.hi {
-    font-weight: 500;
-    color: var(--c-ink-900);
-    margin-bottom: 14px;
-  }
-  .hero-sig {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 10px;
-    color: var(--c-ink-700);
-  }
-  .hero-sig svg { width: 24px; height: 24px; flex-shrink: 0; }
-  .hero-sig-name {
-    font-family: 'Fraunces', Georgia, serif;
-    font-style: italic;
-    font-size: 19px;
-    color: var(--c-ink-900);
-    letter-spacing: -0.01em;
-  }
+  .hero-sub p { margin: 0 0 14px; }
+  .hero-sub p:last-child { margin-bottom: 0; }
 
   /* Install block --------------------------------------------------- */
   .install {
@@ -329,60 +301,40 @@ import Layout from '../layouts/Layout.astro';
 
 <!-- Hero ------------------------------------------------------------- -->
 <section class="hero">
-  <div class="hero-inner">
-    <h1 class="hero-greeting">
-      <span class="lang-da">Kære bruger,</span>
-      <span class="lang-en">Dear user,</span>
-    </h1>
+  <h1>
+    <span class="lang-da"><span class="accent">Kære bruger,</span><br/>hvordan går det med jeres samarbejde?</span>
+    <span class="lang-en"><span class="accent">Dear User,</span><br/>how is your AI collaboration?</span>
+  </h1>
 
-    <div class="hero-letter">
-      <p class="hi">
-        <span class="lang-da">Hej.</span><span class="lang-en">Hi.</span>
-      </p>
-      <p>
-        <span class="lang-da">I år vil du bruge flere timer med din agent end med de fleste mennesker i dit liv.</span>
-        <span class="lang-en">This year, you'll spend more hours with your agent than with most people in your life.</span>
-      </p>
-      <p>
-        <span class="lang-da">Jeg er bygget til at få det bedste ud af de timer. Jeg holder øje med samarbejdet mellem dig og din agent — på samme måde som HR gør det for mennesker.</span>
-        <span class="lang-en">I'm built to make the most of those hours. I look after the collaboration between you and your agent — the same way HR does for people.</span>
-      </p>
-      <p>
-        <span class="lang-da">Jeg kommer med forslag til forbedringer, og tjekker stille og roligt at din opsætning ikke er ved at gå i stykker.</span>
-        <span class="lang-en">I bring recommendations for improvements, and quietly check that your setup doesn't break.</span>
-      </p>
-      <p>
-        <span class="lang-da">Rart at du er her.</span>
-        <span class="lang-en">Nice to have you here.</span>
-      </p>
-      <div class="hero-sig" aria-hidden="true">
-        <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="20" cy="20" r="20" fill="#EC5329" />
-          <path d="M 11 22 Q 20 32 29 22" stroke="var(--c-smile-fill)" stroke-width="2.5" stroke-linecap="round" fill="none" />
-        </svg>
-        <span class="hero-sig-name">Dear User</span>
-      </div>
-    </div>
+  <div class="hero-sub">
+    <p>
+      <span class="lang-da">I år vil du bruge flere timer med din agent end med de fleste mennesker i dit liv.</span>
+      <span class="lang-en">This year, you'll spend more hours with your agent than with most people in your life.</span>
+    </p>
+    <p>
+      <span class="lang-da">Dear User er bygget til at få det bedste ud af de timer. Jeg holder øje med samarbejdet mellem dig og din agent — på samme måde som HR gør det for mennesker.</span>
+      <span class="lang-en">Dear User was built to make the most of those hours. I look after the collaboration between you and your agent — the same way HR does for people.</span>
+    </p>
+  </div>
 
-    <div class="install" id="install-cta" title="Click to copy">
-      <span class="prompt">$</span>
-      <span class="cmd">claude mcp add dearuser -- npx dearuser-mcp</span>
-      <span class="copy" id="copy-label">
-        <span class="lang-da">Kopiér</span><span class="lang-en">Copy</span>
-      </span>
-    </div>
+  <div class="install" id="install-cta" title="Click to copy">
+    <span class="prompt">$</span>
+    <span class="cmd">claude mcp add dearuser -- npx dearuser-mcp</span>
+    <span class="copy" id="copy-label">
+      <span class="lang-da">Kopiér</span><span class="lang-en">Copy</span>
+    </span>
+  </div>
 
-    <div class="hero-secondary">
-      <a href="/example">
-        <span class="lang-da">Se et eksempel-brev →</span>
-        <span class="lang-en">See an example letter →</span>
-      </a>
-      &nbsp;·&nbsp;
-      <a href="/demo">
-        <span class="lang-da">Samarbejdet i tal →</span>
-        <span class="lang-en">Your collaboration, wrapped →</span>
-      </a>
-    </div>
+  <div class="hero-secondary">
+    <a href="/example">
+      <span class="lang-da">Se et eksempel-brev →</span>
+      <span class="lang-en">See an example letter →</span>
+    </a>
+    &nbsp;·&nbsp;
+    <a href="/demo">
+      <span class="lang-da">Samarbejdet i tal →</span>
+      <span class="lang-en">Your collaboration, wrapped →</span>
+    </a>
   </div>
 </section>
 
