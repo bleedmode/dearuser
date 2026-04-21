@@ -1403,7 +1403,7 @@ function renderSecurityFindings(findings: any[]): string {
           const fix = f.recommendation || f.fix || '';
           const why = f.why || '';
           return `
-            <article class="border-l-2 border-paper-300 pl-4 py-1">
+            <article class="py-1">
               <div class="flex items-baseline gap-3 flex-wrap mb-1">
                 ${severityBadge(f.severity)}
                 <span class="text-xs uppercase tracking-wider text-ink-400">${escapeHtml(f._kind)}</span>
@@ -1464,7 +1464,7 @@ function renderSystemHealthFindings(findings: any[]): string {
         ${shown.map(f => {
           const typeLabel = TYPE_LABELS[f.type] || f.type;
           return `
-            <article class="border-l-2 border-paper-300 pl-4 py-1">
+            <article class="py-1">
               <div class="flex items-baseline gap-3 flex-wrap mb-1">
                 ${severityBadge(f.severity)}
                 <span class="text-xs uppercase tracking-wider text-ink-400">${escapeHtml(typeLabel)}</span>
