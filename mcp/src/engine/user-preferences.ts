@@ -14,6 +14,19 @@ import { join } from 'path';
 const CONFIG_DIR = join(homedir(), '.dearuser');
 const CONFIG_PATH = join(CONFIG_DIR, 'config.json');
 
+/**
+ * True when the user has never completed onboarding. Used by the top-level
+ * tools (collab/security/health) to short-circuit into an onboarding nudge
+ * instead of silently scanning before any setup has happened. Heuristic:
+ * config file missing, OR no name/role/cadence set at all.
+ */
+export function isFirstTime(): boolean {
+  const cfg = readConfig();
+  if (!cfg) return true;
+  const p = cfg.preferences || {};
+  return !p.name && !p.role && !p.cadence;
+}
+
 export interface UserPreferences {
   name?: string;
   agentName?: string;
@@ -22,6 +35,12 @@ export interface UserPreferences {
   audience?: 'self' | 'team' | 'customers' | null;
   substrate?: string | null;
   stack?: string[];
+  /** Raw free-text answers from onboarding — what the user actually wrote.
+   *  Shown on the profile page instead of the parsed bucket labels so the
+   *  user sees their own words, not our internal categorisation. */
+  work?: string;           // Q2 — "Hvad arbejder du med til daglig?"
+  pains?: string;          // Q3 — "Hvad laver du igen og igen som føles som spildt tid?"
+  dataDescription?: string; // Q4 — "Hvor har du dine vigtigste ting liggende?"
 }
 
 interface FullConfig {
