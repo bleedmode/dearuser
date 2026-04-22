@@ -26,9 +26,9 @@
 > No LLM. No cloud. Just clever regex + topic overlap + a swiss-cheese quality gate.
 
 **Tweet 4 (feature #3):**
-> 📊 Scoring calibrated against 50 public CLAUDE.md files.
+> 📊 Scoring calibrated against 2,895 public CLAUDE.md files.
 >
-> Median score is 19/100 — and that's healthy. Public CLAUDE.md files are repo onboarding docs, not agent contracts. Dear User tells you the difference.
+> Median score is 18/100 — and that's healthy. Public CLAUDE.md files are repo onboarding docs, not agent contracts. Dear User tells you the difference.
 
 **Tweet 5 (share / viral):**
 > 🔗 Every report can be turned into a public link: dearuser.ai/r/<token>
@@ -61,7 +61,7 @@
 > Leaked an API key in your CLAUDE.md? Dear User catches it across 12 categories (OpenAI, Anthropic, GitHub, AWS, Stripe, Slack, Google, Supabase, Vercel, private keys, env secrets, bearer tokens). Open source, local-first. dearuser.ai
 
 **B (collab angle):**
-> Your agent's config is either helping it or quietly confusing it. Dear User audits your CLAUDE.md, hooks, skills, memory — 50+ lint checks, semantic conflict detection, scoring calibrated against 50 public setups. Free. dearuser.ai
+> Your agent's config is either helping it or quietly confusing it. Dear User audits your CLAUDE.md, hooks, skills, memory — 50+ lint checks, semantic conflict detection, scoring calibrated against 2,895 public setups. Free. dearuser.ai
 
 **C (share angle):**
 > Every Claude Code setup has a hidden score. Dear User computes it and lets you share a public link to your report. HubSpot-Grader for agents. dearuser.ai
@@ -98,7 +98,7 @@ Body (keep it short — Reddit doesn't reward length):
 > - Leaked credentials (12 categories, prefix-matched — no false positives)
 > - Semantic conflicts between your rules (no LLM, pure heuristic)
 > - Orphan scheduled tasks, skill overlap, structural drift
-> - Scoring calibrated against 50 public CLAUDE.md files
+> - Scoring calibrated against 2,895 public CLAUDE.md files
 >
 > Everything stays on your machine. The only network calls are explicit: `share_report` (anonymized public link) and `feedback` (lands in my inbox).
 >
