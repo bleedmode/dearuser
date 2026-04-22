@@ -1,0 +1,389 @@
+---
+// FeedbackModal — shared feedback form, usable as a modal overlay OR as the
+// body of the standalone /feedback page. The component is unopinionated:
+//   <FeedbackModal />                  → modal (hidden until #du-feedback-open click)
+//   <FeedbackModal mode="inline" />    → static card on /feedback
+//
+// Submits straight to Supabase PostgREST from the browser using the anon key.
+// The key only unlocks the insert-only RLS policy (see migrations/supabase/
+// 007_feedback.sql) so shipping it in the bundle is safe — same pattern as
+// every public Supabase-backed marketing site.
+//
+// The endpoint + key come from build-time env vars (PUBLIC_…) with dev
+// fallbacks that trigger a graceful warning instead of posting blindly.
+interface Props {
+  mode?: 'modal' | 'inline';
+  defaultContext?: string;
+}
+const { mode = 'modal', defaultContext = 'general' } = Astro.props;
+
+// Astro exposes import.meta.env at build time. Falling back to the public
+// project URL keeps preview builds functional; the anon key is optional so
+// local builds don't break when the secret isn't configured.
+const SUPABASE_URL =
+  import.meta.env.PUBLIC_DEARUSER_FEEDBACK_SUPABASE_URL ??
+  'https://xikiuvsoskdkgxxxytci.supabase.co';
+const SUPABASE_ANON_KEY =
+  import.meta.env.PUBLIC_DEARUSER_FEEDBACK_SUPABASE_ANON_KEY ?? '';
+---
+
+<div
+  class={`du-fb-root ${mode === 'modal' ? 'du-fb-modal' : 'du-fb-inline'}`}
+  id="du-feedback-root"
+  data-mode={mode}
+  data-default-context={defaultContext}
+  data-endpoint={`${SUPABASE_URL}/rest/v1/du_feedback`}
+  data-anon-key={SUPABASE_ANON_KEY}
+  aria-hidden={mode === 'modal' ? 'true' : 'false'}
+>
+  <div class="du-fb-card" role={mode === 'modal' ? 'dialog' : undefined} aria-labelledby="du-fb-title">
+    <div class="du-fb-head">
+      <h2 id="du-fb-title" class="du-fb-title">
+        <span class="lang-da">Send feedback</span><span class="lang-en">Send feedback</span>
+      </h2>
+      {mode === 'modal' && (
+        <button type="button" class="du-fb-close" id="du-feedback-close" aria-label="Luk">×</button>
+      )}
+    </div>
+
+    <p class="du-fb-intro">
+      <span class="lang-da">
+        Hvad virker, hvad virker ikke? Skriv det direkte til os — vi læser det hele.
+      </span>
+      <span class="lang-en">
+        What's working, what's not? Drop us a line — we read every one.
+      </span>
+    </p>
+
+    <form class="du-fb-form" id="du-feedback-form" novalidate>
+      <label class="du-fb-field">
+        <span class="du-fb-label">
+          <span class="lang-da">Din besked</span><span class="lang-en">Your message</span>
+        </span>
+        <textarea
+          name="message"
+          required
+          minlength="1"
+          maxlength="4000"
+          rows="5"
+          placeholder=""
+          aria-describedby="du-fb-msg-hint"
+        ></textarea>
+        <span id="du-fb-msg-hint" class="du-fb-hint">
+          <span class="lang-da">Max 4000 tegn.</span><span class="lang-en">Max 4000 characters.</span>
+        </span>
+      </label>
+
+      <fieldset class="du-fb-rating">
+        <legend class="du-fb-label">
+          <span class="lang-da">Hvor tilfreds er du? (valgfrit)</span>
+          <span class="lang-en">How satisfied are you? (optional)</span>
+        </legend>
+        <div class="du-fb-stars" role="radiogroup">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <label class="du-fb-star">
+              <input type="radio" name="rating" value={n} />
+              <span aria-hidden="true">★</span>
+              <span class="du-fb-sr">{n}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <label class="du-fb-field">
+        <span class="du-fb-label">
+          <span class="lang-da">Email (valgfrit — hvis du vil have svar)</span>
+          <span class="lang-en">Email (optional — if you want a reply)</span>
+        </span>
+        <input type="email" name="email" autocomplete="email" />
+      </label>
+
+      <input type="hidden" name="context" value={defaultContext} />
+
+      <div class="du-fb-actions">
+        <button type="submit" class="du-fb-submit">
+          <span class="lang-da">Send</span><span class="lang-en">Send</span>
+        </button>
+        <span class="du-fb-status" id="du-feedback-status" aria-live="polite"></span>
+      </div>
+    </form>
+
+    <div class="du-fb-thanks" id="du-feedback-thanks" hidden>
+      <h3>
+        <span class="lang-da">Tak!</span><span class="lang-en">Thanks!</span>
+      </h3>
+      <p>
+        <span class="lang-da">
+          Din feedback er modtaget. Vi læser alt selv — intet bot-filter.
+        </span>
+        <span class="lang-en">
+          Your feedback just landed in our inbox. A human reads every one.
+        </span>
+      </p>
+      {mode === 'modal' && (
+        <button type="button" class="du-fb-submit" id="du-feedback-done">
+          <span class="lang-da">Luk</span><span class="lang-en">Close</span>
+        </button>
+      )}
+    </div>
+  </div>
+</div>
+
+<style>
+  .du-fb-root { font-family: 'Geist', system-ui, sans-serif; }
+
+  .du-fb-modal {
+    position: fixed;
+    inset: 0;
+    background: color-mix(in srgb, var(--c-ink-900) 55%, transparent);
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 64px 16px;
+    z-index: 100;
+    overflow-y: auto;
+  }
+  .du-fb-modal[data-open="true"] { display: flex; }
+
+  .du-fb-inline { display: block; }
+  .du-fb-inline .du-fb-card { box-shadow: none; }
+
+  .du-fb-card {
+    background: var(--c-paper-50);
+    border: 1px solid var(--c-paper-200);
+    border-radius: 14px;
+    padding: 28px;
+    max-width: 560px;
+    width: 100%;
+    box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.25);
+  }
+
+  .du-fb-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .du-fb-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--c-ink-900);
+    margin: 0;
+  }
+  .du-fb-close {
+    background: transparent;
+    border: 0;
+    font-size: 24px;
+    color: var(--c-ink-500);
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  .du-fb-close:hover { color: var(--c-ink-900); background: var(--c-paper-100); }
+
+  .du-fb-intro {
+    color: var(--c-ink-500);
+    font-size: 14px;
+    margin: 0 0 20px;
+  }
+
+  .du-fb-field { display: block; margin-bottom: 16px; }
+  .du-fb-label {
+    display: block;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--c-ink-700);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .du-fb-form textarea,
+  .du-fb-form input[type="email"] {
+    width: 100%;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--c-ink-900);
+    background: var(--c-paper-100);
+    border: 1px solid var(--c-paper-200);
+    border-radius: 8px;
+    padding: 10px 12px;
+    resize: vertical;
+  }
+  .du-fb-form textarea:focus,
+  .du-fb-form input[type="email"]:focus {
+    outline: 2px solid var(--c-action-600);
+    outline-offset: 1px;
+    border-color: var(--c-action-600);
+  }
+  .du-fb-hint { font-size: 11px; color: var(--c-ink-400); margin-top: 4px; display: block; }
+
+  .du-fb-rating { border: 0; padding: 0; margin: 0 0 16px; }
+  .du-fb-stars { display: flex; gap: 4px; }
+  .du-fb-star {
+    cursor: pointer;
+    font-size: 22px;
+    color: var(--c-ink-300);
+    transition: color 0.15s;
+    display: inline-flex;
+    align-items: center;
+  }
+  .du-fb-star input { position: absolute; opacity: 0; pointer-events: none; }
+  .du-fb-star:hover, .du-fb-star.active { color: var(--c-action-600); }
+  .du-fb-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+
+  .du-fb-actions { display: flex; align-items: center; gap: 16px; margin-top: 4px; }
+  .du-fb-submit {
+    background: var(--c-action-600);
+    color: var(--c-smile-fill);
+    border: 0;
+    border-radius: 999px;
+    padding: 10px 22px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .du-fb-submit:hover { background: var(--c-action-700); }
+  .du-fb-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .du-fb-status { font-size: 13px; color: var(--c-ink-500); }
+  .du-fb-status[data-state="error"] { color: var(--c-bad); }
+
+  .du-fb-thanks { text-align: center; padding: 16px 0; }
+  .du-fb-thanks h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-size: 22px;
+    color: var(--c-action-600);
+    margin: 0 0 8px;
+  }
+  .du-fb-thanks p { color: var(--c-ink-700); margin: 0 0 20px; font-size: 15px; }
+</style>
+
+<script is:inline>
+  (function () {
+    var root = document.getElementById('du-feedback-root');
+    if (!root) return;
+    var mode = root.getAttribute('data-mode');
+    var endpoint = root.getAttribute('data-endpoint');
+    var anonKey = root.getAttribute('data-anon-key');
+    var defaultContext = root.getAttribute('data-default-context') || 'general';
+
+    var form = document.getElementById('du-feedback-form');
+    var statusEl = document.getElementById('du-feedback-status');
+    var thanks = document.getElementById('du-feedback-thanks');
+    var closeBtn = document.getElementById('du-feedback-close');
+    var doneBtn = document.getElementById('du-feedback-done');
+
+    function open() {
+      root.setAttribute('data-open', 'true');
+      root.setAttribute('aria-hidden', 'false');
+      var ta = form && form.querySelector('textarea');
+      if (ta) setTimeout(function () { ta.focus(); }, 40);
+    }
+    function close() {
+      root.setAttribute('data-open', 'false');
+      root.setAttribute('aria-hidden', 'true');
+      reset();
+    }
+    function reset() {
+      if (thanks) thanks.hidden = true;
+      if (form) { form.hidden = false; form.reset(); }
+      if (statusEl) { statusEl.textContent = ''; statusEl.removeAttribute('data-state'); }
+      document.querySelectorAll('.du-fb-star').forEach(function (el) { el.classList.remove('active'); });
+    }
+
+    if (mode === 'modal') {
+      var openers = document.querySelectorAll('[data-open-feedback]');
+      openers.forEach(function (el) {
+        el.addEventListener('click', function (e) {
+          e.preventDefault();
+          // Let the opener override context if it has one set.
+          var ctx = el.getAttribute('data-feedback-context');
+          if (ctx && form) form.context.value = ctx;
+          else if (form) form.context.value = defaultContext;
+          open();
+        });
+      });
+      if (closeBtn) closeBtn.addEventListener('click', close);
+      if (doneBtn) doneBtn.addEventListener('click', close);
+      // Click-outside-to-close: only when the click is on the overlay itself.
+      root.addEventListener('click', function (e) { if (e.target === root) close(); });
+      // ESC
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && root.getAttribute('data-open') === 'true') close();
+      });
+    }
+
+    // Star-rating UI (pure CSS class toggling — real value submitted via
+    // the underlying radio inputs).
+    document.querySelectorAll('.du-fb-star input').forEach(function (inp) {
+      inp.addEventListener('change', function () {
+        var val = parseInt(inp.value, 10);
+        document.querySelectorAll('.du-fb-star').forEach(function (el, i) {
+          el.classList.toggle('active', i < val);
+        });
+      });
+    });
+
+    if (!form) return;
+    form.addEventListener('submit', async function (ev) {
+      ev.preventDefault();
+      var data = new FormData(form);
+      var message = (data.get('message') || '').toString().trim();
+      if (!message) { statusEl.textContent = 'Skriv lige en besked først.'; statusEl.setAttribute('data-state', 'error'); return; }
+
+      var ratingRaw = data.get('rating');
+      var rating = ratingRaw ? parseInt(ratingRaw.toString(), 10) : null;
+      var email = (data.get('email') || '').toString().trim();
+      var context = (data.get('context') || defaultContext).toString();
+      var source = mode === 'modal' ? 'dashboard' : 'feedback-page';
+
+      var payload = {
+        message: message,
+        context: context,
+        rating: rating,
+        email: email && email.indexOf('@') > -1 ? email : null,
+        source: source,
+        user_agent: (navigator && navigator.userAgent) || null,
+      };
+
+      var submitBtn = form.querySelector('button[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
+      statusEl.textContent = 'Sender…';
+      statusEl.removeAttribute('data-state');
+
+      if (!anonKey) {
+        statusEl.textContent = 'Feedback-kanalen er ikke konfigureret — prøv igen senere.';
+        statusEl.setAttribute('data-state', 'error');
+        if (submitBtn) submitBtn.disabled = false;
+        return;
+      }
+
+      try {
+        var res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': anonKey,
+            'Authorization': 'Bearer ' + anonKey,
+            'Prefer': 'return=minimal',
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          var bodyText = await res.text().catch(function () { return ''; });
+          throw new Error(res.status + ' ' + bodyText.slice(0, 160));
+        }
+        if (form) form.hidden = true;
+        if (thanks) thanks.hidden = false;
+      } catch (err) {
+        statusEl.textContent = 'Kunne ikke sende — prøv igen om lidt.';
+        statusEl.setAttribute('data-state', 'error');
+        if (submitBtn) submitBtn.disabled = false;
+      }
+    });
+  })();
+</script>

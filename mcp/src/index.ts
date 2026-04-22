@@ -13,6 +13,7 @@ import { runOnboard, formatOnboardResult } from './tools/onboard.js';
 import { runSecurity, formatSecurityReport } from './tools/security.js';
 import { runHistory } from './tools/history.js';
 import { runShareReport } from './tools/share.js';
+import { sendFeedback, formatFeedbackResult } from './tools/feedback.js';
 import { insertAgentRun, updateRunDetails, updateRunJson, getRecommendationById, updateRecommendationStatus, getRecommendations } from './engine/db.js';
 import { reconcilePendingRecommendations } from './engine/reconcile-recommendations.js';
 import { implementClaudeMdAppend, implementSettingsMerge, prepareShellExec, prepareManual } from './engine/implementer.js';
@@ -714,6 +715,65 @@ Use recommendation_id from the latest report's menu. For security/health finding
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       return { content: [{ type: 'text', text: `Kunne ikke droppe anbefalingen: ${msg}` }], isError: true };
+    }
+  }
+);
+
+// Tool: feedback — send a note to the Dear User founders
+server.tool(
+  'feedback',
+  `Send a short note to the Dear User team — a bug, a request, a "this score feels wrong", or anything you want the founder to read. Zero friction: one tool call and you're done.
+
+Behavior:
+- POSTs your message to the Dear User feedback inbox (Supabase) over HTTPS.
+- Respects the fact that Dear User otherwise runs locally — this is the one place we deliberately send data out, because you explicitly asked us to hear you.
+- Email is only attached when opt_in_followup=true AND an email is provided.
+- No retries, no queueing — if the network fails, you get a clear message and the payload is logged locally for the founder to recover manually.
+
+What this tool does NOT do:
+- Does NOT send anything automatically — the agent must have called this tool with an explicit message from the user.
+- Does NOT read past feedback — it is write-only from this side. The founder reads the inbox directly in Supabase.
+- Does NOT upload anything about your setup, files, or reports. Only what you put in the message.
+
+Parameters:
+- "message" (required): 1–4000 characters of plain text — what you want us to know.
+- "context" (optional): "collab" | "security" | "health" | "wrapped" | "general". Use the tool name the user just ran so we can slice the inbox.
+- "rating" (optional): 1–5. Only include when the user gave a number, don't infer sentiment from text.
+- "opt_in_followup" + "email" (optional): attach only when the user explicitly said yes to a reply.
+- "format" (optional): "text" (default, Danish confirmation) or "json" (raw result for programmatic consumers).
+
+Length guidance: keep the confirmation you show the user short. If the user typed a one-liner, the reply can be one line.
+
+Example prompts that should trigger this tool:
+- "This score feels wrong — send feedback: the collab score is too low for a brand new project"
+- "Send feedback to Dear User: loving it, but the health findings could be shorter"
+- "Tell them I want Windows support"
+- "Send a bug report: health tool crashed on me"`,
+  {
+    message: z.string().min(1).max(4000).describe('The feedback text itself — 1 to 4000 characters, plain language. Whatever the user said; do not rewrite or summarise.'),
+    context: z.enum(['collab', 'security', 'health', 'wrapped', 'general']).optional().describe('Which surface the user just came from. Use the tool they last ran; fall back to "general" when unclear.'),
+    rating: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).optional().describe('Optional 1–5 rating. Only include when the user actually stated a number — do not infer from text.'),
+    opt_in_followup: z.boolean().optional().describe('Set true only when the user explicitly said they want a reply. Default false.'),
+    email: z.string().optional().describe('Email for follow-up. Ignored unless opt_in_followup=true AND the string contains an @.'),
+    format: z.enum(['text', 'json']).optional().describe('"text" (default): friendly Danish confirmation. "json": raw result payload for programmatic consumers.'),
+  },
+  async ({ message, context, rating, opt_in_followup, email, format }) => {
+    try {
+      const result = await sendFeedback({
+        message,
+        context,
+        rating,
+        opt_in_followup,
+        email,
+      });
+      const text = formatFeedbackResult(result, format ?? 'text');
+      return { content: [{ type: 'text', text }], isError: !result.ok };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: 'text', text: `Feedback failed: ${msg}. Your message was not sent — please try again in a moment.` }],
+        isError: true,
+      };
     }
   }
 );
