@@ -1,0 +1,259 @@
+{
+  "corpusSize": 50,
+  "collab": {
+    "min": 7,
+    "max": 32,
+    "mean": 19,
+    "median": 19,
+    "p10": 7,
+    "p25": 16,
+    "p75": 24,
+    "p90": 26,
+    "histogram": {
+      "0-9": 8,
+      "10-19": 17,
+      "20-29": 24,
+      "30-39": 1,
+      "40-49": 0,
+      "50-59": 0,
+      "60-69": 0,
+      "70-79": 0,
+      "80-89": 0,
+      "90-100": 0
+    }
+  },
+  "pure": {
+    "min": 11,
+    "max": 42,
+    "mean": 25,
+    "median": 24,
+    "p10": 11,
+    "p25": 18,
+    "p75": 31,
+    "p90": 36,
+    "histogram": {
+      "0-9": 0,
+      "10-19": 13,
+      "20-29": 22,
+      "30-39": 12,
+      "40-49": 3,
+      "50-59": 0,
+      "60-69": 0,
+      "70-79": 0,
+      "80-89": 0,
+      "90-100": 0
+    }
+  },
+  "categoriesMean": {
+    "roleClarity": 6,
+    "communication": 23,
+    "autonomyBalance": 36,
+    "qualityStandards": 29,
+    "memoryHealth": 2,
+    "systemMaturity": 5,
+    "coverage": 32
+  },
+  "lintTotals": {
+    "section_balance": 71,
+    "dead_command_ref": 39,
+    "naked_conditional": 18,
+    "empty_section": 77,
+    "missing_update_date": 30,
+    "missing_handoff_protocol": 19,
+    "cognitive_blueprint_gap": 32,
+    "broken_markdown_link": 34,
+    "buried_critical_rule": 23,
+    "negative_only": 38,
+    "missing_rationale": 35,
+    "escape_hatch_missing": 38,
+    "priority_signal_missing": 27,
+    "missing_error_handling": 15,
+    "ambiguous_rule": 18,
+    "weak_imperative": 16,
+    "duplicate_rule": 4,
+    "file_too_long": 3,
+    "broken_file_ref": 5,
+    "missing_verification": 4,
+    "hardcoded_user_path": 1,
+    "generic_filler": 3,
+    "unclosed_code_block": 1,
+    "long_section_no_headers": 4,
+    "mental_note": 1,
+    "wrong_abstraction": 1
+  },
+  "lintBySeverity": {
+    "critical": 1,
+    "recommended": 176,
+    "nice": 380
+  },
+  "lintMean": 11,
+  "intentionalAutonomyCount": 0,
+  "lowest5": [
+    {
+      "idx": 7,
+      "repo": "gobii-ai/gobii-platform",
+      "collab": 7,
+      "pure": 11,
+      "size": 65,
+      "stars": 409
+    },
+    {
+      "idx": 12,
+      "repo": "ACComputing/UniversalJailbreakDB20XX",
+      "collab": 7,
+      "pure": 11,
+      "size": 1017,
+      "stars": 144
+    },
+    {
+      "idx": 26,
+      "repo": "orangishcat/page-proxy",
+      "collab": 7,
+      "pure": 11,
+      "size": 32,
+      "stars": 4
+    },
+    {
+      "idx": 27,
+      "repo": "AgoraIO-Conversational-AI/agent-samples",
+      "collab": 7,
+      "pure": 11,
+      "size": 172,
+      "stars": 4
+    },
+    {
+      "idx": 41,
+      "repo": "Hisn00w/LangChain-Chinese",
+      "collab": 7,
+      "pure": 11,
+      "size": 145,
+      "stars": 1
+    }
+  ],
+  "highest5": [
+    {
+      "idx": 42,
+      "repo": "arunperiyal/arunperiyal.github.io",
+      "collab": 32,
+      "pure": 36,
+      "size": 8778,
+      "stars": 1
+    },
+    {
+      "idx": 18,
+      "repo": "omargawdat/Gawdat_Django_Template",
+      "collab": 29,
+      "pure": 42,
+      "size": 9478,
+      "stars": 16
+    },
+    {
+      "idx": 25,
+      "repo": "henrique-simoes/Istara",
+      "collab": 29,
+      "pure": 42,
+      "size": 8931,
+      "stars": 5
+    },
+    {
+      "idx": 39,
+      "repo": "davidrd123/bildung-2.0",
+      "collab": 28,
+      "pure": 36,
+      "size": 167237,
+      "stars": 2
+    },
+    {
+      "idx": 47,
+      "repo": "kogriv/bquant",
+      "collab": 27,
+      "pure": 38,
+      "size": 6181,
+      "stars": 1
+    }
+  ],
+  "lowestPure5": [
+    {
+      "idx": 7,
+      "repo": "gobii-ai/gobii-platform",
+      "collab": 7,
+      "pure": 11,
+      "size": 65,
+      "stars": 409
+    },
+    {
+      "idx": 12,
+      "repo": "ACComputing/UniversalJailbreakDB20XX",
+      "collab": 7,
+      "pure": 11,
+      "size": 1017,
+      "stars": 144
+    },
+    {
+      "idx": 26,
+      "repo": "orangishcat/page-proxy",
+      "collab": 7,
+      "pure": 11,
+      "size": 32,
+      "stars": 4
+    },
+    {
+      "idx": 27,
+      "repo": "AgoraIO-Conversational-AI/agent-samples",
+      "collab": 7,
+      "pure": 11,
+      "size": 172,
+      "stars": 4
+    },
+    {
+      "idx": 41,
+      "repo": "Hisn00w/LangChain-Chinese",
+      "collab": 7,
+      "pure": 11,
+      "size": 145,
+      "stars": 1
+    }
+  ],
+  "highestPure5": [
+    {
+      "idx": 18,
+      "repo": "omargawdat/Gawdat_Django_Template",
+      "collab": 29,
+      "pure": 42,
+      "size": 9478,
+      "stars": 16
+    },
+    {
+      "idx": 22,
+      "repo": "aRustyDev/agents",
+      "collab": 26,
+      "pure": 42,
+      "size": 3030,
+      "stars": 7
+    },
+    {
+      "idx": 25,
+      "repo": "henrique-simoes/Istara",
+      "collab": 29,
+      "pure": 42,
+      "size": 8931,
+      "stars": 5
+    },
+    {
+      "idx": 47,
+      "repo": "kogriv/bquant",
+      "collab": 27,
+      "pure": 38,
+      "size": 6181,
+      "stars": 1
+    },
+    {
+      "idx": 39,
+      "repo": "davidrd123/bildung-2.0",
+      "collab": 28,
+      "pure": 36,
+      "size": 167237,
+      "stars": 2
+    }
+  ]
+}
