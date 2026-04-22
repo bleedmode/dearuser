@@ -12,6 +12,7 @@ import { runAudit, formatAuditReport } from './tools/audit.js';
 import { runOnboard, formatOnboardResult } from './tools/onboard.js';
 import { runSecurity, formatSecurityReport } from './tools/security.js';
 import { runHistory } from './tools/history.js';
+import { runShareReport } from './tools/share.js';
 import { sendFeedback, formatFeedbackResult } from './tools/feedback.js';
 import { insertAgentRun, updateRunDetails, updateRunJson, getRecommendationById, updateRecommendationStatus, getRecommendations } from './engine/db.js';
 import { reconcilePendingRecommendations } from './engine/reconcile-recommendations.js';
@@ -834,6 +835,52 @@ When presenting: return the text verbatim. Do NOT summarize or re-wrap — the f
     ].join('\n');
 
     return { content: [{ type: 'text', text }] };
+  }
+);
+
+// Tool 9: share_report — upload an anonymized report and get a public URL
+server.tool(
+  'share_report',
+  `Generate a public shareable link for a Dear User report. Uploads an anonymized copy to dearuser.ai and returns a URL the user can paste anywhere (Twitter, Slack, LinkedIn).
+
+Privacy contract:
+- Absolute filesystem paths are collapsed to basenames ("/Users/jane/secret-project" → "secret-project").
+- Email addresses are stripped.
+- Anything matching our secret-scanner patterns (API keys, tokens, JWTs, private keys) is redacted before upload.
+- The user's local ~/.dearuser/ database is NOT modified.
+
+Requires DEARUSER_SUPABASE_URL + DEARUSER_SUPABASE_SERVICE_KEY in the environment. Without them, this tool errors out and nothing uploads — the rest of Dear User keeps working locally.
+
+IMPORTANT — Presenting results:
+Show the returned URL prominently and tell the user it's public. Do NOT auto-paste it anywhere on their behalf.
+
+Example prompts that should trigger this tool:
+- "Share my collab report"
+- "Generate a public link to my latest scan"
+- "Lav et delbart link til min rapport"`,
+  {
+    report_type: z.enum(['collab', 'security', 'health', 'wrapped']).describe('Which report kind this is.'),
+    report_json: z.record(z.unknown()).describe('The full structured report object (output of collab/health/security/wrapped).'),
+    expires_at: z.string().optional().describe('ISO-8601 timestamp after which the link stops working. Omit for a permanent link.'),
+  },
+  async ({ report_type, report_json, expires_at }) => {
+    try {
+      const result = await runShareReport({ report_type, report_json, expires_at });
+      const lines = [
+        `💌 **Dit delbare link er klar:** ${result.url}`,
+        ``,
+        `Linket er offentligt — hvem som helst med URL'en kan se rapporten. Følsomme data (filstier, emails, API-nøgler) er strippet inden upload.`,
+        ``,
+        `_Token: \`${result.token}\`_`,
+      ];
+      return { content: [{ type: 'text', text: lines.join('\n') }] };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: 'text', text: `Share failed: ${msg}` }],
+        isError: true,
+      };
+    }
   }
 );
 
