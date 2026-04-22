@@ -356,6 +356,7 @@ export type LintCheckId =
   | 'buried_critical_rule'
   | 'duplicate_rule'
   | 'rule_contradiction'
+  | 'semantic_rule_conflict'
   | 'escape_hatch_missing'
   | 'compound_instruction'
   | 'naked_conditional'
