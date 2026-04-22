@@ -23,7 +23,7 @@ import { getFindingByHash } from './engine/findings-ledger.js';
 import { getUserName, getAgentName, getPreferences, updatePreferences } from './engine/user-preferences.js';
 import { friendlyLabel } from './engine/friendly-labels.js';
 import type { LocalizedString } from './engine/friendly-labels.js';
-import { renderWrappedHtml } from '../../web/src/lib/wrapped-html.ts';
+import { renderWrappedSlides } from '../../web/src/lib/wrapped-slides.ts';
 import { CATEGORY_EXPLANATIONS, overallVerdict, securityVerdict, systemHealthVerdict } from './engine/category-explanations.js';
 import { runOnboard } from './tools/onboard.js';
 import type { OnboardResult } from './tools/onboard.js';
@@ -2237,12 +2237,15 @@ function renderWrappedPage(): string {
   const score = typeof report?.collaborationScore === 'number' ? report.collaborationScore : null;
   const year = new Date(latest.started_at || Date.now()).getFullYear();
 
-  const wrappedHtml = renderWrappedHtml({
+  const wrappedHtml = renderWrappedSlides({
     score,
     year,
     wrapped: report?.wrapped || {},
+    moments: Array.isArray(report?.wrapped?.moments) ? report.wrapped.moments : undefined,
     setupArchetypeName: report?.archetype?.nameEn || null,
+    userName: getUserName() || undefined,
     showShareCta: false, // private dashboard — share button is a separate action
+    mode: 'live',
   });
 
   // Localized strings for the share flow — emitted into the page script as
@@ -2267,7 +2270,7 @@ function renderWrappedPage(): string {
   };
 
   return page('Wrapped', `
-    <div class="max-w-2xl mx-auto mb-6 flex items-center justify-between">
+    <div class="mb-6 flex items-center justify-between">
       <div class="font-mono text-xs uppercase tracking-wider text-ink-400">${t('Seneste Wrapped', 'Latest Wrapped')} · ${t(formatLetterDate(latest.started_at), formatLetterDateEn(latest.started_at))}</div>
       <div class="flex flex-col items-end gap-2">
         <button id="share-wrapped-btn" data-state="idle" class="text-[11px] uppercase tracking-[0.15em] text-ink-500 hover:text-accent-600 transition border border-paper-200 rounded-md px-3 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -2276,7 +2279,17 @@ function renderWrappedPage(): string {
         <div id="share-wrapped-feedback" class="text-[11px] text-ink-500 max-w-xs text-right hidden"></div>
       </div>
     </div>
-    ${wrappedHtml}
+    <div class="du-wrapped-fullbleed">${wrappedHtml}</div>
+    <style>
+      /* Break out of the dashboard's max-w-2xl constraint so slides go full-bleed
+         while the header/nav above stays constrained. */
+      .du-wrapped-fullbleed {
+        margin-left: calc(50% - 50vw);
+        margin-right: calc(50% - 50vw);
+        width: 100vw;
+      }
+    </style>
+    ${''}
     <script>
       (function() {
         var btn = document.getElementById('share-wrapped-btn');

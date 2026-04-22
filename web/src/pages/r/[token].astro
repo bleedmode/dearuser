@@ -85,7 +85,7 @@ const ogImage = row
 )}
 
 {row && reportType === 'wrapped' && (
-  <section class="report-wrap">
+  <section class="report-wrap report-wrap-wrapped">
     {warning && (
       <div class="du-warning-banner">{warning}</div>
     )}
@@ -94,6 +94,8 @@ const ogImage = row
       score={score}
       createdAt={row.created_at}
       wrapped={(report as any).wrapped || {}}
+      moments={Array.isArray((report as any).wrapped?.moments) ? (report as any).wrapped.moments : undefined}
+      setupArchetypeName={(report as any).archetype?.nameEn || null}
     />
   </section>
 )}
@@ -247,6 +249,8 @@ const ogImage = row
   .not-found-cta:hover { background: var(--c-action-700); }
 
   .report-wrap { padding: 48px 0 24px; }
+  .report-wrap-wrapped { padding: 0; }
+  .report-wrap-wrapped .du-warning-banner { margin: 16px auto; }
   .report-inner {
     max-width: 720px;
     margin: 0 auto;
