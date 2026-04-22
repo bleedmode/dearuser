@@ -9,6 +9,7 @@ import {
   updateRecommendationStatus,
   getRecommendations,
 } from './db.js';
+import { computeFindingHash } from './findings-ledger.js';
 
 export interface TrackedRecommendation {
   id: string;
@@ -232,11 +233,31 @@ export function trackFindingsAsRecommendations(
   }
 
   for (const [title, { first, subjects }] of groups) {
-    if (findRecommendationByTitle(title)) continue;
+    const existing = findRecommendationByTitle(title);
+    if (existing) {
+      // Backfill finding_hash on pre-ledger recs so they link going forward.
+      if (!existing.finding_hash) {
+        try {
+          const h = computeFindingHash(first as any).hash;
+          getDb().prepare('UPDATE du_recommendations SET finding_hash = ? WHERE id = ?')
+            .run(h, existing.id);
+        } catch { /* unknown shape, skip */ }
+      }
+      continue;
+    }
     const count = subjects.length;
     const snippet = count > 1
       ? `${count} tilfælde: ${subjects.slice(0, 5).join(', ')}${subjects.length > 5 ? `, +${subjects.length - 5} mere` : ''}`
       : (first.recommendation || '').slice(0, 200);
+    // Compute finding_hash so the rec links to the ledger. Best-effort —
+    // unknown shapes (synthetic findings, legacy callers) just skip the hash.
+    let findingHash: string | undefined;
+    try {
+      findingHash = computeFindingHash(first as any).hash;
+    } catch {
+      findingHash = undefined;
+    }
+
     insertRecommendation({
       agentRunId,
       type: 'behavior',
@@ -247,6 +268,7 @@ export function trackFindingsAsRecommendations(
       scoreAtGiven,
       actionType: 'manual',
       actionData: first.recommendation,
+      findingHash,
     });
   }
 }
@@ -267,8 +289,31 @@ export function checkImplementation(
   const claudeLower = claudeMdContent.toLowerCase();
   const settingsLower = settingsContent.toLowerCase();
 
+  // Ledger-linked recs follow their finding's state (scan is source of truth).
+  // Close recs whose finding is closed; dismiss recs whose finding is dismissed.
+  const ledgerLinked = allRecs.filter((r: any) => r.status === 'pending' && r.finding_hash);
+  if (ledgerLinked.length > 0) {
+    const db = getDb();
+    const lookup = db.prepare('SELECT state FROM du_findings WHERE finding_hash = ?');
+    for (const row of ledgerLinked) {
+      const ledger = lookup.get(row.finding_hash) as { state: string } | undefined;
+      if (!ledger) continue;
+      if (ledger.state === 'closed') {
+        updateRecommendationStatus(row.id, 'implemented', currentScore);
+      } else if (ledger.state === 'dismissed') {
+        updateRecommendationStatus(row.id, 'dismissed');
+      }
+    }
+  }
+
   for (const row of allRecs) {
     if (row.status !== 'pending') continue;
+    // Ledger-linked recs handled above — don't double-process them via
+    // keyword-match (that was the false-positive bug).
+    if (row.finding_hash) continue;
+    // Legacy manual recs (pre-ledger) still can't be keyword-matched; they
+    // clear via dismiss or when a ledger-carrying scan supersedes them.
+    if (row.action_type === 'manual') continue;
 
     const rec = rowToTracked(row);
     let detected = false;

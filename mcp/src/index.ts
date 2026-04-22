@@ -680,17 +680,35 @@ server.tool(
   'dismiss_recommendation',
   `Mark a Dear User recommendation as dismissed so it won't be suggested again. Call this when the user picks "drop"/"ikke for mig"/"skip" for a specific recommendation from the action menu.
 
-Use recommendation_id from the latest report's menu. The dismissal is permanent unless the user manually resets it via the dashboard.`,
+Use recommendation_id from the latest report's menu. For security/health findings, the dismissal propagates to the underlying finding in the ledger so future scans won't re-surface it (unless dismiss_expires_at elapses).`,
   {
     recommendation_id: z.string().describe('The id of the recommendation to dismiss.'),
+    reason: z.enum(['false_positive', 'wont_fix', 'accepted_risk', 'used_in_tests']).optional().describe('Why this is dismissed. Required for ledger-linked recs (security/health findings). Defaults to wont_fix for collab recs.'),
+    comment: z.string().optional().describe('Free-text context for the audit trail.'),
+    expires_in_days: z.number().int().positive().optional().describe('If set, the dismissal auto-expires after N days and the finding returns to open. Useful for accepted_risk with a review window.'),
   },
-  async ({ recommendation_id }) => {
+  async ({ recommendation_id, reason, comment, expires_in_days }) => {
     try {
       const rec = getRecommendationById(recommendation_id);
       if (!rec) {
         return { content: [{ type: 'text', text: `Anbefaling med id ${recommendation_id} blev ikke fundet.` }], isError: true };
       }
       updateRecommendationStatus(recommendation_id, 'dismissed');
+      // Propagate to ledger if this rec is finding-linked — otherwise a
+      // future scan would just re-insert it.
+      if (rec.finding_hash) {
+        const { dismissFinding } = await import('./engine/findings-ledger.js');
+        const expiresAt = expires_in_days
+          ? Date.now() + expires_in_days * 24 * 60 * 60 * 1000
+          : null;
+        dismissFinding(
+          rec.finding_hash,
+          reason ?? 'wont_fix',
+          comment ?? null,
+          expiresAt,
+          null,
+        );
+      }
       return { content: [{ type: 'text', text: `OK — "${rec.title}" er nu droppet. Jeg foreslår den ikke igen.` }] };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
