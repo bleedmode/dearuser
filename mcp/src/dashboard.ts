@@ -1087,10 +1087,10 @@ function renderWhatISaw(report: any): string {
     const label = tagLabel[f.tag || ''] || { da: f.tag || '', en: f.tag || '', cls: 'bg-ink-100 text-ink-700' };
     const num = String(i + 1).padStart(2, '0');
     return `
-      <div class="flex gap-4 py-4 border-b border-paper-200 last:border-b-0">
-        <div class="font-mono text-xs text-ink-400 pt-1">${num}</div>
+      <div class="flex gap-4 py-4 border-b border-paper-200 last:border-b-0 items-baseline">
+        <div class="font-mono text-xs text-ink-400 shrink-0">${num}</div>
         <div class="flex-1">
-          <h3 class="flex items-center gap-2 text-ink-900 font-medium m-0">
+          <h3 class="flex items-baseline gap-2 text-ink-900 font-medium flex-wrap" style="margin: 0; font-size: 1.15rem; line-height: 1.35">
             <span class="inline-block text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded ${label.cls}">${t(label.da, label.en)}</span>
             <span>${escapeHtml(f.title || '')}</span>
           </h3>
