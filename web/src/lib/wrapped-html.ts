@@ -30,6 +30,23 @@ export interface WrappedHtmlInput {
       projects?: number;
       prohibitionRatio?: string;
     };
+    moments?: Array<{
+      id?: string;
+      value?: string;
+      label?: string;
+      narrative?: string;
+      detail?: string;
+    }>;
+    percentile?: {
+      score?: number;
+      percentile?: number;
+      topPercent?: number;
+      corpusSize?: number;
+    } | null;
+    contrast?: {
+      strongest?: { key?: string; name?: string; score?: number };
+      weakest?: { key?: string; name?: string; score?: number };
+    };
   };
   /** Setup archetype name (from report.archetype.nameEn) — optional. */
   setupArchetypeName?: string | null;
@@ -116,6 +133,25 @@ export function renderWrappedHtml(input: WrappedHtmlInput): string {
        </section>`
     : '';
 
+  const moments = Array.isArray(w.moments) ? w.moments.filter(m => m && (m.value || m.narrative)) : [];
+  const momentsHtml = moments.length
+    ? `<section class="du-wrapped-section du-wrapped-moments-section">
+         <h2 class="du-wrapped-h2">Your year in moments</h2>
+         <div class="du-wrapped-moments">
+           ${moments.map(m => `
+             <article class="du-wrapped-moment">
+               <div class="du-wrapped-moment-head">
+                 <div class="du-wrapped-moment-value">${h(m.value || '')}</div>
+                 <div class="du-wrapped-moment-label">${h(m.label || '')}</div>
+               </div>
+               ${m.narrative ? `<p class="du-wrapped-moment-narrative">${h(m.narrative)}</p>` : ''}
+               ${m.detail ? `<p class="du-wrapped-moment-detail">${h(m.detail)}</p>` : ''}
+             </article>
+           `).join('')}
+         </div>
+       </section>`
+    : '';
+
   const lessonHtml = lesson && lesson.quote
     ? `<section class="du-wrapped-section du-wrapped-lesson">
          <div class="du-wrapped-lesson-eyebrow">Most repeated lesson</div>
@@ -180,6 +216,7 @@ ${WRAPPED_CSS}
   </section>
 
   ${numbersHtml}
+  ${momentsHtml}
   ${lessonHtml}
   ${ctaHtml}
 </section>
@@ -388,6 +425,51 @@ const WRAPPED_CSS = `
   .du-wrapped-num-label {
     font-size: 14px;
     color: var(--c-ink-700, #444);
+  }
+
+  .du-wrapped-moments {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .du-wrapped-moment {
+    background: var(--c-paper-50, #faf8f4);
+    border: 1px solid var(--c-paper-200, #e7e2d9);
+    border-radius: 14px;
+    padding: 20px 22px;
+  }
+  .du-wrapped-moment-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .du-wrapped-moment-value {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 28px;
+    color: var(--c-action-600, #ec5329);
+    line-height: 1;
+  }
+  .du-wrapped-moment-label {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--c-ink-500, #666);
+  }
+  .du-wrapped-moment-narrative {
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--c-ink-900, #222);
+    margin: 0 0 6px;
+  }
+  .du-wrapped-moment-detail {
+    font-size: 13px;
+    color: var(--c-ink-500, #666);
+    margin: 0;
+    font-style: italic;
   }
 
   .du-wrapped-lesson {

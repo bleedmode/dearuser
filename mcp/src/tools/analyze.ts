@@ -21,6 +21,7 @@ import { detectInjection } from '../engine/injection-detector.js';
 import { generateProactiveRecommendations } from '../engine/proactive-recommender.js';
 import { recommendTools } from '../templates/tool-catalog.js';
 import { lintClaudeMd } from '../engine/lint-checks.js';
+import { buildMoments } from '../engine/wrapped-moments.js';
 import { feedbackFooter, firstRunWelcome } from '../engine/feedback-nudge.js';
 import { gradeBlendedScore, gradePureSubScore } from '../engine/grade.js';
 import { followAgentsMdRedirect } from '../engine/agents-md-redirect.js';
@@ -54,11 +55,18 @@ function buildStats(parsed: ReturnType<typeof parse>, scanResult: ReturnType<typ
   };
 }
 
-function buildWrapped(stats: AnalysisStats, persona: ReturnType<typeof detectPersona>, friction: ReturnType<typeof analyzeFriction>): WrappedData {
+function buildWrapped(
+  stats: AnalysisStats,
+  persona: ReturnType<typeof detectPersona>,
+  friction: ReturnType<typeof analyzeFriction>,
+  momentsInput: Parameters<typeof buildMoments>[0],
+): WrappedData {
   const total = stats.doRules + stats.askRules + stats.suggestRules;
   const doSelf = total > 0 ? Math.round((stats.doRules / total) * 100) : 0;
   const askFirst = total > 0 ? Math.round((stats.askRules / total) * 100) : 0;
   const suggest = total > 0 ? Math.round((stats.suggestRules / total) * 100) : 0;
+
+  const { moments, percentile, contrast } = buildMoments(momentsInput);
 
   return {
     headlineStat: {
@@ -86,6 +94,9 @@ function buildWrapped(stats: AnalysisStats, persona: ReturnType<typeof detectPer
       projects: stats.projectsManaged,
       prohibitionRatio: `${Math.round(stats.prohibitionRatio * 100)}%`,
     },
+    moments,
+    percentile,
+    contrast,
   };
 }
 
@@ -215,8 +226,17 @@ export function runAnalysis(
   //      reachable target instead of a mystery score.
   const scoreCeiling = computeCeiling(parsed, scanResult, sessionData, categories, intentionalAutonomy);
 
-  // 13. Build wrapped data
-  const wrapped = buildWrapped(stats, persona, frictionPatterns);
+  // 13. Build wrapped data — includes mined "moments" (specific, shareable
+  //     stats per the Spotify Wrapped pattern). buildMoments reads from
+  //     artifacts/rules/session/categories so we pass the whole bundle.
+  const wrapped = buildWrapped(stats, persona, frictionPatterns, {
+    collaborationScore,
+    rules: parsed.rules,
+    artifacts,
+    scanResult,
+    session: sessionData,
+    categories: categories as unknown as Record<string, import('../types.js').CategoryScore>,
+  });
 
   // 14. Feedback loop — check previous recommendations + track new ones
   const claudeMdContent = [scanResult.globalClaudeMd?.content, scanResult.projectClaudeMd?.content]
