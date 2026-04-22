@@ -925,6 +925,119 @@ function renderReport(id: string): string {
   return renderMarkdownFallback(run);
 }
 
+// Shared "Share publicly" button + inline script for all three letters
+// (collab / security / health). Identical to the Wrapped share button in
+// look, feel, and failure modes — just points at /r/:id/share so the
+// endpoint can pick the right report_type from the run's tool_name. One
+// button per page, so the DOM ids are unambiguous without a suffix.
+//
+// Split in two so the button can sit in the letter header (top-right next
+// to the date, matching Wrapped) while the script goes at the end of the
+// page. Keep the shared label strings in one place — renderLetterShareScript
+// is the only caller that reads them at runtime.
+const LETTER_SHARE_LABELS = {
+  idleDa: 'Del offentligt',
+  idleEn: 'Share publicly',
+  loadingDa: 'Genererer link…',
+  loadingEn: 'Generating link…',
+  copiedDa: 'Link kopieret til udklipsholder',
+  copiedEn: 'Link copied to clipboard',
+  openDa: 'Åbner i ny fane',
+  openEn: 'Opening in new tab',
+  errorConfigDa: 'Offentlig deling er ikke sat op på denne maskine. Sæt DEARUSER_SUPABASE_URL og DEARUSER_SUPABASE_SERVICE_KEY for at aktivere.',
+  errorConfigEn: 'Public sharing is not set up on this machine. Set DEARUSER_SUPABASE_URL and DEARUSER_SUPABASE_SERVICE_KEY to enable it.',
+  errorGenericDa: 'Kunne ikke oprette link',
+  errorGenericEn: 'Could not create link',
+};
+
+function renderLetterShareControls(): string {
+  const L = LETTER_SHARE_LABELS;
+  return `
+    <div class="flex flex-col items-end gap-2">
+      <button id="share-letter-btn" data-state="idle" class="text-[11px] uppercase tracking-[0.15em] text-ink-500 hover:text-accent-600 transition border border-paper-200 rounded-md px-3 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
+        <span class="lang-da">${L.idleDa}</span><span class="lang-en">${L.idleEn}</span>
+      </button>
+      <div id="share-letter-feedback" class="text-[11px] text-ink-500 max-w-xs text-right hidden"></div>
+    </div>
+  `;
+}
+
+function renderLetterShareScript(runId: string): string {
+  const endpoint = `/r/${encodeURIComponent(runId)}/share`;
+  return `
+    <script>
+      (function() {
+        var btn = document.getElementById('share-letter-btn');
+        var feedback = document.getElementById('share-letter-feedback');
+        if (!btn) return;
+        var L = ${JSON.stringify(LETTER_SHARE_LABELS)};
+        var endpoint = ${JSON.stringify(endpoint)};
+
+        function setBtnLabel(da, en) {
+          btn.innerHTML =
+            '<span class="lang-da">' + da + '</span>' +
+            '<span class="lang-en">' + en + '</span>';
+        }
+        function showFeedback(da, en, isError) {
+          feedback.classList.remove('hidden');
+          feedback.innerHTML =
+            '<span class="lang-da">' + da + '</span>' +
+            '<span class="lang-en">' + en + '</span>';
+          feedback.className = 'text-[11px] max-w-xs text-right ' + (isError ? 'text-red-600' : 'text-ink-500');
+        }
+        function hideFeedback() {
+          feedback.classList.add('hidden');
+          feedback.innerHTML = '';
+        }
+
+        btn.addEventListener('click', async function() {
+          if (btn.disabled) return;
+          btn.disabled = true;
+          hideFeedback();
+          setBtnLabel(L.loadingDa, L.loadingEn);
+
+          try {
+            var res = await fetch(endpoint, { method: 'POST' });
+            var data = null;
+            try { data = await res.json(); } catch (_) {}
+
+            if (!res.ok || !data || !data.url) {
+              var msgDa = (data && data.errorDa) || L.errorGenericDa;
+              var msgEn = (data && data.errorEn) || L.errorGenericEn;
+              showFeedback(msgDa, msgEn, true);
+              setBtnLabel(L.idleDa, L.idleEn);
+              btn.disabled = false;
+              return;
+            }
+
+            var url = data.url;
+            window.open(url, '_blank', 'noopener,noreferrer');
+            var copied = false;
+            try {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(url);
+                copied = true;
+              }
+            } catch (_) { /* non-fatal */ }
+
+            showFeedback(
+              (copied ? L.copiedDa : L.openDa) + ': ' + url,
+              (copied ? L.copiedEn : L.openEn) + ': ' + url,
+              false
+            );
+            setBtnLabel(L.idleDa, L.idleEn);
+            btn.disabled = false;
+          } catch (err) {
+            showFeedback(L.errorGenericDa, L.errorGenericEn, true);
+            setBtnLabel(L.idleDa, L.idleEn);
+            btn.disabled = false;
+          }
+        });
+      })();
+    </script>
+  `;
+}
+
 function stripAgentOnlyNoise(body: string): string {
   return body
     // "Hvad vil du gøre nu?" menu — agent-only chat flow
@@ -1020,8 +1133,9 @@ function renderAnalyzeLetter(run: any, report: any): string {
   const body = `
     <article class="max-w-2xl mx-auto letter-prose">
       <!-- Header -->
-      <header class="mb-10 not-letter">
-        <div class="font-mono text-xs text-ink-300">${t(formatLetterDate(run.started_at), formatLetterDateEn(run.started_at))}</div>
+      <header class="mb-10 not-letter flex items-start justify-between gap-4">
+        <div class="font-mono text-xs text-ink-300 pt-2">${t(formatLetterDate(run.started_at), formatLetterDateEn(run.started_at))}</div>
+        ${renderLetterShareControls()}
       </header>
 
       <!-- Greeting — brev-style, leads into the rest of the letter -->
@@ -1055,6 +1169,7 @@ function renderAnalyzeLetter(run: any, report: any): string {
     <div class="mt-8 max-w-2xl mx-auto">
       <a href="/historik" class="text-sm text-ink-500 hover:text-accent-600 transition">${t('← Se alle mine breve', '← See all letters')}</a>
     </div>
+    ${renderLetterShareScript(run.id)}
   `;
 
   return page(`${toolLabelEn(run.tool_name)}`, body, 'oversigt');
@@ -1499,8 +1614,9 @@ function renderSecurityLetter(run: any, report: any): string {
 
   const body = `
     <article class="max-w-2xl mx-auto letter-prose">
-      <header class="mb-10 not-letter">
-        <div class="font-mono text-xs text-ink-300">${t(formatLetterDate(run.started_at), formatLetterDateEn(run.started_at))}</div>
+      <header class="mb-10 not-letter flex items-start justify-between gap-4">
+        <div class="font-mono text-xs text-ink-300 pt-2">${t(formatLetterDate(run.started_at), formatLetterDateEn(run.started_at))}</div>
+        ${renderLetterShareControls()}
       </header>
 
       <section class="mb-10">
@@ -1520,6 +1636,7 @@ function renderSecurityLetter(run: any, report: any): string {
     <div class="mt-8 max-w-2xl mx-auto">
       <a href="/historik" class="text-sm text-ink-500 hover:text-accent-600 transition">${t('← Se alle mine breve', '← See all letters')}</a>
     </div>
+    ${renderLetterShareScript(run.id)}
   `;
 
   return page(`${toolLabelEn(run.tool_name)}`, body, 'oversigt');
@@ -1561,8 +1678,9 @@ function renderSystemHealthLetter(run: any, report: any): string {
 
   const body = `
     <article class="max-w-2xl mx-auto letter-prose">
-      <header class="mb-10 not-letter">
-        <div class="font-mono text-xs text-ink-300">${t(formatLetterDate(run.started_at), formatLetterDateEn(run.started_at))}</div>
+      <header class="mb-10 not-letter flex items-start justify-between gap-4">
+        <div class="font-mono text-xs text-ink-300 pt-2">${t(formatLetterDate(run.started_at), formatLetterDateEn(run.started_at))}</div>
+        ${renderLetterShareControls()}
       </header>
 
       <section class="mb-10">
@@ -1582,6 +1700,7 @@ function renderSystemHealthLetter(run: any, report: any): string {
     <div class="mt-8 max-w-2xl mx-auto">
       <a href="/historik" class="text-sm text-ink-500 hover:text-accent-600 transition">${t('← Se alle mine breve', '← See all letters')}</a>
     </div>
+    ${renderLetterShareScript(run.id)}
   `;
 
   return page(`${toolLabelEn(run.tool_name)}`, body, 'oversigt');
@@ -2717,6 +2836,96 @@ export function createApp(): Hono {
         da: `Noget gik galt: ${msg}. Vi starter forfra.`,
         en: `Something went wrong: ${msg}. Starting over.`,
       }));
+    }
+  });
+
+  // Share a letter (collab / security / health) publicly. Reads the run by
+  // id from the local DB, derives report_type from tool_name, anonymizes via
+  // runShareReport (same pipeline as /wrapped/share). Returns { url, token }
+  // on success; { errorDa, errorEn } on failure so the button can render a
+  // localized message. Never echoes the service key.
+  app.post('/r/:id/share', async (c) => {
+    const id = c.req.param('id');
+    const run = getRunById(id);
+    if (!run || !run.report_json) {
+      return c.json({
+        errorDa: 'Denne rapport findes ikke eller har ingen data at dele.',
+        errorEn: 'This report does not exist or has no data to share.',
+      }, 404);
+    }
+
+    const tool = (run.tool_name || '').toString();
+    const reportType: 'collab' | 'security' | 'health' | null =
+      tool === 'collab' || tool === 'analyze' ? 'collab'
+      : tool === 'security' ? 'security'
+      : tool === 'health' || tool === 'system-health' || tool === 'audit' ? 'health'
+      : null;
+    if (!reportType) {
+      return c.json({
+        errorDa: 'Denne rapport-type kan ikke deles endnu.',
+        errorEn: 'This report type cannot be shared yet.',
+      }, 422);
+    }
+
+    let report: any = null;
+    try {
+      report = JSON.parse(run.report_json);
+    } catch {
+      return c.json({
+        errorDa: 'Rapporten har ingen læsbar data.',
+        errorEn: 'The report has no readable data.',
+      }, 422);
+    }
+    if (!report || typeof report !== 'object') {
+      return c.json({
+        errorDa: 'Rapporten har ingen data.',
+        errorEn: 'The report has no data.',
+      }, 422);
+    }
+
+    // Env/config check — same resolution order as /wrapped/share so the
+    // banner only fires when both process.env and ~/.dearuser/config.json
+    // are empty.
+    const hasEnv =
+      (process.env.DEARUSER_SUPABASE_URL || process.env.SUPABASE_URL) &&
+      (process.env.DEARUSER_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY);
+    let hasConfig = false;
+    if (!hasEnv) {
+      try {
+        const fs = require('node:fs');
+        const path = require('node:path');
+        const os = require('node:os');
+        const p = path.join(os.homedir(), '.dearuser', 'config.json');
+        if (fs.existsSync(p)) {
+          const cfg = JSON.parse(fs.readFileSync(p, 'utf-8'));
+          hasConfig = !!(cfg?.tokens?.supabase_url && cfg?.tokens?.supabase_service_key);
+        }
+      } catch { /* ignore */ }
+    }
+    if (!hasEnv && !hasConfig) {
+      return c.json({
+        errorDa: 'Offentlig deling er ikke sat op på denne maskine. Sæt DEARUSER_SUPABASE_URL og DEARUSER_SUPABASE_SERVICE_KEY for at aktivere.',
+        errorEn: 'Public sharing is not set up on this machine. Set DEARUSER_SUPABASE_URL and DEARUSER_SUPABASE_SERVICE_KEY to enable it.',
+      }, 503);
+    }
+
+    try {
+      const result = await runShareReport({
+        report_type: reportType,
+        report_json: report,
+      });
+      return c.json({ url: result.url, token: result.token });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const safeMsg = msg
+        .replace(/Bearer\s+\S+/gi, 'Bearer [redacted]')
+        .replace(/apikey[\s=:]+\S+/gi, 'apikey [redacted]')
+        .slice(0, 240);
+      console.error(`[dashboard] /r/${id}/share failed:`, safeMsg);
+      return c.json({
+        errorDa: 'Kunne ikke oprette offentligt link. Prøv igen eller tjek serverlog.',
+        errorEn: 'Could not create public link. Try again or check the server log.',
+      }, 502);
     }
   });
 
