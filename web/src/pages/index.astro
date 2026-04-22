@@ -706,15 +706,16 @@ import Layout from '../layouts/Layout.astro';
   </div>
 </section>
 
-<!-- Social proof placeholder ---------------------------------------- -->
-<section class="social-proof" aria-label="Social proof (coming soon)">
-  <div class="sp-label">
-    <span class="lang-da">Stemmer fra brugerne</span><span class="lang-en">What users are saying</span>
-  </div>
-  <div class="sp-placeholder">
-    <span class="lang-da">Citater lander her snart, efter launch. Prøv det gratis nu — så er dit måske et af dem.</span>
-    <span class="lang-en">Quotes drop in here soon, after launch. Try it free now — yours might be one of them.</span>
-  </div>
+<!-- Pull quote from an example letter -------------------------------- -->
+<section class="pullquote">
+  <blockquote>
+    <span class="lang-da">"Din CLAUDE.md siger 'aldrig force-push til main'. Men `ship`-hooken kører <code>git push --force</code> uden check. Vil du patche hooken, eller blødgøre reglen?"</span>
+    <span class="lang-en">"Your CLAUDE.md says 'never force-push to main'. But the `ship` hook runs <code>git push --force</code> without a check. Want me to patch the hook, or soften the rule?"</span>
+  </blockquote>
+  <cite>
+    <span class="lang-da">Uddrag fra et security-brev</span>
+    <span class="lang-en">From a security letter</span>
+  </cite>
 </section>
 
 <!-- Install / How it works ------------------------------------------ -->
@@ -762,18 +763,6 @@ import Layout from '../layouts/Layout.astro';
       </code>
     </div>
   </div>
-</section>
-
-<!-- Pull quote from an example letter -------------------------------- -->
-<section class="pullquote">
-  <blockquote>
-    <span class="lang-da">"Jeg har bemærket at du retter din agent på den samme måde 3-4 gange om ugen — men det står ikke i CLAUDE.md endnu. Skal vi gemme det som en regel, så du slipper for at sige det igen?"</span>
-    <span class="lang-en">"I've noticed you correct your agent the same way three or four times a week — but it's not in CLAUDE.md yet. Should we save it as a rule, so you don't have to say it again?"</span>
-  </blockquote>
-  <cite>
-    <span class="lang-da">Uddrag fra en collab-rapport</span>
-    <span class="lang-en">From a collab letter</span>
-  </cite>
 </section>
 
 </Layout>
