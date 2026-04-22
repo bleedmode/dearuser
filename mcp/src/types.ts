@@ -1,5 +1,8 @@
 // Agent Wrapped — Core types
 
+import type { ScoreGrade } from './engine/grade.js';
+export type { ScoreGrade } from './engine/grade.js';
+
 export type PersonaId = 'vibe_coder' | 'senior_dev' | 'indie_hacker' | 'venture_studio' | 'team_lead';
 
 export type RuleType = 'do_autonomously' | 'ask_first' | 'suggest_only' | 'prohibition';
@@ -459,6 +462,27 @@ export interface AnalysisReport {
   installedSkills: string[];
   persona: PersonaResult;
   collaborationScore: number;
+  /**
+   * CLAUDE.md-only sub-score (4 categories renormalised) — fairer for fresh
+   * installs where substrate (memory/hooks/skills) hasn't been set up yet.
+   * See calibration study R1 (2026-04-22).
+   */
+  claudeMdSubScore: number;
+  /** Substrate was empty at scan time — hooks/memory/skills all zero. */
+  substrateEmpty: boolean;
+  /** A-F grade + percentile context for the blended collaboration score. */
+  grade: ScoreGrade;
+  /** A-F grade for the CLAUDE.md-only sub-score. Surfaced when substrateEmpty. */
+  subScoreGrade: ScoreGrade;
+  /**
+   * True when this report scored an AGENTS.md file the author linked to
+   * instead of their (trivial) CLAUDE.md redirect. See calibration study R2.
+   * UI uses this to explain where the score comes from.
+   */
+  scoredAgentsMdRedirect?: {
+    agentsMdPath: string;
+    claudeMdSize: number;
+  };
   /** Projected ceiling the user reaches if they implement every current recommendation. */
   scoreCeiling: ScoreCeiling;
   categories: {
