@@ -41,7 +41,7 @@ beforeAll(async () => {
 }, 15000);
 
 describe('MCP tool descriptions', () => {
-  const EXPECTED_TOOLS = ['collab', 'health', 'history', 'onboard', 'security', 'wrapped', 'help'];
+  const EXPECTED_TOOLS = ['collab', 'health', 'history', 'onboard', 'security', 'wrapped', 'help', 'feedback'];
 
   it('all expected tools are registered', () => {
     const names = tools.map(t => t.name);
@@ -115,6 +115,44 @@ describe('MCP tool descriptions', () => {
       const tool = tools.find(t => t.name === 'security')!;
       const desc = tool.description.toLowerCase();
       expect(desc).toMatch(/secret|injection|leak/);
+    });
+  });
+
+  describe('feedback-specific', () => {
+    // Covers the 6-component standard for MCP tool descriptions (per
+    // project_mcp_description_standard): Purpose, Guidelines, Limitations,
+    // Params, Length, Examples. Base tests above already cover Purpose,
+    // Params, Length — this block adds the three we didn't generically test.
+
+    it('has a Guidelines / behaviour section', () => {
+      const tool = tools.find(t => t.name === 'feedback')!;
+      const desc = tool.description.toLowerCase();
+      expect(desc).toMatch(/behaviou?r|how|when|use|posts|sends/);
+    });
+
+    it('has a Limitations section listing what it does NOT do', () => {
+      const tool = tools.find(t => t.name === 'feedback')!;
+      expect(tool.description).toMatch(/does not|NOT/i);
+    });
+
+    it('has an Examples section with concrete trigger prompts', () => {
+      const tool = tools.find(t => t.name === 'feedback')!;
+      expect(tool.description.toLowerCase()).toContain('example');
+      // At least one quoted example
+      expect(tool.description).toMatch(/"[^"]+"/);
+    });
+
+    it('declares the message parameter as required', () => {
+      const tool = tools.find(t => t.name === 'feedback')!;
+      expect(tool.inputSchema.required).toContain('message');
+    });
+
+    it('documents the context enum options', () => {
+      const tool = tools.find(t => t.name === 'feedback')!;
+      const desc = tool.description;
+      ['collab', 'security', 'health', 'wrapped', 'general'].forEach(v => {
+        expect(desc).toContain(v);
+      });
     });
   });
 });

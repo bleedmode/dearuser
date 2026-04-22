@@ -3,10 +3,11 @@
 // Palette + fonts + light/dark + DA/EN toggles match the local dashboard
 // (mcp/src/dashboard.ts) 1:1 so the public site and the product feel like
 // one continuous surface.
+import FeedbackModal from '../components/FeedbackModal.astro';
 interface Props {
   title: string;
   description?: string;
-  active?: 'home' | 'example' | 'demo';
+  active?: 'home' | 'example' | 'demo' | 'feedback';
 }
 const {
   title,
@@ -218,6 +219,9 @@ const {
           <span class="lang-da">Samarbejdet i tal</span><span class="lang-en">Wrapped</span>
         </a>
         <a href="https://github.com/bleedmode/dearuser" target="_blank" rel="noopener">GitHub</a>
+        <a href="/feedback" class={`${active === 'feedback' ? 'active' : ''}`} data-open-feedback aria-label="Send feedback">
+          <span class="lang-da">Feedback</span><span class="lang-en">Feedback</span>
+        </a>
         <span class="du-nav-sep" aria-hidden="true"></span>
         <button id="du-lang-toggle" class="du-nav-btn" aria-label="Switch language">
           <span id="du-lang-label">EN</span>
@@ -231,6 +235,8 @@ const {
   </header>
 
   <slot />
+
+  {active !== 'feedback' && <FeedbackModal mode="modal" defaultContext="general" />}
 
   <footer class="du-footer">
     <div class="du-container du-footer-inner">
