@@ -1,45 +1,33 @@
 ---
-// WrappedCard — renders the shared Wrapped HTML on the /r/<token> share page.
+// WrappedCard — renders the shared Wrapped scroll-through on /r/<token>.
 //
-// Visual + styling live in ../../../mcp/src/engine/wrapped-html.ts so the
-// dashboard (localhost:7700) and the share page look identical — one source
-// of truth, no drift. This component is the thinnest possible wrapper that
-// forwards props and drops the resulting HTML + scoped <style> inline.
+// Visual + slide logic live in ../lib/wrapped-slides.ts so the dashboard
+// (localhost:7700/wrapped) and the share page look identical — one source
+// of truth, no drift.
 
-import { renderWrappedHtml } from '../lib/wrapped-html.ts';
-
-interface WrappedData {
-  headlineStat?: { value?: string; label?: string };
-  topLesson?: { quote?: string; context?: string } | null;
-  autonomySplit?: { doSelf?: number; askFirst?: number; suggest?: number };
-  archetype?: { name?: string; traits?: string[]; description?: string };
-  systemGrid?: { hooks?: number; skills?: number; scheduled?: number; rules?: number };
-  shareCard?: {
-    corrections?: number;
-    memories?: number;
-    projects?: number;
-    prohibitionRatio?: string;
-  };
-}
+import { renderWrappedSlides, type WrappedDataInput, type WrappedMomentInput } from '../lib/wrapped-slides.ts';
 
 interface Props {
   projectName: string;
   score: number | null;
   createdAt: string;
-  wrapped: WrappedData;
+  wrapped: WrappedDataInput;
   setupArchetypeName?: string | null;
+  moments?: WrappedMomentInput[];
 }
 
-const { projectName, score, createdAt, wrapped, setupArchetypeName } = Astro.props;
+const { projectName, score, createdAt, wrapped, setupArchetypeName, moments } = Astro.props;
 const year = new Date(createdAt).getFullYear();
 
-const html = renderWrappedHtml({
+const html = renderWrappedSlides({
   score,
   year,
   projectName,
   wrapped,
+  moments,
   setupArchetypeName: setupArchetypeName || null,
   showShareCta: true,
+  mode: 'shared',
 });
 ---
 
