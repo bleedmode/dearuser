@@ -11,12 +11,25 @@ interface ScoringResult {
   categories: Record<CategoryId, CategoryScore>;
   collaborationScore: number;
   /**
+   * CLAUDE.md-only sub-score renormalised across the 4 categories that don't
+   * depend on substrate (roleClarity, communication, autonomyBalance, coverage).
+   * Surfaced alongside the blended score when substrate is empty, so a
+   * fresh-install user sees a number that isn't penalised for not having
+   * memory/hooks/skills yet. See calibration study R1.
+   */
+  claudeMdSubScore: number;
+  /**
    * True when CLAUDE.md has an explicit "do yourself / without asking" section
    * plus >= 3 autonomous rules. Passed through so downstream consumers (proactive
    * recommender, ceiling calculator) can soften corrections-related messaging:
    * with intentional autonomy, corrections are refinement rather than overreach.
    */
   intentionalAutonomy: boolean;
+  /**
+   * True when hooks/memory/skills are all zero — useful for UI decisions about
+   * when to surface `claudeMdSubScore` alongside `collaborationScore`.
+   */
+  substrateEmpty: boolean;
 }
 
 const WEIGHTS: Record<CategoryId, number> = {
@@ -150,7 +163,22 @@ function scoreAutonomyBalance(parsed: ParseResult): CategoryScore & { intentiona
       if (prohibitions >= 3) balanceScore += 10;
     } else {
       const hasAllTiers = doRules > 0 && askRules > 0 && suggestRules > 0;
-      if (hasAllTiers) balanceScore += 25;
+      if (hasAllTiers) {
+        balanceScore += 25;
+      } else {
+        // R3 (calibration study): reward a "meaningful balance" starter pattern
+        // even when all three tiers aren't present. The empirical corpus
+        // distribution clusters at 30-40 because ~0 public CLAUDE.md files
+        // flag suggest_only rules, so hasAllTiers is almost never true and
+        // the 25-point bonus is effectively dead weight. A user with
+        // 1+ ask, 1+ prohibition, and 3+ do-rules has a real agent contract
+        // and should be rewarded for it.
+        const hasMeaningfulBalance = doRules >= 3 && askRules >= 1 && prohibitions >= 1;
+        if (hasMeaningfulBalance) {
+          balanceScore += 15;
+          present.push('Meaningful autonomy balance (has ask, prohibit, and do-rules) — starter three-tier pattern');
+        }
+      }
     }
 
     // Healthy prohibition ratio: 15-35% is ideal
@@ -377,14 +405,33 @@ export function score(parsed: ParseResult, scan: ScanResult, session?: SessionAn
     }
   }
 
-  // Weighted aggregate
+  // Weighted aggregate — full 7-category collaboration score
   const collaborationScore = Math.round(
     Object.values(categories).reduce((sum, cat) => sum + cat.score * cat.weight, 0)
   );
 
+  // R1 (calibration study): CLAUDE.md-only sub-score. Renormalise over the
+  // four categories that measure CLAUDE.md content only (no substrate
+  // dependency: roleClarity, communication, autonomyBalance, coverage).
+  // Weights are re-normalised so they sum to 1 within this subset.
+  const pureCategories: CategoryId[] = ['roleClarity', 'communication', 'autonomyBalance', 'coverage'];
+  const pureWeightSum = pureCategories.reduce((s, id) => s + WEIGHTS[id], 0);
+  const claudeMdSubScore = Math.round(
+    pureCategories.reduce((sum, id) => sum + categories[id].score * (WEIGHTS[id] / pureWeightSum), 0),
+  );
+
+  // Substrate emptiness — used by UI to decide when the sub-score is worth
+  // surfacing alongside the blended number.
+  const substrateEmpty =
+    scan.memoryFiles.length === 0 &&
+    scan.hooksCount === 0 &&
+    scan.skillsCount === 0;
+
   return {
     categories,
     collaborationScore,
+    claudeMdSubScore,
+    substrateEmpty,
     intentionalAutonomy: !!autonomyResult.intentionalAutonomy,
   };
 }
