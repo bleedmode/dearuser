@@ -1,0 +1,66 @@
+{
+  "_comment": "Ground truth bands per fixture. If observed score is outside [min,max], calibration is drifting. Bands are deliberately wide (~15pt) — we're validating direction, not pixel-perfect matching. Tighten once we have 5+ fixtures and a baseline run.",
+  "_columns": {
+    "collab.blended": "7-category weighted score (0-100)",
+    "collab.claudeMdSubScore": "R1 sub-score: renormalised over 4 pure categories — shown to empty-substrate users",
+    "collab.substrateEmpty": "true when memory+hooks+skills are all zero (triggers sub-score surfacing)",
+    "collab.intentionalAutonomy": "true when user has explicit 'do yourself' section + 3+ autonomous rules",
+    "health.score": "system-health score (0-100)",
+    "security.score": "security score (0-100)"
+  },
+  "fixtures": {
+    "empty": {
+      "description": "Minimal CLAUDE.md, no substrate. Tests R1 path.",
+      "expect": {
+        "collab.blended": { "min": 10, "max": 35 },
+        "collab.claudeMdSubScore": { "min": 20, "max": 55 },
+        "collab.substrateEmpty": true,
+        "collab.intentionalAutonomy": false,
+        "health.score": { "min": 85, "max": 100 },
+        "security.score": { "min": 90, "max": 100 }
+      },
+      "notes": "R1 hypothesis: subScore should be >= blended because it excludes memoryHealth/systemMaturity/qualityStandards where empty setup scores near zero. Gap subScore - blended quantifies the 'substrate penalty'."
+    },
+    "starter": {
+      "description": "Well-written CLAUDE.md with three-tier pattern + intentional autonomy section, but empty substrate. This is the *actual* '6pt bug' scenario — now observed at ~23pt with R1 in place.",
+      "expect": {
+        "collab.blended": { "min": 45, "max": 60 },
+        "collab.claudeMdSubScore": { "min": 65, "max": 85 },
+        "collab.substrateEmpty": true,
+        "collab.intentionalAutonomy": true,
+        "health.score": { "min": 85, "max": 100 },
+        "security.score": { "min": 90, "max": 100 }
+      },
+      "observed_baseline_2026_04_22": { "collab.blended": 53, "collab.claudeMdSubScore": 76, "gap_pt": 23 },
+      "notes": "Substrate penalty is ~23pt for a well-written CLAUDE.md with no hooks/skills/memory. R1 mitigates by surfacing claudeMdSubScore alongside blended. intentionalAutonomy=true confirms R3's 'do yourself' section is detected. Question for tuning: is 23pt honest (substrate matters for real collab) or harsh (demoralises new users)? Current stance: honest — but UI MUST show sub-score when substrateEmpty=true."
+    },
+    "mature": {
+      "description": "Full setup with hooks, skills, scheduled-task, commands, 3 memory files.",
+      "expect": {
+        "collab.blended": { "min": 60, "max": 90 },
+        "collab.claudeMdSubScore": { "min": 60, "max": 90 },
+        "collab.substrateEmpty": false,
+        "collab.intentionalAutonomy": true,
+        "health.score": { "min": 75, "max": 100 },
+        "security.score": { "min": 90, "max": 100 }
+      },
+      "notes": "Expected: substrate fills in systemMaturity + memoryHealth. Blended and sub-score should converge. If blended is >15pt below sub-score, substrate penalty is reversed (non-empty penalising empty's sub-score is the signal we want)."
+    },
+    "messy": {
+      "description": "Health red flags (overlapping skills, missing-closure) + security red flags (leaked secrets, unsafe rm -rf hook, rule conflict). Coverage is narrow: does NOT trigger orphan_job, substrate_mismatch, unregistered_mcp_tool, or stale_schedule — consider expanding in next iteration.",
+      "expect": {
+        "collab.blended": { "min": 10, "max": 40 },
+        "health.score": { "min": 70, "max": 100 },
+        "security.score": { "min": 50, "max": 80 },
+        "_findings": {
+          "secrets": { "min": 2, "max": 10 },
+          "injections": { "min": 1, "max": 5 },
+          "conflicts": { "min": 1, "max": 3 },
+          "overlap": { "min": 1, "max": 3 }
+        }
+      },
+      "observed_baseline_2026_04_22": { "health.score": 96, "security.score": 67, "findings": { "secrets": 3, "injections": 2, "conflicts": 1, "overlap": 1, "missing_closure": 2 } },
+      "notes": "Detection works — all planted threats fire. Aggregate scores are softer than intuition expects. Security 67 for 3 critical secrets + 2 critical injections + 1 critical conflict is worth discussing: is 67 'bad enough' to signal risk? Health 96 is artefact of narrow fixture — expand to cover all 8 detector types before concluding scorer is off."
+    }
+  }
+}
