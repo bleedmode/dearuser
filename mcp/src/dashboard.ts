@@ -1751,14 +1751,9 @@ function sourceLabel(toolName?: string | null): LocalizedString | undefined {
 
 function renderForbedringer(): string {
   reconcilePendingRecommendations();
-  // Observation-type rows (e.g. "66 course-corrections in recent prompts")
-  // are stats that got pushed into the recommendations table — not actions
-  // the user can take. Filter them out everywhere on this page.
-  const isObservation = (r: any): boolean => /course-correction/i.test(r.title || '');
-  const stripObservations = (rows: any[]) => rows.filter(r => !isObservation(r));
-  const pending = stripObservations(getRecommendations('pending'));
-  const implemented = stripObservations(getRecommendations('implemented'));
-  const dismissed = stripObservations(getRecommendations('dismissed'));
+  const pending = getRecommendations('pending');
+  const implemented = getRecommendations('implemented');
+  const dismissed = getRecommendations('dismissed');
 
   const renderList = (items: any[], canDrop: boolean) => {
     if (items.length === 0) return `<p class="text-ink-500 text-sm">${t('Ingen lige nu.', 'None right now.')}</p>`;

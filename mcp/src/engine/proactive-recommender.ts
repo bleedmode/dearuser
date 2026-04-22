@@ -157,33 +157,16 @@ function detectClearPatterns(session: SessionData): Recommendation[] {
 }
 
 /**
- * High correction/negation signals in recent prompts. The scorer docks
- * autonomyBalance when this is above 5 — without a recommendation the user
- * would see a lower score with no path to fix it.
- *
- * We pass `intentionalAutonomy` because when autonomy is explicitly designed,
- * corrections are refinement (smaller penalty, softer recommendation).
+ * High correction/negation signals in recent prompts. When autonomy is
+ * intentional, corrections are expected refinement — we don't surface a
+ * recommendation (would be observational noise, not actionable). Only when
+ * autonomy is NOT intentional is the correction rate reliable friction worth
+ * surfacing with a practice step.
  */
 function detectCorrectionFriction(session: SessionData, intentionalAutonomy: boolean): Recommendation[] {
   const corrections = session.corrections.negationCount || 0;
   if (corrections <= 5) return [];
-
-  if (intentionalAutonomy) {
-    return [{
-      priority: 'nice_to_have',
-      audience: 'user',
-      title: `${corrections} course-corrections in recent prompts`,
-      description: `You've corrected the agent ${corrections} times. Because you've set up high-autonomy operation intentionally, this is expected refinement — but each correction is still a signal you could have given upfront. Your Autonomy Balance score has a small dock applied.`,
-      textBlock: '',
-      evidence: [
-        { source: 'sessions', excerpt: `${corrections} correction signals ("nej", "stop", "wrong") in recent prompts`, kind: 'stat' },
-      ],
-      actionType: 'manual',
-      placementHint: 'Prompt phrasing and upfront context',
-      why: 'With intentional autonomy the agent moves fast. Corrections pull it back — each one is rework. Front-loading constraints turns late corrections into early instructions.',
-      practiceStep: 'Next time you\'re about to write a short prompt, add one line of constraint you\'d have corrected toward. "Refactor X — but don\'t touch Y" instead of writing "don\'t touch Y" after the fact.',
-    }];
-  }
+  if (intentionalAutonomy) return [];
 
   return [{
     priority: 'recommended',
