@@ -1,0 +1,31 @@
+---
+// /feedback — standalone destination for the share-render footer and for
+// anyone who just wants to send the founder a note without the modal chrome.
+// Context auto-populate is intentionally OFF here: visitors arriving via a
+// shared link haven't necessarily run a tool, so we default to "general".
+import Layout from '../layouts/Layout.astro';
+import FeedbackModal from '../components/FeedbackModal.astro';
+---
+<Layout
+  title="Send feedback — Dear User"
+  description="Fortæl os hvad du synes om Dear User. Vi læser hver eneste besked."
+  active="feedback"
+>
+<main class="du-narrow" style="padding: 64px 0 96px;">
+  <header style="margin-bottom: 32px;">
+    <h1 style="font-family: 'Fraunces', Georgia, serif; font-style: italic; font-weight: 500; font-size: 36px; margin: 0 0 12px; color: var(--c-ink-900);">
+      <span class="lang-da">Kære team</span><span class="lang-en">Dear team</span>
+    </h1>
+    <p style="color: var(--c-ink-500); font-size: 16px; margin: 0;">
+      <span class="lang-da">
+        Skriv hvad du vil — bug, ønske, ros, ris. En menneske læser det.
+      </span>
+      <span class="lang-en">
+        Tell us anything — bug, request, love, frustration. A human reads every one.
+      </span>
+    </p>
+  </header>
+
+  <FeedbackModal mode="inline" defaultContext="general" />
+</main>
+</Layout>
