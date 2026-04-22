@@ -1,0 +1,4 @@
+# Raw corpus files — keep out of git (~600KB), re-fetchable from data/manifest.json
+data/raw/
+# Built bundles — esbuild output
+*.mjs
