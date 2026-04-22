@@ -2,22 +2,170 @@
 
 **Your AI agent works for you — but how well do you work together?**
 
-Dear User analyzes your human-agent collaboration and tells you exactly what to fix.
+Dear User is an open-source tool that audits your Claude Code setup and tells you exactly what to fix. It scores your collaboration, finds leaked secrets and config conflicts, checks system health, and gives you a shareable report — all locally, nothing uploaded unless you explicitly ask.
 
-## Monorepo structure
+> `claude mcp add dearuser -- npx dearuser-mcp`
+>
+> Then ask Claude: *"Analyze my collaboration with Claude"*
 
-- **`mcp/`** — `dearuser-mcp` npm package. MCP server with analyze, audit, security, onboard, and wrapped tools.
-- **`web/`** — `dearuser.ai` landing page + web-facing Wrapped experience (Astro).
+**Landing:** [dearuser.ai](https://dearuser.ai) · **Feedback:** use the `feedback` tool in Claude, or open an [issue](https://github.com/bleedmode/dearuser/issues)
 
-## Quick start
+---
+
+## What it does
+
+Dear User is an **MCP server** (Model Context Protocol — the plugin system Claude Code and Claude Desktop use). Once installed, it shows up as a set of tools your agent can call. No GUI, no sign-up, no cloud account.
+
+Three reports, one share button, one feedback channel:
+
+| Tool | What it does | Example prompt |
+|------|--------------|----------------|
+| `collab` | Full collaboration report — persona, 0-100 score, friction patterns, specific recommendations | *"How good is my Claude setup?"* |
+| `security` | Leaked secrets, prompt-injection surfaces, rule conflicts in CLAUDE.md | *"Check my config for leaked API keys"* |
+| `health` | Structural coherence — orphan scheduled tasks, overlapping skills, dead hooks | *"Is anything broken in my setup?"* |
+| `share_report` | Anonymize a report and return a public `dearuser.ai/r/<token>` URL | *"Share my collab report"* |
+| `feedback` | Send a note to the Dear User inbox | *"Send feedback: the health report could be shorter"* |
+
+Plus helpers: `onboard` (7-step guided setup), `wrapped` (Spotify-style stats), `history` (trend without re-scanning), `help` (menu), `implement_recommendation`, `dismiss_recommendation`.
+
+## Launch highlights
+
+- **Shareable reports** — run `share_report`, get back a `dearuser.ai/r/<token>` URL. The report is anonymized first (paths collapsed to basenames, emails stripped, anything matching our secret patterns redacted) before upload.
+- **12-category secret scanner** — OpenAI, Anthropic, GitHub, AWS, Stripe, Slack, Google, Supabase, Vercel, private keys, generic env secrets, bearer tokens. Scans CLAUDE.md, memory files, skills, hooks.
+- **Semantic conflict detection** (new) — finds rules in CLAUDE.md that contradict each other even when they don't share keywords. "Commit often" vs. "ask before commit" gets flagged.
+- **Score calibrated against reality** — we scanned 50 public CLAUDE.md files and tuned the scoring so the distribution is honest (median 19/100, ceiling ~42). No fake 100s. See [`research/calibration/`](research/calibration/2026-04-22-claude-md-corpus/report.md).
+
+## Install
+
+One command per client. Full guide: [`docs/install.md`](docs/install.md).
+
+**Claude Code (CLI)**
 
 ```bash
 claude mcp add dearuser -- npx dearuser-mcp
 ```
 
-Then ask your agent: *"Analyze my collaboration with Claude"*
+**Claude Desktop** — add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
-See [`mcp/README.md`](mcp/README.md) for full documentation, multi-client install guides, and tool reference.
+```json
+{
+  "mcpServers": {
+    "dearuser": {
+      "command": "npx",
+      "args": ["dearuser-mcp"]
+    }
+  }
+}
+```
+
+**Cursor, Windsurf, Cline, Zed** — see [`docs/install.md`](docs/install.md).
+
+Optional: install the slash commands so you can type `/dearuser-collab`, `/dearuser-security`, etc.:
+
+```bash
+npx dearuser-mcp dearuser-install-skills
+```
+
+## Your first 5 minutes
+
+After installing, restart your client and try these in order:
+
+1. **Baseline scan:**
+   ```
+   Run Dear User collab on this project
+   ```
+   You'll get a persona (Vibe Coder / Senior Developer / Indie Hacker / Venture Studio / Team Lead), a 0-100 score across 7 categories, and 3-10 concrete recommendations.
+
+2. **Security sweep:**
+   ```
+   Run Dear User security
+   ```
+   Checks CLAUDE.md, memory, skills and hooks for leaked tokens, injection surfaces and rule conflicts.
+
+3. **Share the result (optional):**
+   ```
+   Share my collab report
+   ```
+   Returns a `dearuser.ai/r/<token>` link. Anonymized before upload. You choose whether to paste it anywhere.
+
+Example output from `collab`:
+
+```
+Persona: Indie Hacker (87% confidence)
+Score:   73 / 100
+
+Top friction:
+  • Quality Standards — no test-before-commit rule in CLAUDE.md
+  • Memory Health    — 2 memory files haven't been touched in 90+ days
+  • Communication    — no language preference stated (English vs Danish mixing)
+
+Recommendations (3 shown, 5 total):
+  1. Add a "Session start protocol" block to CLAUDE.md  (apply with: implement_recommendation)
+  2. Rotate the OpenAI key leaked in ~/.claude/memory/api-notes.md
+  3. Merge overlapping skills: deploy-check and ship-check share 80% of their rules
+```
+
+## Privacy
+
+Dear User is local-first. Your scans stay on your machine:
+
+- CLAUDE.md, memory, skills, hooks and session metadata are read but **never uploaded**
+- Results are stored in `~/.dearuser/dearuser.db` (SQLite, WAL mode)
+- The optional localhost dashboard reads from that DB — nothing is transmitted
+- Dear User reads session **metadata only** (counts, lengths) — never your actual conversation content
+- No API keys required, no sign-up, no telemetry
+
+The **only** exceptions are things you explicitly trigger:
+
+- **`share_report`** — the report is anonymized (paths collapsed, emails stripped, anything matching our secret patterns redacted) and uploaded to `dearuser.ai` so you can share a URL. Your local DB is not modified. You can set an `expires_at` to auto-expire the link.
+- **`feedback`** — when you call the feedback tool, your message goes to our Supabase inbox. That's the whole point of the tool. We don't attach your scans or files — only the text you write.
+
+No other tool transmits anything. If `share_report` isn't configured with `DEARUSER_SUPABASE_URL` + `DEARUSER_SUPABASE_SERVICE_KEY`, it errors out cleanly and the rest of Dear User keeps working.
+
+Full privacy details: [`docs/privacy.md`](docs/privacy.md).
+
+## How it works
+
+```
+Your files (CLAUDE.md, memory, hooks, skills, sessions)
+        │
+    Scanner ──► Parser ──► Engines (scoring, secrets, conflicts, health)
+        │
+ Persona detection → Scoring → Gap analysis → Recommendations
+        │
+    Feedback loop (tracks which recommendations you implemented)
+        │
+    ~/.dearuser/dearuser.db  ←  dashboard reads from here
+```
+
+- **5 personas** detected from your setup — each gets tailored recommendations
+- **7 scoring categories**: Role Clarity, Communication, Autonomy Balance, Quality Standards, Memory Health, System Maturity, Coverage
+- **Feedback loop**: Dear User remembers what it recommended. Next run, it checks which ones you implemented and shows the score delta.
+
+## Who it's for
+
+- **"Vibe coders"** — you prompt Claude and ship product, but you're never quite sure if your setup is actually working. Dear User tells you.
+- **Senior developers** — you want a fast audit for leaked secrets, config drift and rule conflicts without wiring up a custom lint pipeline.
+- **Indie hackers / solo founders** — you've accumulated hooks, skills and memory across projects. Dear User surfaces what's orphaned or contradicting itself.
+- **Team leads** — you want to share a config audit with your team. `share_report` gives you a URL, anonymized.
+
+## Repository layout
+
+- [`mcp/`](mcp/) — `dearuser-mcp` npm package (the MCP server). See [`mcp/README.md`](mcp/README.md) for development notes.
+- [`web/`](web/) — `dearuser.ai` landing + share-report pages (Astro).
+- [`docs/`](docs/) — install guide, privacy doc, per-platform setup (Supabase/GitHub/Vercel for the optional `security` platform advisors).
+- [`research/`](research/) — calibration data + architecture notes we're willing to share.
+
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md). Bug reports and small fixes welcome via GitHub issues and PRs.
+
+## Links
+
+- [dearuser.ai](https://dearuser.ai) — landing page
+- [Feedback inbox](https://dearuser.ai/feedback) — or use the `feedback` MCP tool from inside Claude
+- [GitHub issues](https://github.com/bleedmode/dearuser/issues) — bugs, feature requests
+- [Install guide](docs/install.md) · [Privacy](docs/privacy.md) · [Setup for platform advisors](docs/setup/README.md)
 
 ## License
 
