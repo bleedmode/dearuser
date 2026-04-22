@@ -14,6 +14,11 @@ import { runDetectors, type DetectorOptions } from '../engine/audit-detectors.js
 import { reconcileFindings } from '../engine/audit-feedback.js';
 import { insertAgentRun } from '../engine/db.js';
 import { trackFindingsAsRecommendations } from '../engine/feedback-tracker.js';
+import {
+  upsertFinding,
+  finalizeScanScope,
+  computeFindingHash,
+} from '../engine/findings-ledger.js';
 import { scoreSystemHealth } from '../engine/system-health-scorer.js';
 import type {
   AuditArtifact,
@@ -161,6 +166,25 @@ export function runAudit(options: AuditOptions = {}): AuditReport {
       status: 'success',
     });
     trackFindingsAsRecommendations(findings, systemHealthScore, agentRunId);
+
+    // Ledger upsert — audit is a full agent-scope sweep, so close any
+    // audit-level findings that didn't come back this run. We partition
+    // by detector so auditing only orphan_jobs doesn't close overlap findings.
+    const runId = agentRunId ?? null;
+    const observedByDetector = new Map<string, Set<string>>();
+    for (const f of findings) {
+      try {
+        const { hash, detector } = computeFindingHash(f as any);
+        upsertFinding(f as any, runId);
+        if (!observedByDetector.has(detector)) observedByDetector.set(detector, new Set());
+        observedByDetector.get(detector)!.add(hash);
+      } catch {
+        // Unrecognized shapes are skipped
+      }
+    }
+    for (const [detector, hashes] of observedByDetector) {
+      finalizeScanScope({ platform: 'agent', detector }, hashes, runId);
+    }
   } catch {
     // DB write failure should never break the audit
   }

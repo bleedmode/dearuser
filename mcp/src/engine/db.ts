@@ -278,6 +278,9 @@ export interface RecommendationInput {
   actionType?: ActionType;
   /** Full payload needed to execute actionType. */
   actionData?: string;
+  /** Link to du_findings.finding_hash when this rec came from a scan
+   *  finding. Lets the dashboard reconcile rec status against the ledger. */
+  findingHash?: string;
 }
 
 export function insertRecommendation(input: RecommendationInput): string {
@@ -285,8 +288,8 @@ export function insertRecommendation(input: RecommendationInput): string {
   const id = newId();
 
   db.prepare(`
-    INSERT INTO du_recommendations (id, agent_run_id, type, title, text_snippet, keywords, severity, status, score_at_given, given_at, action_type, action_data)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
+    INSERT INTO du_recommendations (id, agent_run_id, type, title, text_snippet, keywords, severity, status, score_at_given, given_at, action_type, action_data, finding_hash)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)
   `).run(
     id,
     input.agentRunId || null,
@@ -299,6 +302,7 @@ export function insertRecommendation(input: RecommendationInput): string {
     Date.now(),
     input.actionType || null,
     input.actionData || null,
+    input.findingHash || null,
   );
 
   return id;

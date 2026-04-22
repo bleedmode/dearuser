@@ -28,6 +28,12 @@ import { runVercelAdvisor } from '../engine/vercel-advisor.js';
 import { loadConfig } from '../engine/config.js';
 import { insertAgentRun } from '../engine/db.js';
 import { trackFindingsAsRecommendations } from '../engine/feedback-tracker.js';
+import {
+  upsertFinding,
+  finalizeScanScope,
+  computeFindingHash,
+  reopenExpiredDismissals,
+} from '../engine/findings-ledger.js';
 import { scoreSecurity } from '../engine/security-scorer.js';
 import type { ScoreCeiling } from '../types.js';
 import type {
@@ -208,6 +214,69 @@ export async function runSecurity(options: SecurityOptions = {}): Promise<Securi
       securityScore,
       agentRunId,
     );
+
+    // Upsert every observed finding into the ledger and close out-of-scope
+    // findings the scan didn't see. This is the close-loop mechanism —
+    // findings only transition to 'closed' when a scan covers their scope
+    // and stops reporting them.
+    const runId = agentRunId ?? null;
+    const observedByScope = new Map<string, Set<string>>();
+    const scopeKey = (platform: string, subject: string | null): string =>
+      subject ? `${platform}:${subject}` : platform;
+
+    const allFindings = [...secrets, ...injection, ...ruleConflicts, ...cveFindings, ...platformFindings];
+    for (const f of allFindings) {
+      try {
+        const { hash, platform, subject } = computeFindingHash(f as any);
+        // Attach hash to the finding so downstream consumers (scheduled
+        // agents, dashboard, PVS task dedup) can reference the ledger entry
+        // without re-deriving the hash.
+        (f as any).findingHash = hash;
+        upsertFinding(f as any, runId);
+        const key = scopeKey(platform, subject);
+        if (!observedByScope.has(key)) observedByScope.set(key, new Set());
+        observedByScope.get(key)!.add(hash);
+      } catch {
+        // Unrecognized shapes shouldn't break the scan
+      }
+    }
+
+    // Agent-setup scans always cover the whole agent scope in one shot.
+    // Close any agent-level findings that didn't come back this run.
+    const agentHashes = observedByScope.get('agent') ?? new Set<string>();
+    // Secret/injection/rule_conflict all live under subject!=null (file paths),
+    // but from the ledger's perspective they're still platform='agent'. A
+    // full agent-setup scan is a scope-wide sweep, so we close any open
+    // agent-level finding not seen this run.
+    if (!options.skipPlatformAdvisors || scope === 'global') {
+      const agentWideHashes = new Set<string>();
+      for (const [key, hashes] of observedByScope) {
+        if (key === 'agent' || key.startsWith('agent:')) {
+          for (const h of hashes) agentWideHashes.add(h);
+        }
+      }
+      finalizeScanScope({ platform: 'agent' }, agentWideHashes, runId);
+    }
+
+    // Platform advisors: only close within the subject scope we actually
+    // scanned. A Supabase scan of "safedish" shouldn't close findings for
+    // "other-project" just because we didn't see them this run.
+    for (const status of platformStatus) {
+      if (status.status !== 'ok') continue;
+      // Collect per-subject scopes for this platform from the observed map
+      for (const [key, hashes] of observedByScope) {
+        if (!key.startsWith(`${status.platform}:`)) continue;
+        const subject = key.slice(status.platform.length + 1);
+        finalizeScanScope(
+          { platform: status.platform, subject },
+          hashes,
+          runId,
+        );
+      }
+    }
+
+    // Reopen any dismissals that expired
+    reopenExpiredDismissals(runId);
   } catch {
     // DB write failure should never break the security scan
   }
