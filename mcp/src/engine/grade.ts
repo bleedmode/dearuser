@@ -1,11 +1,14 @@
 // grade.ts — maps raw 0-100 scores to A/B/C/D/F letter grades + percentile
-// context derived from the 50-file public CLAUDE.md calibration corpus
-// (research/calibration/2026-04-22-claude-md-corpus).
+// context. Original thresholds were tuned against the v1 50-file corpus
+// (research/calibration/2026-04-22-claude-md-corpus). The v2 2,895-file
+// corpus (research/calibration/2026-04-22-claude-md-corpus-v2) shows a
+// wider distribution (blended p50=18, p90=35, p99=47, max=60) — a proper
+// retuning against v2 percentiles is a post-launch polish task.
 //
 // Why: the raw 0-100 number is honest but demoralising at the current state
-// of the ecosystem — no public CLAUDE.md in our 50-file sample scored above
-// 32 (blended) / 42 (pure). Showing "32/100" alone crushes even top-2%
-// setups. The grade layer contextualises the score:
+// of the ecosystem — median public CLAUDE.md scored 18 (blended) across
+// 2,895 files. Showing "32/100" alone crushes even strong setups. The
+// grade layer contextualises the score:
 //   • Keeps the raw number for power users.
 //   • Adds an A-F letter anchored to real corpus percentiles so a 32 lands
 //     as "A (top 2%)" instead of "32%".
@@ -29,7 +32,8 @@ export interface ScoreGrade {
 }
 
 /**
- * Thresholds tuned to the 50-file public CLAUDE.md corpus + pure-subscore.
+ * Thresholds tuned to the v1 50-file public CLAUDE.md corpus + pure-subscore.
+ * v2 (2,895 files) has a wider distribution; retuning pending as post-launch polish.
  *
  * Corpus reality (April 2026): no public CLAUDE.md scored above 32 (blended)
  * or 42 (pure). Percentiles:
