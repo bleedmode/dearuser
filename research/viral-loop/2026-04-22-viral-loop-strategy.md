@@ -58,7 +58,7 @@ Measure: `share_viewed` PostHog event + Vercel referrer analytics. Watch Twitter
 
 **Target:** small ribbon near the score: "Top X% of public Claude Code setups".
 
-Baseline: we have 50-file corpus scores from the calibration study. Median 19/100 for public CLAUDE.md files. A user scoring 45/100 is top ~15%. That's shareable; 45/100 alone is not.
+Baseline: we have 2,895-file corpus scores from the v2 calibration study. Median 18/100 for public CLAUDE.md files. A user scoring 45/100 is top ~2%. That's shareable; 45/100 alone is not.
 
 Effort: low. Compute percentile at share-creation (pass `score` through a lookup against `scores.jsonl`), store in `du_shared_reports.percentile`, render on page.
 
