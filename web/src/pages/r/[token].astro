@@ -129,7 +129,21 @@ const findings: Array<{ tag?: string; title?: string; body?: string }> = (() => 
     pushAll(report.platformFindings, 'Platform');
     return merged.sort((a, b) => a._sev - b._sev).map(({ _sev, ...rest }) => rest);
   }
-  if (Array.isArray(report.findings)) return report.findings;
+  if (Array.isArray(report.findings)) {
+    // Health findings carry severity + description, not tag + body. Map so
+    // the share template can render them with the same pill + body layout
+    // as collab (which already uses tag + body natively).
+    return report.findings.map((f: any) => {
+      if (f.tag || f.body) return f;
+      const sev = f.severity;
+      const tag = sev === 'critical' ? 'risk' : sev === 'recommended' ? 'pattern' : sev === 'nice_to_have' ? 'pattern' : undefined;
+      return {
+        tag,
+        title: f.title,
+        body: f.body || f.description || f.detail || '',
+      };
+    });
+  }
   return [];
 })();
 
@@ -228,19 +242,23 @@ const ogImage = row
         </span>
       </div>
 
-      <h1 class="report-heading">{projectName}</h1>
-
       {score !== null && (
         <div class={`headline-score headline-score-${tone}`}>
-          <div class="headline-score-num">{score}</div>
-          <div class="headline-score-label">
-            <span>out of 100</span>
-            <span class="headline-score-sub">
-              {tone === 'good' && 'Strong collaboration'}
-              {tone === 'warn' && 'Room to improve'}
-              {tone === 'bad' && 'Needs attention'}
-              {tone === 'muted' && 'Audit complete'}
-            </span>
+          <div class="headline-score-row">
+            <span class="headline-score-num">{score}</span>
+            <span class="headline-score-outof">/ 100</span>
+          </div>
+          <div class="headline-score-sub">
+            {reportType === 'collab' && tone === 'good' && 'Strong collaboration'}
+            {reportType === 'collab' && tone === 'warn' && 'Room to improve'}
+            {reportType === 'collab' && tone === 'bad' && 'Needs attention'}
+            {reportType === 'security' && tone === 'good' && 'Security looks tight'}
+            {reportType === 'security' && tone === 'warn' && 'A few things to fix'}
+            {reportType === 'security' && tone === 'bad' && 'Needs attention now'}
+            {reportType === 'health' && tone === 'good' && 'System hangs together'}
+            {reportType === 'health' && tone === 'warn' && 'Some drift to clean up'}
+            {reportType === 'health' && tone === 'bad' && 'Things are out of sync'}
+            {tone === 'muted' && 'Report complete'}
           </div>
         </div>
       )}
@@ -311,12 +329,15 @@ const ogImage = row
         <section class="section">
           <h2>What we recommend</h2>
           {recommendations.slice(0, 5).map((r, i) => (
-            <div class="rec">
-              <div class="rec-head">
-                <span class="rec-badge">Recommendation #{i + 1}</span>
+            <div class="finding">
+              <div class="finding-num">{String(i + 1).padStart(2, '0')}</div>
+              <div>
+                <h3 class="finding-title">
+                  <span class="finding-tag finding-tag-pattern">Try this</span>
+                  <span>{r.title}</span>
+                </h3>
+                {r.body && <p class="finding-body">{r.body}</p>}
               </div>
-              <h3 class="rec-title">{r.title}</h3>
-              {r.body && <p class="rec-body">{r.body}</p>}
             </div>
           ))}
         </section>
@@ -378,56 +399,52 @@ const ogImage = row
   }
   .report-sep { margin: 0 10px; }
 
-  .report-heading {
-    font-family: 'Fraunces', Georgia, serif;
-    font-weight: 500;
-    font-size: clamp(36px, 5vw, 48px);
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-    margin: 0 0 36px;
-    color: var(--c-ink-900);
-  }
-
   .headline-score {
     display: flex;
-    align-items: baseline;
-    gap: 22px;
-    padding: 32px;
+    flex-direction: column;
+    gap: 6px;
+    padding: 28px 32px;
     background: var(--c-paper-100);
     border: 1px solid var(--c-paper-200);
-    border-radius: 16px;
+    border-radius: 14px;
     margin-bottom: 32px;
+  }
+  .headline-score-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
   }
   .headline-score-num {
     font-family: 'Fraunces', Georgia, serif;
     font-weight: 500;
-    font-size: 96px;
+    font-size: 64px;
     line-height: 1;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.02em;
+  }
+  .headline-score-outof {
+    font-family: 'Geist Mono', monospace;
+    font-size: 14px;
+    color: var(--c-ink-400);
+    letter-spacing: 0.06em;
   }
   .headline-score-good .headline-score-num { color: var(--c-good); }
   .headline-score-warn .headline-score-num { color: var(--c-warn); }
   .headline-score-bad  .headline-score-num { color: var(--c-bad); }
   .headline-score-muted .headline-score-num { color: var(--c-ink-400); }
-  .headline-score-label {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    font-size: 14px;
-    color: var(--c-ink-500);
-  }
   .headline-score-sub {
     font-family: 'Fraunces', Georgia, serif;
-    font-size: 20px;
-    color: var(--c-ink-900);
+    font-size: 18px;
+    color: var(--c-ink-700);
     font-style: italic;
   }
 
+  /* Persona card — matches example.astro exactly so the two pages share one voice. */
   .persona {
+    margin: 28px 0;
     padding: 24px;
     background: var(--c-accent-100);
+    border: 1px solid var(--c-accent-100);
     border-radius: 12px;
-    margin-bottom: 32px;
   }
   .persona-label {
     font-size: 10px;
@@ -439,8 +456,9 @@ const ogImage = row
   .persona-name {
     font-family: 'Fraunces', Georgia, serif;
     font-weight: 500;
-    font-size: 26px;
+    font-size: 24px;
     color: var(--c-ink-900);
+    margin-bottom: 10px;
     letter-spacing: -0.01em;
   }
   .persona-traits {
@@ -556,38 +574,5 @@ const ogImage = row
   .finding-tag-win { background: color-mix(in srgb, var(--c-good) 14%, transparent); color: var(--c-good); }
   .finding-tag-risk { background: color-mix(in srgb, var(--c-bad) 14%, transparent); color: var(--c-bad); }
 
-  .rec {
-    padding: 22px 24px;
-    background: var(--c-paper-100);
-    border: 1px solid var(--c-paper-200);
-    border-radius: 12px;
-    margin-bottom: 14px;
-  }
-  .rec-head { margin-bottom: 10px; }
-  .rec-badge {
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    padding: 3px 8px;
-    border-radius: 4px;
-    background: var(--c-action-100);
-    color: var(--c-action-700);
-    font-weight: 600;
-  }
-  .rec-title {
-    font-family: 'Fraunces', Georgia, serif;
-    font-size: 20px;
-    color: var(--c-ink-900);
-    font-weight: 500;
-    margin: 0 0 8px;
-    letter-spacing: -0.01em;
-  }
-  .rec-body {
-    font-family: 'Fraunces', Georgia, serif;
-    font-size: 16px;
-    color: var(--c-ink-700);
-    line-height: 1.55;
-    margin: 0;
-  }
 </style>
 </ShareLayout>
