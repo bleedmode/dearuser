@@ -1,6 +1,6 @@
 // CLAUDE.md lint checks — prompt & config quality analysis
 //
-// 51 checks across 7 domains that catch common anti-patterns in agent config.
+// 52 checks across 7 domains that catch common anti-patterns in agent config.
 // Designed to complement (not duplicate) the collaboration scoring:
 // scoring measures *what's present*, linting measures *what's wrong*.
 
@@ -9,6 +9,7 @@ import { resolve, dirname, basename, join } from 'path';
 import { homedir } from 'os';
 import type { ScanResult, ParseResult, LintFinding, LintCheckId, LintSummary, GapSeverity, FileInfo } from '../types.js';
 import { detectSemanticConflicts } from './semantic-conflict-detector.js';
+import { detectOverSpecification } from './over-specification-detector.js';
 
 interface LintResult {
   findings: LintFinding[];
@@ -1407,7 +1408,7 @@ function checkCognitiveBlueprint(parsed: ParseResult): LintFinding[] {
 // Public API
 // ============================================================================
 
-const TOTAL_CHECKS = 51;
+const TOTAL_CHECKS = 52;
 
 /** Run all 51 lint checks against agent config. */
 export function lintClaudeMd(scanResult: ScanResult, parsed: ParseResult): LintResult {
@@ -1446,6 +1447,12 @@ export function lintClaudeMd(scanResult: ScanResult, parsed: ParseResult): LintR
     ...checkAmbiguousRules(parsed),
     ...checkRuleContradictions(parsed),
     ...detectSemanticConflicts(
+      parsed,
+      new Map(files.map(f => [f.path, f.content])),
+      {},
+      makeId,
+    ),
+    ...detectOverSpecification(
       parsed,
       new Map(files.map(f => [f.path, f.content])),
       {},
