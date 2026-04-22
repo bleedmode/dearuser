@@ -41,8 +41,8 @@ function mockReport(partial: Partial<AnalysisReport> = {}): AnalysisReport {
           id: 'percentile',
           value: 'Top 5%',
           label: 'Where you rank',
-          narrative: 'Your setup scores higher than 94% of 50 public CLAUDE.md files.',
-          detail: 'Score 87 — corpus median is 19.',
+          narrative: 'Your setup scores higher than 94% of 2,895 public CLAUDE.md files.',
+          detail: 'Score 87 — corpus median is 18.',
         },
         {
           id: 'corrections',

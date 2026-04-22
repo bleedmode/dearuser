@@ -207,7 +207,7 @@ export interface WrappedMoment {
 }
 
 /**
- * Percentile rank vs the 50-file CLAUDE.md corpus (calibration study
+ * Percentile rank vs the 2,895-file CLAUDE.md corpus (calibration study v2,
  * 2026-04-22). Only populated when we can read the corpus file and the
  * user's score differs meaningfully from the baseline.
  */
