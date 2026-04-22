@@ -8,6 +8,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { runAnalysis, formatAnalyzeReport } from './tools/analyze.js';
 import type { AnalyzeFormat } from './tools/analyze.js';
+import { formatWrappedText, formatWrappedJson } from './tools/wrapped.js';
 import { runAudit, formatAuditReport } from './tools/audit.js';
 import { runOnboard, formatOnboardResult } from './tools/onboard.js';
 import { runSecurity, formatSecurityReport } from './tools/security.js';
@@ -528,60 +529,16 @@ Example prompts that should trigger this tool:
       // duplicate "analyze" run in the user's history. We'll log our own
       // "wrapped" run below once we have the rendered text.
       const report = runAnalysis(root, { scope: scope || 'global', persist: false });
-      const w = report.wrapped;
 
       if (format === 'json') {
         return {
-          content: [{ type: 'text', text: JSON.stringify(report, null, 2) }],
+          content: [{ type: 'text', text: formatWrappedJson(report) }],
         };
-      }
-
-      const lines: string[] = [
-        `╔══════════════════════════════════════╗`,
-        `║       DEAR USER WRAPPED 2026         ║`,
-        `╚══════════════════════════════════════╝`,
-        ``,
-        `  ${w.headlineStat.value} ${w.headlineStat.label}`,
-        ``,
-        `  Setup style: ${report.archetype.nameEn} · ${report.archetype.nameDa}`,
-        ``,
-        `  ┌─────────────────────────────────┐`,
-        `  │  YOUR ARCHETYPE                 │`,
-        `  │  ${w.archetype.name.padEnd(32)}│`,
-        `  │  ${w.archetype.traits.slice(0, 3).join(' · ').padEnd(32)}│`,
-        `  └─────────────────────────────────┘`,
-        ``,
-        `  AUTONOMY SPLIT`,
-        `  Do yourself:  ${'█'.repeat(Math.round(w.autonomySplit.doSelf / 5))}${'░'.repeat(20 - Math.round(w.autonomySplit.doSelf / 5))} ${w.autonomySplit.doSelf}%`,
-        `  Ask first:    ${'█'.repeat(Math.round(w.autonomySplit.askFirst / 5))}${'░'.repeat(20 - Math.round(w.autonomySplit.askFirst / 5))} ${w.autonomySplit.askFirst}%`,
-        `  Suggest only: ${'█'.repeat(Math.round(w.autonomySplit.suggest / 5))}${'░'.repeat(20 - Math.round(w.autonomySplit.suggest / 5))} ${w.autonomySplit.suggest}%`,
-        ``,
-        `  THE SYSTEM YOU BUILT`,
-        `  ${w.systemGrid.hooks} hooks · ${w.systemGrid.skills} skills · ${w.systemGrid.scheduled} scheduled · ${w.systemGrid.rules} rules`,
-        ``,
-        `  ┌─────────────────────────────────┐`,
-        `  │  ${String(w.shareCard.corrections).padStart(3)} corrections remembered     │`,
-        `  │  ${String(w.shareCard.memories).padStart(3)} memories built up            │`,
-        `  │  ${String(w.shareCard.projects).padStart(3)} projects managed             │`,
-        `  │  ${w.shareCard.prohibitionRatio.padStart(3)} rules are "DON'T" rules     │`,
-        `  └─────────────────────────────────┘`,
-        ``,
-        `  Collaboration Score: ${report.collaborationScore}/100`,
-        ``,
-        `  dearuser.ai`,
-      ];
-
-      if (w.topLesson) {
-        lines.splice(5, 0,
-          ``,
-          `  TOP LESSON: "${w.topLesson.quote}"`,
-          `  ${w.topLesson.context}`,
-        );
       }
 
       // Log a wrapped run in its own right so it shows up in history with
       // the correct tool name and rendered body (not as a duplicate analyze).
-      const wrappedText = lines.join('\n');
+      const wrappedText = formatWrappedText(report);
       let wrappedRunId: string | undefined;
       try {
         wrappedRunId = insertAgentRun({
