@@ -1,0 +1,416 @@
+---
+// WrappedCard — the Spotify/Unwrapped-style body for report_type === 'wrapped'.
+//
+// Visual language:
+//   - Bold terracotta hero card at the top with the score at ~120px
+//   - Archetype + headline stat stacked below the hero
+//   - Autonomy split as three stacked bars with percentages
+//   - "System you built" as a 4-up big-number grid
+//   - "By the numbers" as a ranked stat list
+//   - Optional "Most repeated lesson" as a pulled quote
+//   - Footer CTA to run your own Wrapped
+//
+// All colors come from existing brand tokens — no new variables invented.
+
+interface WrappedData {
+  headlineStat?: { value?: string; label?: string };
+  topLesson?: { quote?: string; context?: string } | null;
+  autonomySplit?: { doSelf?: number; askFirst?: number; suggest?: number };
+  archetype?: { name?: string; traits?: string[]; description?: string };
+  systemGrid?: { hooks?: number; skills?: number; scheduled?: number; rules?: number };
+  shareCard?: {
+    corrections?: number;
+    memories?: number;
+    projects?: number;
+    prohibitionRatio?: string;
+  };
+}
+
+interface Props {
+  projectName: string;
+  score: number | null;
+  createdAt: string;
+  wrapped: WrappedData;
+}
+
+const { projectName, score, createdAt, wrapped } = Astro.props;
+
+const year = new Date(createdAt).getFullYear();
+const headline = wrapped.headlineStat?.label || '';
+const archetype = wrapped.archetype || {};
+const split = wrapped.autonomySplit || { doSelf: 0, askFirst: 0, suggest: 0 };
+const grid = wrapped.systemGrid || {};
+const sc = wrapped.shareCard || {};
+const lesson = wrapped.topLesson || null;
+
+// Sort autonomy rows biggest-first so the dominant mode is the top of the stack.
+const splitRows = [
+  { label: 'Do yourself', pct: split.doSelf ?? 0 },
+  { label: 'Ask first', pct: split.askFirst ?? 0 },
+  { label: 'Suggest only', pct: split.suggest ?? 0 },
+].sort((a, b) => b.pct - a.pct);
+
+// Which system-grid tiles to show. We skip any that are 0 so the grid feels
+// intentional rather than full of "0 hooks" dead space.
+const gridCells = [
+  { value: grid.skills ?? 0, label: 'Skills' },
+  { value: grid.hooks ?? 0, label: 'Hooks' },
+  { value: grid.scheduled ?? 0, label: 'Scheduled' },
+  { value: grid.rules ?? 0, label: 'Rules' },
+];
+
+const byTheNumbers = [
+  typeof sc.corrections === 'number' ? { value: sc.corrections, label: 'course-corrections remembered' } : null,
+  typeof sc.memories === 'number' ? { value: sc.memories, label: 'memories built up' } : null,
+  typeof sc.projects === 'number' ? { value: sc.projects, label: 'projects managed' } : null,
+  sc.prohibitionRatio ? { value: sc.prohibitionRatio, label: "of your rules are DON'Ts" } : null,
+].filter(Boolean) as Array<{ value: string | number; label: string }>;
+---
+
+<section class="wrapped">
+  <div class="wrapped-eyebrow">
+    <span class="eyebrow-brand">Dear User · Wrapped</span>
+    <span class="eyebrow-sep">·</span>
+    <span class="eyebrow-year">{year}</span>
+  </div>
+
+  {/* Hero — score as the massive central number. Mirrors the OG card. */}
+  <div class="hero">
+    <div class="hero-score">{score !== null ? score : '—'}</div>
+    <div class="hero-sub">OUT OF 100</div>
+    {headline && (
+      <div class="hero-headline">{headline}</div>
+    )}
+  </div>
+
+  <div class="project-line">
+    <span class="project-label">Setup</span>
+    <span class="project-name">{projectName}</span>
+  </div>
+
+  {archetype.name && (
+    <div class="archetype">
+      <div class="archetype-label">Agent archetype</div>
+      <div class="archetype-name">{archetype.name}</div>
+      {Array.isArray(archetype.traits) && archetype.traits.length > 0 && (
+        <div class="archetype-traits">
+          {archetype.traits.slice(0, 4).map((t: string) => (
+            <span class="trait">{t}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  )}
+
+  <section class="panel">
+    <h2>How you split the work</h2>
+    <div class="split">
+      {splitRows.map((r) => (
+        <div class="split-row">
+          <span class="split-label">{r.label}</span>
+          <span class="split-bar">
+            <span class="split-fill" style={`width: ${Math.max(0, Math.min(100, r.pct))}%`}></span>
+          </span>
+          <span class="split-pct">{r.pct}%</span>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>The system you built</h2>
+    <div class="grid">
+      {gridCells.map((c) => (
+        <div class="grid-cell">
+          <div class="grid-value">{c.value}</div>
+          <div class="grid-label">{c.label}</div>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  {byTheNumbers.length > 0 && (
+    <section class="panel">
+      <h2>By the numbers</h2>
+      <div class="numbers">
+        {byTheNumbers.map((n) => (
+          <div class="num-row">
+            <div class="num-value">{n.value}</div>
+            <div class="num-label">{n.label}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )}
+
+  {lesson && lesson.quote && (
+    <section class="panel lesson">
+      <div class="lesson-eyebrow">Most repeated lesson</div>
+      <blockquote class="lesson-quote">{lesson.quote}</blockquote>
+      {lesson.context && <div class="lesson-context">{lesson.context}</div>}
+    </section>
+  )}
+
+  <div class="cta">
+    <a class="cta-btn" href="https://dearuser.ai/">Share yours at dearuser.ai →</a>
+  </div>
+</section>
+
+<style>
+  .wrapped {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  .wrapped-eyebrow {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--c-ink-400);
+    margin-bottom: 20px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .eyebrow-brand { color: var(--c-action-600); font-weight: 600; }
+  .eyebrow-sep { color: var(--c-ink-400); }
+
+  /* Hero — bold terracotta wash so the thumbnail on social looks like the OG card. */
+  .hero {
+    background: linear-gradient(135deg, var(--c-action-600) 0%, #c8401f 100%);
+    color: var(--c-paper-50);
+    border-radius: 20px;
+    padding: 48px 32px 40px;
+    text-align: center;
+    margin-bottom: 28px;
+    box-shadow: 0 12px 48px rgba(236, 83, 41, 0.22);
+  }
+  .hero-score {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: clamp(96px, 18vw, 160px);
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: var(--c-paper-50);
+  }
+  .hero-sub {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.32em;
+    margin-top: 8px;
+    color: var(--c-paper-50);
+    opacity: 0.9;
+  }
+  .hero-headline {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 20px;
+    font-style: italic;
+    margin-top: 22px;
+    line-height: 1.35;
+    color: var(--c-paper-50);
+    max-width: 560px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .project-line {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding: 10px 16px;
+    border: 1px solid var(--c-paper-200);
+    border-radius: 10px;
+    background: var(--c-paper-50);
+    margin-bottom: 24px;
+  }
+  .project-label {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--c-ink-400);
+  }
+  .project-name {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 18px;
+    color: var(--c-ink-900);
+  }
+
+  .archetype {
+    padding: 24px;
+    background: var(--c-accent-100);
+    border-radius: 12px;
+    margin-bottom: 28px;
+  }
+  .archetype-label {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--c-accent-600);
+    margin-bottom: 8px;
+  }
+  .archetype-name {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 28px;
+    letter-spacing: -0.015em;
+    color: var(--c-ink-900);
+  }
+  .archetype-traits {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .trait {
+    font-size: 12px;
+    padding: 4px 10px;
+    background: var(--c-paper-50);
+    border: 1px solid var(--c-paper-200);
+    border-radius: 999px;
+    color: var(--c-ink-700);
+  }
+
+  .panel {
+    margin-top: 32px;
+  }
+  .panel h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 24px;
+    color: var(--c-ink-900);
+    margin: 0 0 16px;
+    letter-spacing: -0.015em;
+  }
+
+  .split { display: flex; flex-direction: column; gap: 12px; }
+  .split-row {
+    display: grid;
+    grid-template-columns: 120px 1fr 56px;
+    gap: 14px;
+    align-items: center;
+  }
+  .split-label {
+    font-size: 13px;
+    color: var(--c-ink-700);
+  }
+  .split-bar {
+    display: block;
+    height: 14px;
+    background: var(--c-paper-200);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .split-fill {
+    display: block;
+    height: 100%;
+    background: var(--c-action-600);
+    border-radius: 8px;
+  }
+  .split-pct {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--c-ink-900);
+    text-align: right;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  @media (max-width: 640px) { .grid { grid-template-columns: 1fr 1fr; } }
+  .grid-cell {
+    padding: 20px 14px;
+    border: 1px solid var(--c-paper-200);
+    border-radius: 12px;
+    background: var(--c-paper-50);
+    text-align: center;
+  }
+  .grid-value {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 44px;
+    line-height: 1;
+    color: var(--c-action-600);
+    letter-spacing: -0.02em;
+  }
+  .grid-label {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--c-ink-500);
+    margin-top: 10px;
+  }
+
+  .numbers { display: flex; flex-direction: column; gap: 4px; }
+  .num-row {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    align-items: baseline;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--c-paper-200);
+  }
+  .num-row:last-child { border-bottom: 0; }
+  .num-value {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 40px;
+    line-height: 1;
+    color: var(--c-ink-900);
+    letter-spacing: -0.02em;
+    text-align: right;
+  }
+  .num-label {
+    font-size: 15px;
+    color: var(--c-ink-700);
+  }
+
+  .lesson {
+    padding: 28px;
+    background: var(--c-paper-100);
+    border: 1px solid var(--c-paper-200);
+    border-radius: 14px;
+  }
+  .lesson-eyebrow {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--c-ink-500);
+    margin-bottom: 10px;
+  }
+  .lesson-quote {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-size: 22px;
+    line-height: 1.45;
+    margin: 0 0 10px;
+    color: var(--c-ink-900);
+  }
+  .lesson-context {
+    font-size: 14px;
+    color: var(--c-ink-500);
+  }
+
+  .cta { margin-top: 40px; text-align: center; }
+  .cta-btn {
+    display: inline-block;
+    padding: 14px 22px;
+    background: var(--c-action-600);
+    color: var(--c-paper-50);
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 15px;
+    letter-spacing: 0.02em;
+    font-weight: 500;
+  }
+  .cta-btn:hover { background: var(--c-action-700); }
+</style>

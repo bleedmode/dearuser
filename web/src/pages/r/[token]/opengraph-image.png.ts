@@ -69,6 +69,303 @@ function el(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Wrapped-type OG card — Spotify Wrapped visual language.
+// ---------------------------------------------------------------------------
+//
+// The standard share card (below) is a "audit score on paper" layout — muted
+// palette, score tone based on value, all other report types use it. Wrapped
+// is different: it's a viral shareable stat, not a diagnosis. So we give it
+// its own language:
+//   - Bold terracotta wash so it reads as branded at thumbnail size
+//   - Hero number at ~200pt (the score) with tiny "out of 100" beneath
+//   - 1-2 supporting stats in ranked-list form
+//   - "YEAR" as a visual anchor, Spotify-style
+//
+// Keeps the standard layout intact for collab/security/health.
+function renderWrappedCard(
+  row: any,
+  project: string,
+  score: number | null,
+): Response {
+  const w = (row?.report_json as any)?.wrapped || {};
+  const archetype =
+    (row?.report_json as any)?.persona?.archetypeName ||
+    w?.archetype?.name ||
+    '';
+  const headline =
+    typeof w?.headlineStat?.label === 'string' ? w.headlineStat.label : '';
+  const year = row?.created_at
+    ? new Date(row.created_at).getFullYear()
+    : new Date().getFullYear();
+
+  // Pick two supporting stats for the ranked-list row — the numbers most
+  // people will want to screenshot. Skip gracefully when the wrapped blob
+  // isn't populated (share from a different report type or mock).
+  const sc = w?.shareCard || {};
+  const supporting: Array<{ value: string | number; label: string }> = [];
+  if (typeof sc.corrections === 'number') {
+    supporting.push({ value: sc.corrections, label: 'corrections remembered' });
+  }
+  if (typeof sc.memories === 'number') {
+    supporting.push({ value: sc.memories, label: 'memories built' });
+  }
+  if (supporting.length < 2 && typeof sc.projects === 'number') {
+    supporting.push({ value: sc.projects, label: 'projects managed' });
+  }
+
+  return new ImageResponse(
+    el(
+      'div',
+      {
+        style: {
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          // Terracotta gradient — brand action color washing down to a darker
+          // corner so the card has depth without clashing with ink.
+          backgroundImage: `linear-gradient(135deg, ${C.action600} 0%, #c8401f 100%)`,
+          padding: '64px 80px',
+          fontFamily: 'sans-serif',
+          color: C.paper50,
+        },
+      },
+      // Brand row — small, top-left.
+      el(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+          },
+        },
+        el(
+          'div',
+          {
+            style: {
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              backgroundColor: C.paper50,
+              color: C.action600,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 28,
+              lineHeight: 1,
+            },
+          },
+          '☺',
+        ),
+        el(
+          'div',
+          {
+            style: {
+              fontSize: 24,
+              fontStyle: 'italic',
+              fontWeight: 500,
+              color: C.paper50,
+            },
+          },
+          'Dear User',
+        ),
+        el(
+          'div',
+          {
+            style: {
+              marginLeft: 'auto',
+              fontSize: 22,
+              letterSpacing: 6,
+              textTransform: 'uppercase',
+              color: C.paper50,
+              opacity: 0.85,
+              display: 'flex',
+            },
+          },
+          `Wrapped · ${year}`,
+        ),
+      ),
+      // Hero block — centered, score at 240px so it dominates the thumbnail.
+      el(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: 12,
+          },
+        },
+        el(
+          'div',
+          {
+            style: {
+              fontSize: 240,
+              fontWeight: 700,
+              lineHeight: 1,
+              letterSpacing: '-0.04em',
+              color: C.paper50,
+              display: 'flex',
+            },
+          },
+          score !== null ? String(score) : '—',
+        ),
+        el(
+          'div',
+          {
+            style: {
+              fontSize: 22,
+              letterSpacing: 6,
+              textTransform: 'uppercase',
+              color: C.paper50,
+              opacity: 0.85,
+              marginTop: 4,
+              display: 'flex',
+            },
+          },
+          'out of 100',
+        ),
+      ),
+      // Headline / archetype strip
+      el(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            marginTop: 24,
+            maxWidth: 980,
+            alignSelf: 'center',
+          },
+        },
+        archetype
+          ? el(
+              'div',
+              {
+                style: {
+                  fontSize: 42,
+                  fontWeight: 500,
+                  color: C.paper50,
+                  textAlign: 'center',
+                  display: 'flex',
+                },
+              },
+              archetype,
+            )
+          : el('div', { style: { display: 'flex' } }, ''),
+        headline
+          ? el(
+              'div',
+              {
+                style: {
+                  fontSize: 22,
+                  color: C.paper50,
+                  opacity: 0.85,
+                  marginTop: 10,
+                  textAlign: 'center',
+                  maxWidth: 900,
+                  display: 'flex',
+                },
+              },
+              headline.length > 110 ? headline.slice(0, 107) + '…' : headline,
+            )
+          : el('div', { style: { display: 'flex' } }, ''),
+      ),
+      // Footer — supporting stats ranked-list + CTA
+      el(
+        'div',
+        {
+          style: {
+            marginTop: 'auto',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            paddingTop: 20,
+            borderTop: `1px solid rgba(253, 251, 246, 0.25)`,
+          },
+        },
+        supporting.length > 0
+          ? el(
+              'div',
+              {
+                style: {
+                  display: 'flex',
+                  gap: 36,
+                },
+              },
+              ...supporting.slice(0, 2).map((s) =>
+                el(
+                  'div',
+                  {
+                    style: {
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 2,
+                    },
+                  },
+                  el(
+                    'div',
+                    {
+                      style: {
+                        fontSize: 44,
+                        fontWeight: 600,
+                        lineHeight: 1,
+                        color: C.paper50,
+                      },
+                    },
+                    String(s.value),
+                  ),
+                  el(
+                    'div',
+                    {
+                      style: {
+                        fontSize: 16,
+                        color: C.paper50,
+                        opacity: 0.8,
+                      },
+                    },
+                    s.label,
+                  ),
+                ),
+              ),
+            )
+          : el(
+              'div',
+              {
+                style: {
+                  fontSize: 22,
+                  color: C.paper50,
+                  opacity: 0.85,
+                  display: 'flex',
+                },
+              },
+              project.length > 40 ? project.slice(0, 37) + '…' : project,
+            ),
+        el(
+          'div',
+          {
+            style: {
+              fontSize: 20,
+              letterSpacing: 4,
+              textTransform: 'uppercase',
+              color: C.paper50,
+              opacity: 0.9,
+              paddingBottom: 6,
+              display: 'flex',
+            },
+          },
+          'dearuser.ai',
+        ),
+      ),
+    ),
+    { width: 1200, height: 630 },
+  );
+}
+
 export const GET: APIRoute = async ({ params }) => {
   const token = (params.token || '').toString();
   const { row } = await loadSharedReport(token);
@@ -80,6 +377,13 @@ export const GET: APIRoute = async ({ params }) => {
     (row?.report_json as any)?.persona?.archetypeName ||
     REPORT_LABEL[reportType] ||
     'Audit';
+
+  // Wrapped gets its own viral-share treatment — one MASSIVE stat on a bold
+  // terracotta gradient. Spotify/GitHub-Unwrapped language, not the standard
+  // score-on-paper audit layout.
+  if (reportType === 'wrapped') {
+    return renderWrappedCard(row, project, score);
+  }
 
   const tone = toneColor(score);
 
