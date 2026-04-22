@@ -912,16 +912,48 @@ function renderReport(id: string): string {
       }
     } catch { /* fall through to markdown */ }
   }
+  // Wrapped output is a monospace ASCII card — render it in a <pre> block
+  // so the frame characters line up. The markdown renderer breaks them.
+  if (run.tool_name === 'wrapped') return renderWrappedFallback(run);
   return renderMarkdownFallback(run);
+}
+
+function stripAgentOnlyNoise(body: string): string {
+  return body
+    // "Hvad vil du gøre nu?" menu — agent-only chat flow
+    .replace(/\n*---\n*## Hvad vil du gøre nu\?[\s\S]*?(?=\n---|\s*$)/m, '')
+    // [AGENT INSTRUCTION: ...] blocks — directives to the agent, not the user
+    .replace(/\[AGENT INSTRUCTION:[\s\S]*?\]\s*/g, '')
+    // Trailing whitespace after strip
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function renderWrappedFallback(run: any): string {
+  const body = stripAgentOnlyNoise(run.details || run.summary || '');
+  return page(`${toolLabelEn(run.tool_name)}`, `
+    <article class="max-w-3xl mx-auto">
+      <header class="mb-8">
+        <div class="text-xs uppercase tracking-wider text-ink-500 mb-2">${tBi(toolLabelBi(run.tool_name))}</div>
+        <div class="font-mono text-xs text-ink-300">${t(formatLetterDate(run.started_at), formatLetterDateEn(run.started_at))}</div>
+      </header>
+      <p class="font-serif text-2xl text-ink-900 mb-1">${t(greeting(), greetingEn())},</p>
+      <p class="text-ink-500 mb-8 leading-relaxed">${t('Her er hvad jeg fandt.', 'Here is what I found.')}</p>
+      <pre class="font-mono text-xs leading-normal whitespace-pre overflow-x-auto bg-paper-100 border border-paper-200 rounded-lg p-5 text-ink-900">${escapeHtml(body)}</pre>
+      <footer class="mt-10">
+        <p class="text-ink-700 italic mb-3">${t('Med venlig hilsen,', 'Yours,')}</p>
+        <p class="text-ink-900">${signature()}</p>
+      </footer>
+    </article>
+    <div class="mt-8 max-w-3xl mx-auto">
+      <a href="/historik" class="text-sm text-ink-500 hover:text-accent-600 transition">${t('← Se alle mine breve', '← See all letters')}</a>
+    </div>
+  `, 'oversigt');
 }
 
 function renderMarkdownFallback(run: any): string {
   const body = run.details || run.summary || '_(Brevet indeholder ingen tekst.)_';
-  // Strip the "Hvad vil du gøre nu?" menu from the body — that section is
-  // for chat-flow only (the action menu only makes sense inline in a
-  // conversation where the agent can call AskUserQuestion). On the web it
-  // just reads as confusing bureaucracy.
-  const stripped = body.replace(/\n*---\n*## Hvad vil du gøre nu\?[\s\S]*?(?=\n---|\s*$)/m, '');
+  const stripped = stripAgentOnlyNoise(body);
   const rendered = renderMarkdown(stripped);
   return page(`${toolLabelEn(run.tool_name)}`, `
     <article class="max-w-2xl mx-auto">
