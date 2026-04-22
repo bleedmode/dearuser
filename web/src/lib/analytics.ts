@@ -2,7 +2,8 @@
 // NEVER instrument mcp/ or dashboard. Those run on the user's machine and
 // tracking them would break the product's local-only value proposition.
 // Only 4 events. Only page-level signal. No user identity. No session replay.
-// When PUBLIC_POSTHOG_KEY is unset, this module is a no-op.
+// Cookieless: persistence='memory' + disable_cookie — no ePrivacy banner
+// required. When PUBLIC_POSTHOG_KEY is unset, this module is a no-op.
 
 // We import posthog-js lazily so the bundle stays tiny on pages that never
 // initialize it (and so a missing key truly costs nothing at runtime).
@@ -43,6 +44,12 @@ async function ensureInit(): Promise<void> {
         // Autocapture is broad and often catches user-entered text in inputs.
         // We keep it off and fire exactly the events we list in analytics.ts.
         autocapture: false,
+        // Cookieless mode — no cookie, no localStorage, no distinct_id reuse.
+        // Aligns with local-only VP and removes the need for a cookie-consent
+        // banner under ePrivacy/GDPR. Events still fire aggregated.
+        persistence: 'memory',
+        disable_persistence: true,
+        disable_cookie: true,
       });
       ph = client;
     } catch {

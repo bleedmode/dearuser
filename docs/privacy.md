@@ -75,7 +75,8 @@ We read the inbox directly in Supabase. There's no automated reply; we use it to
 - **No keychain access** — we scan config files for leaked tokens. We never touch your system password manager, keychain, or credential helper.
 - **No network calls during scans** — `collab`, `health`, `security`, `onboard`, `wrapped`, `history` are pure filesystem operations. You can verify with `lsof` or Little Snitch.
 - **No conversation content access** — session metadata only (counts, lengths). Not message bodies.
-- **No telemetry / analytics** — we don't know you installed it unless you run `feedback` or `share_report`.
+- **No telemetry from the MCP tool or dashboard** — the terminal tool and the localhost dashboard never phone home. We don't know you installed it unless you run `feedback` or `share_report`.
+- **Website analytics are cookieless** — `dearuser.ai` uses Vercel Analytics (aggregated, no cookies) plus PostHog EU configured without cookies or localStorage (`persistence: 'memory'`). Four events are captured: landing viewed, install command copied, share page viewed, feedback submitted. No user identity, no session replay, no autocapture, no heatmaps, no IP addresses.
 - **No background scans** — Dear User runs only when the agent calls a tool.
 
 ## Platform advisors (optional)
