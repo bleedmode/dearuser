@@ -24,7 +24,8 @@ import type {
 } from '../types.js';
 
 // ---------------------------------------------------------------------------
-// Percentile vs corpus — 50-file CLAUDE.md calibration study (2026-04-22)
+// Percentile vs corpus — 1000+ public CLAUDE.md files (v2 calibration study
+// 2026-04-22). See research/calibration/2026-04-22-claude-md-corpus-v2/.
 // ---------------------------------------------------------------------------
 
 /**
@@ -32,16 +33,23 @@ import type {
  * `research/calibration/...`. In the installed npm package we don't ship
  * calibration data (too much weight), so this returns null there and the
  * moment is skipped. That's fine — the feature degrades gracefully.
+ *
+ * Prefers v2 (1000+ files) if present; falls back to v1 (50 files) for
+ * back-compat when this module is copied into an environment that only has
+ * the old corpus around.
  */
 function findCorpusFile(): string | null {
-  // Start from this module's location and walk upward looking for the
-  // research directory. Works in both dev (tsx/vitest) and esbuild bundles
-  // since esbuild resolves import.meta.url to the bundled path.
   const here = fileURLToPath(import.meta.url);
+  const candidates = [
+    'research/calibration/2026-04-22-claude-md-corpus-v2/data/scores.jsonl',
+    'research/calibration/2026-04-22-claude-md-corpus/data/scores.jsonl',
+  ];
   let dir = dirname(here);
   for (let i = 0; i < 8; i++) {
-    const candidate = resolve(dir, 'research/calibration/2026-04-22-claude-md-corpus/data/scores.jsonl');
-    if (existsSync(candidate)) return candidate;
+    for (const c of candidates) {
+      const candidate = resolve(dir, c);
+      if (existsSync(candidate)) return candidate;
+    }
     const parent = dirname(dir);
     if (parent === dir) break;
     dir = parent;
@@ -50,12 +58,14 @@ function findCorpusFile(): string | null {
 }
 
 let _cachedCorpus: number[] | null | undefined;
+let _cachedMedian: number | null | undefined;
 
 function loadCorpusScores(): number[] | null {
   if (_cachedCorpus !== undefined) return _cachedCorpus;
   const file = findCorpusFile();
   if (!file) {
     _cachedCorpus = null;
+    _cachedMedian = null;
     return null;
   }
   try {
@@ -74,16 +84,29 @@ function loadCorpusScores(): number[] | null {
       }
     }
     _cachedCorpus = scores.length > 0 ? scores : null;
+    if (_cachedCorpus) {
+      const sorted = [..._cachedCorpus].sort((a, b) => a - b);
+      _cachedMedian = sorted[Math.floor((sorted.length - 1) * 0.5)];
+    } else {
+      _cachedMedian = null;
+    }
     return _cachedCorpus;
   } catch {
     _cachedCorpus = null;
+    _cachedMedian = null;
     return null;
   }
+}
+
+function corpusMedian(): number | null {
+  loadCorpusScores();
+  return _cachedMedian ?? null;
 }
 
 /** For tests — clear the cache so fixtures don't bleed across specs. */
 export function __resetCorpusCache(): void {
   _cachedCorpus = undefined;
+  _cachedMedian = undefined;
 }
 
 /**
@@ -130,17 +153,21 @@ export function computePercentile(score: number): WrappedPercentile | null {
 function percentileMoment(pct: WrappedPercentile | null): WrappedMoment | null {
   if (!pct) return null;
   // Narrative reads better in absolute counts for the top end — "beat every
-  // single one of 50" is punchier than "higher than 100%".
+  // single one of 1000" is punchier than "higher than 100%".
   const beat = Math.round((pct.percentile / 100) * pct.corpusSize);
   const narrative = beat >= pct.corpusSize
-    ? `Your setup beats every single one of the ${pct.corpusSize} public CLAUDE.md files we benchmarked.`
-    : `Your setup beats ${beat} of ${pct.corpusSize} public CLAUDE.md files we benchmarked — top ${pct.topPercent}% territory.`;
+    ? `Your setup beats every single one of the ${pct.corpusSize.toLocaleString('en-US')} public CLAUDE.md files we benchmarked.`
+    : `Your setup beats ${beat.toLocaleString('en-US')} of ${pct.corpusSize.toLocaleString('en-US')} public CLAUDE.md files we benchmarked — top ${pct.topPercent}% territory.`;
+  const median = corpusMedian();
+  const detail = median !== null
+    ? `Score ${pct.score} — corpus median is ${median}.`
+    : `Score ${pct.score}.`;
   return {
     id: 'percentile',
     value: `Top ${pct.topPercent}%`,
     label: 'Where you rank',
     narrative,
-    detail: `Score ${pct.score} — corpus median is 19.`,
+    detail,
   };
 }
 

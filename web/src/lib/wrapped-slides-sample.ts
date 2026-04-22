@@ -36,10 +36,10 @@ export const DEMO_WRAPPED: WrappedSlidesInput = {
     moments: [
       {
         id: 'percentile',
-        value: 'Top 10%',
+        value: 'Top 3%',
         label: 'Where you rank',
-        narrative: 'Your setup beats 47 of 50 public CLAUDE.md files we benchmarked — top 10% territory.',
-        detail: 'Score 87 — corpus median is 19.',
+        narrative: 'Your setup beats 2,808 of 2,895 public CLAUDE.md files we benchmarked — top 3% territory.',
+        detail: 'Score 87 — corpus median is 18.',
       },
       {
         id: 'corrections',

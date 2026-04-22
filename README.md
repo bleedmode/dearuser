@@ -33,7 +33,7 @@ Plus helpers: `onboard` (7-step guided setup), `wrapped` (Spotify-style stats), 
 - **Shareable reports** — run `share_report`, get back a `dearuser.ai/r/<token>` URL. The report is anonymized first (paths collapsed to basenames, emails stripped, anything matching our secret patterns redacted) before upload.
 - **12-category secret scanner** — OpenAI, Anthropic, GitHub, AWS, Stripe, Slack, Google, Supabase, Vercel, private keys, generic env secrets, bearer tokens. Scans CLAUDE.md, memory files, skills, hooks.
 - **Semantic conflict detection** (new) — finds rules in CLAUDE.md that contradict each other even when they don't share keywords. "Commit often" vs. "ask before commit" gets flagged.
-- **Score calibrated against reality** — we scanned 50 public CLAUDE.md files and tuned the scoring so the distribution is honest (median 19/100, ceiling ~42). No fake 100s. See [`research/calibration/`](research/calibration/2026-04-22-claude-md-corpus/report.md).
+- **Score calibrated against reality** — we scanned 2,895 public CLAUDE.md files and tuned the scoring so the distribution is honest (median 18/100, 99th percentile 47, ceiling observed 60). No fake 100s. See [`research/calibration/`](research/calibration/2026-04-22-claude-md-corpus-v2/report.md).
 
 ## Install
 
