@@ -20,6 +20,7 @@ import {
   computeFindingHash,
 } from '../engine/findings-ledger.js';
 import { scoreSystemHealth } from '../engine/system-health-scorer.js';
+import { feedbackFooter, firstRunWelcome } from '../engine/feedback-nudge.js';
 import type {
   AuditArtifact,
   AuditArtifactType,
@@ -623,6 +624,9 @@ export function formatAuditReport(report: AuditReport, focus?: string): string {
       }
     }
   }
+
+  lines.push(...firstRunWelcome());
+  lines.push(...feedbackFooter());
 
   return lines.join('\n');
 }
