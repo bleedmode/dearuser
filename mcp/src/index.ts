@@ -543,6 +543,8 @@ Example prompts that should trigger this tool:
         ``,
         `  ${w.headlineStat.value} ${w.headlineStat.label}`,
         ``,
+        `  Setup style: ${report.archetype.nameEn} · ${report.archetype.nameDa}`,
+        ``,
         `  ┌─────────────────────────────────┐`,
         `  │  YOUR ARCHETYPE                 │`,
         `  │  ${w.archetype.name.padEnd(32)}│`,
