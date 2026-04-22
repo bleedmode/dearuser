@@ -1,0 +1,10 @@
+{
+  "scheduledTasks": [
+    {
+      "id": "memory-appender",
+      "cronExpression": "0 */6 * * *",
+      "enabled": true,
+      "lastRunAt": "2026-04-22T12:11:14.183Z"
+    }
+  ]
+}

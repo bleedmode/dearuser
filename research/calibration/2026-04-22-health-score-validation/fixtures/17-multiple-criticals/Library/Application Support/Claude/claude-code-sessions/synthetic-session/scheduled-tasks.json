@@ -1,0 +1,10 @@
+{
+  "scheduledTasks": [
+    {
+      "id": "never-run",
+      "cronExpression": "0 2 * * *",
+      "enabled": true,
+      "createdAt": 1774267874185
+    }
+  ]
+}
