@@ -192,12 +192,34 @@ export function extractScore(report: Record<string, unknown>): number | null {
 // ============================================================================
 
 function getSupabaseEnv(): { url: string; key: string } | null {
-  const url =
+  // 1. Environment variables — the canonical production path
+  let url =
     process.env.DEARUSER_SUPABASE_URL || process.env.SUPABASE_URL || '';
-  const key =
+  let key =
     process.env.DEARUSER_SUPABASE_SERVICE_KEY ||
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     '';
+
+  // 2. Fallback: ~/.dearuser/config.json { tokens: { supabase_url, supabase_service_key } }
+  //    Lets a local dashboard keep working across restarts without
+  //    re-exporting env vars every session.
+  if (!url || !key) {
+    try {
+      const os = require('node:os');
+      const fs = require('node:fs');
+      const path = require('node:path');
+      const p = path.join(os.homedir(), '.dearuser', 'config.json');
+      if (fs.existsSync(p)) {
+        const cfg = JSON.parse(fs.readFileSync(p, 'utf-8'));
+        const t = cfg?.tokens || {};
+        url = url || t.supabase_url || '';
+        key = key || t.supabase_service_key || '';
+      }
+    } catch {
+      // Config file unreadable — silently fall through to null return.
+    }
+  }
+
   if (!url || !key) return null;
   return { url: url.replace(/\/$/, ''), key };
 }
