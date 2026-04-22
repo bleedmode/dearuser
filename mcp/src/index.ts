@@ -214,7 +214,7 @@ function firstRunNudge(toolName: 'collab' | 'health' | 'security') {
 // Tool 1: analyze — full collaboration analysis
 server.tool(
   'collab',
-  `Analyze your human-agent collaboration. Scans CLAUDE.md, memory files, hooks, skills, and more to produce a collaboration report with persona detection, scoring, friction analysis, and recommendations.
+  `Analyze your human-agent collaboration. Scans your agent contract (CLAUDE.md or AGENTS.md), memory files, hooks, skills, and more to produce a collaboration report with persona detection, scoring, friction analysis, and recommendations.
 
 Returns a pre-formatted markdown report. Use the format parameter to control detail level:
 - "text" (default): concise, plain-language report designed for non-technical users
@@ -229,7 +229,7 @@ The user cannot see raw tool results. You MUST output the full report as your re
 Example prompts that should trigger this tool:
 - "Analyze my collaboration with Claude"
 - "How good is my Claude setup?"
-- "What should I improve in my CLAUDE.md?"
+- "What should I improve in my CLAUDE.md or AGENTS.md?"
 - "Score my agent configuration"`,
   {
     projectRoot: z.string().optional().describe('Project root to analyze when scope="project". Defaults to current working directory. Ignored for scope="global".'),
@@ -381,7 +381,7 @@ Example prompts that should trigger this tool:
 // Tool 3: onboard — conversational setup dialog
 server.tool(
   'onboard',
-  `Conversational setup. Walks the user through 5 steps (intro → goals → stack+pains → substrate → plan) and produces a tailored setup plan — tailored CLAUDE.md template, skill recommendations, hook recommendations, and next 3 steps.
+  `Conversational setup. Walks the user through 5 steps (intro → goals → stack+pains → substrate → plan) and produces a tailored setup plan — tailored agent-contract template (CLAUDE.md or AGENTS.md), skill recommendations, hook recommendations, and next 3 steps.
 
 How to use (for the agent):
 1. First call: no arguments. The tool returns an intro question + nextStep.
@@ -405,7 +405,8 @@ Example prompts that should trigger this tool:
 - "Set up Dear User for me"
 - "I'm new to Claude Code, help me configure it"
 - "Onboard me"
-- "Help me create a CLAUDE.md"`,
+- "Help me create a CLAUDE.md"
+- "Help me create an AGENTS.md"`,
   {
     step: z.string().optional().describe('Current step (e.g., "role", "goals", "stack"). Omit to start from intro.'),
     answer: z.string().optional().describe('User answer from the previous step (e.g., "I\'m a solo developer building SaaS products"). Required for all steps after intro.'),
@@ -458,9 +459,9 @@ server.tool(
   'security',
   `Security audit of your AI setup. Scans for:
 
-- **Leaked secrets** — API keys, tokens, credentials in CLAUDE.md, memory, skills, or settings
+- **Leaked secrets** — API keys, tokens, credentials in CLAUDE.md / AGENTS.md, memory, skills, or settings
 - **Prompt-injection surfaces** — hooks/skills that pass user input to shell unsafely
-- **Rule conflicts** — CLAUDE.md says one thing but a hook/skill does another (e.g., "never force-push" but a hook runs \`git push --force\`)
+- **Rule conflicts** — your agent contract says one thing but a hook/skill does another (e.g., "never force-push" but a hook runs \`git push --force\`)
 
 Presents findings sorted by severity (critical → recommended → nice-to-have). Secrets and rule conflicts are the highest-trust signals because false positives are rare; injection findings are pattern-based and may warrant manual review.
 
@@ -760,7 +761,7 @@ When presenting: return the text verbatim. Do NOT summarize or re-wrap — the f
       `## Tools`,
       ``,
       `**\`collab\`** — Collaboration report`,
-      `   Scans your CLAUDE.md, memory, hooks, skills, sessions. Detects your persona, scores collaboration,`,
+      `   Scans your agent contract (CLAUDE.md or AGENTS.md), memory, hooks, skills, sessions. Detects your persona, scores collaboration,`,
       `   surfaces friction, and recommends concrete fixes.`,
       `   → *"Analyze my collaboration with Claude"*`,
       ``,
@@ -770,7 +771,7 @@ When presenting: return the text verbatim. Do NOT summarize or re-wrap — the f
       `   → *"Check my system's health"*`,
       ``,
       `**\`security\`** — Secret & injection scan`,
-      `   Looks for leaked API keys/tokens in CLAUDE.md, memory, skills, settings.`,
+      `   Looks for leaked API keys/tokens in CLAUDE.md / AGENTS.md, memory, skills, settings.`,
       `   Finds prompt-injection surfaces and unsafe hooks.`,
       `   → *"Scan my Claude setup for security issues"*`,
       ``,
@@ -780,7 +781,7 @@ When presenting: return the text verbatim. Do NOT summarize or re-wrap — the f
       ``,
       `**\`onboard\`** — Guided setup (for new users)`,
       `   Conversational walkthrough: role → goals → stack → pains → substrate → plan.`,
-      `   Outputs a tailored CLAUDE.md + skill/hook recommendations.`,
+      `   Outputs a tailored CLAUDE.md (or AGENTS.md) template + skill/hook recommendations.`,
       `   → *"Onboard me to Dear User"*`,
       ``,
       `**\`wrapped\`** — Shareable stats (Spotify Wrapped style)`,

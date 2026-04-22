@@ -25,6 +25,53 @@ function readFile(path: string): FileInfo | null {
   }
 }
 
+// Agent-contract filenames we treat as first-class inputs.
+// Order matters: CLAUDE.md is canonical for Claude Code; AGENTS.md is the
+// Linux Foundation cross-tool standard used by Cursor, Codex, Aider, Cline,
+// Zed. `agents.md` (lowercase) and `agent.md` (singular) are in the wild too;
+// `.agents.md` is a dotfile variant some users prefer.
+const CLAUDE_FILENAMES = ['CLAUDE.md', 'claude.md'] as const;
+const AGENTS_FILENAMES = ['AGENTS.md', 'agents.md', 'agent.md', '.agents.md'] as const;
+
+function readFirstExisting(dir: string, names: readonly string[]): FileInfo | null {
+  for (const name of names) {
+    const info = readFile(join(dir, name));
+    if (info) return info;
+  }
+  return null;
+}
+
+/**
+ * Read the agent contract for a directory. Supports both CLAUDE.md (Claude
+ * Code) and AGENTS.md (Linux Foundation cross-tool standard) as first-class
+ * inputs. When both exist in the same directory, their contents are merged
+ * with a divider — they usually cover different ground (CLAUDE.md tends to
+ * be Claude-specific, AGENTS.md tends to be tool-agnostic), and the parser +
+ * scorers are content-based so merging gives the user credit for everything
+ * they wrote.
+ */
+function readAgentContract(dir: string): FileInfo | null {
+  const claudeFile = readFirstExisting(dir, CLAUDE_FILENAMES);
+  const agentsFile = readFirstExisting(dir, AGENTS_FILENAMES);
+
+  if (claudeFile && agentsFile) {
+    const divider = `\n\n---\n\n<!-- merged from ${agentsFile.path} -->\n\n`;
+    return {
+      path: claudeFile.path,
+      content: claudeFile.content + divider + agentsFile.content,
+      size: claudeFile.size + agentsFile.size,
+      lastModified: claudeFile.lastModified && agentsFile.lastModified
+        ? (claudeFile.lastModified > agentsFile.lastModified ? claudeFile.lastModified : agentsFile.lastModified)
+        : (claudeFile.lastModified || agentsFile.lastModified),
+      kind: 'merged',
+      mergedPaths: [claudeFile.path, agentsFile.path],
+    };
+  }
+  if (claudeFile) return { ...claudeFile, kind: 'claude' };
+  if (agentsFile) return { ...agentsFile, kind: 'agents' };
+  return null;
+}
+
 function countDirEntries(dir: string, pattern?: RegExp): number {
   try {
     if (!existsSync(dir)) return 0;
@@ -188,9 +235,8 @@ function scanProject(projectRoot: string): ScanResult {
   const home = homedir();
   const absRoot = resolve(projectRoot);
 
-  const projectClaudeMd = readFile(join(absRoot, 'CLAUDE.md'))
-    || readFile(join(absRoot, 'claude.md'));
-  const globalClaudeMd = readFile(join(home, '.claude', 'CLAUDE.md'));
+  const projectClaudeMd = readAgentContract(absRoot);
+  const globalClaudeMd = readAgentContract(join(home, '.claude'));
 
   const memoryFiles: FileInfo[] = [];
   const encodedPath = absRoot.replace(/\//g, '-');
@@ -237,7 +283,7 @@ function scanProject(projectRoot: string): ScanResult {
 function scanGlobal(): ScanResult {
   const home = homedir();
 
-  const globalClaudeMd = readFile(join(home, '.claude', 'CLAUDE.md'));
+  const globalClaudeMd = readAgentContract(join(home, '.claude'));
 
   // Memory files: aggregate every ~/.claude/projects/<dir>/memory/*.md
   const memoryFiles: FileInfo[] = [];

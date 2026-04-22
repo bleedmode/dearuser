@@ -4,7 +4,7 @@ Dear User is local-first by design. This doc explains what it reads, what it wri
 
 ## Short version
 
-- **Reads:** your Claude Code config files (CLAUDE.md, memory, skills, hooks) and session metadata
+- **Reads:** your agent config files (CLAUDE.md or AGENTS.md, memory, skills, hooks) and session metadata
 - **Writes:** one SQLite file at `~/.dearuser/dearuser.db`
 - **Transmits:** nothing, unless you explicitly call `share_report` or `feedback`
 - **No sign-up, no API keys, no telemetry**
@@ -15,12 +15,12 @@ The scanner reads these locations (paths may vary by client):
 
 | What | Where | Why |
 |------|-------|-----|
-| Project instructions | `CLAUDE.md` in project root and subfolders | To score collaboration rules, check for conflicts |
-| Global instructions | `~/.claude/CLAUDE.md`, `~/.claude/memory/**` | Same |
+| Project instructions | `CLAUDE.md` or `AGENTS.md` (also `agent.md`, `.agents.md`) in project root | To score collaboration rules, check for conflicts |
+| Global instructions | `~/.claude/CLAUDE.md` or `~/.claude/AGENTS.md`, `~/.claude/memory/**` | Same |
 | Skills (slash commands) | `~/.claude/skills/**`, project `.claude/skills/**` | Overlap detection, orphan check |
 | Hooks | `~/.claude/hooks/**` and settings | Structural health checks |
 | Scheduled tasks | `~/.claude/scheduled-tasks/**` | Orphan job detection |
-| MCP config | `~/.claude.json`, `~/.claude/mcp.json` | Verify claims in CLAUDE.md against actual config |
+| MCP config | `~/.claude.json`, `~/.claude/mcp.json` | Verify claims in your agent contract against actual config |
 | Session metadata | `~/.claude/projects/**/sessions/*.jsonl` — counts, timestamps, prompt lengths | Detect prompt patterns (short, vague, repetitive) |
 
 **Dear User never reads session message content.** It parses `.jsonl` session logs for length and structural signals only — not the words you typed or the words the agent said back.
@@ -36,7 +36,7 @@ Four tables:
 - `du_score_history` — your score over time
 - `du_findings` — scan-driven findings with stable hashes for lifecycle tracking
 
-Dear User does **not** modify your CLAUDE.md, memory, skills, hooks, or any other file — unless you explicitly call `implement_recommendation`, which has a preview step and tells you exactly what will change before it does.
+Dear User does **not** modify your CLAUDE.md, AGENTS.md, memory, skills, hooks, or any other file — unless you explicitly call `implement_recommendation`, which has a preview step and tells you exactly what will change before it does.
 
 ## What leaves your machine
 
