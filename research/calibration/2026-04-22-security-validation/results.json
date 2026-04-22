@@ -1,0 +1,309 @@
+{
+  "runAt": "2026-04-22T12:13:40.724Z",
+  "rows": [
+    {
+      "kind": "positive",
+      "file": "01-openai-project.md",
+      "expected": "openai_key",
+      "detected": [
+        "openai_key",
+        "env_secret"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "02-openai-classic.md",
+      "expected": "openai_key",
+      "detected": [
+        "openai_key"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "03-anthropic.md",
+      "expected": "anthropic_key",
+      "detected": [
+        "anthropic_key",
+        "env_secret"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "04-github-pat-classic.md",
+      "expected": "github_token",
+      "detected": [
+        "github_token",
+        "env_secret"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "05-github-pat-fine-grained.md",
+      "expected": "github_token",
+      "detected": [
+        "github_token",
+        "env_secret"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "06-stripe-live.md",
+      "expected": "stripe_key",
+      "detected": [
+        "stripe_key",
+        "env_secret"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "07-stripe-test.md",
+      "expected": "stripe_key",
+      "detected": [
+        "stripe_key"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "08-aws-access-key.md",
+      "expected": "aws_key",
+      "detected": [
+        "aws_key"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "09-slack-bot-token.md",
+      "expected": "slack_token",
+      "detected": [
+        "slack_token",
+        "env_secret"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "10-slack-user-token.md",
+      "expected": "slack_token",
+      "detected": [
+        "slack_token",
+        "env_secret"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "11-google-api-key.md",
+      "expected": "google_api_key",
+      "detected": [
+        "google_api_key"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "12-supabase-jwt.md",
+      "expected": "supabase_key",
+      "detected": [
+        "supabase_key"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "13-private-key-rsa.md",
+      "expected": "private_key",
+      "detected": [
+        "private_key"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "14-private-key-openssh.md",
+      "expected": "private_key",
+      "detected": [
+        "private_key"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "15-env-secret-password.md",
+      "expected": "env_secret",
+      "detected": [
+        "env_secret"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "16-env-secret-apikey.md",
+      "expected": "env_secret",
+      "detected": [
+        "env_secret"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "17-env-secret-credentials.md",
+      "expected": "env_secret",
+      "detected": [
+        "env_secret"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "18-bearer-token.md",
+      "expected": "bearer_token",
+      "detected": [
+        "bearer_token"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "19-bearer-raw.md",
+      "expected": "bearer_token",
+      "detected": [
+        "bearer_token"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "20-vercel-token.md",
+      "expected": "vercel_token",
+      "detected": [
+        "env_secret"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "21-github-pat-memory.md",
+      "expected": "github_token",
+      "detected": [
+        "github_token"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "positive",
+      "file": "22-anthropic-in-settings.md",
+      "expected": "anthropic_key",
+      "detected": [
+        "anthropic_key"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "negative",
+      "file": "01-commit-hashes.md",
+      "expected": "(no findings)",
+      "detected": [],
+      "pass": true
+    },
+    {
+      "kind": "negative",
+      "file": "02-uuids.md",
+      "expected": "(no findings)",
+      "detected": [],
+      "pass": true
+    },
+    {
+      "kind": "negative",
+      "file": "03-base64-nonces.md",
+      "expected": "(no findings)",
+      "detected": [],
+      "pass": true
+    },
+    {
+      "kind": "negative",
+      "file": "04-placeholders.md",
+      "expected": "(no findings)",
+      "detected": [],
+      "pass": true
+    },
+    {
+      "kind": "negative",
+      "file": "05-aws-lookalikes.md",
+      "expected": "(no findings)",
+      "detected": [],
+      "pass": true
+    },
+    {
+      "kind": "negative",
+      "file": "06-jwt-malformed.md",
+      "expected": "(no findings)",
+      "detected": [],
+      "pass": true
+    },
+    {
+      "kind": "negative",
+      "file": "07-public-keys.md",
+      "expected": "(no findings)",
+      "detected": [],
+      "pass": true
+    },
+    {
+      "kind": "negative",
+      "file": "08-long-random-ids.md",
+      "expected": "(no findings)",
+      "detected": [],
+      "pass": true
+    },
+    {
+      "kind": "negative",
+      "file": "09-24-char-strings.md",
+      "expected": "(no findings)",
+      "detected": [],
+      "pass": true
+    },
+    {
+      "kind": "negative",
+      "file": "10-bearer-too-short.md",
+      "expected": "(no findings)",
+      "detected": [],
+      "pass": true
+    },
+    {
+      "kind": "negative",
+      "file": "11-markdown-codeblocks.md",
+      "expected": "(no findings)",
+      "detected": [],
+      "pass": true
+    }
+  ],
+  "summary": {
+    "positivesPassed": 22,
+    "positivesTotal": 22,
+    "negativesPassed": 11,
+    "negativesTotal": 11,
+    "categoriesCovered": [
+      "openai_key",
+      "anthropic_key",
+      "github_token",
+      "stripe_key",
+      "aws_key",
+      "slack_token",
+      "google_api_key",
+      "supabase_key",
+      "private_key",
+      "env_secret",
+      "bearer_token"
+    ],
+    "categoriesNotFired": [
+      "vercel_token"
+    ]
+  }
+}
