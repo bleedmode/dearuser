@@ -36,6 +36,37 @@ function mockReport(partial: Partial<AnalysisReport> = {}): AnalysisReport {
         projects: 3,
         prohibitionRatio: '18%',
       },
+      moments: [
+        {
+          id: 'percentile',
+          value: 'Top 5%',
+          label: 'Where you rank',
+          narrative: 'Your setup scores higher than 94% of 50 public CLAUDE.md files.',
+          detail: 'Score 87 — corpus median is 19.',
+        },
+        {
+          id: 'corrections',
+          value: '12',
+          label: 'Times you corrected me',
+          narrative: 'You pushed back 12 times. I\'m keeping track.',
+        },
+        {
+          id: 'dead-skills',
+          value: '3',
+          label: 'Skills never called',
+          narrative: 'You built `alpha`, `beta`, `gamma` — I\'ve never seen you use them.',
+        },
+      ],
+      percentile: {
+        score: 87,
+        percentile: 94,
+        topPercent: 5,
+        corpusSize: 50,
+      },
+      contrast: {
+        strongest: { key: 'roleClarity', name: 'Role Clarity', score: 92 },
+        weakest: { key: 'memoryHealth', name: 'Memory Health', score: 40 },
+      },
     },
     // The formatter never touches these — pass minimal stubs so the type
     // checker stays happy.
@@ -168,5 +199,27 @@ describe('formatWrappedText', () => {
   it('ends with a share CTA pointing to dearuser.ai', () => {
     const text = formatWrappedText(mockReport());
     expect(text.toLowerCase()).toContain('dearuser.ai');
+  });
+
+  it('renders the moments section with values, labels and narratives', () => {
+    const text = formatWrappedText(mockReport());
+    expect(text).toContain('YOUR YEAR IN MOMENTS');
+    // Values
+    expect(text).toContain('Top 5%');
+    expect(text).toContain('12');
+    // Labels (uppercased)
+    expect(text).toContain('WHERE YOU RANK');
+    expect(text).toContain('TIMES YOU CORRECTED ME');
+    expect(text).toContain('SKILLS NEVER CALLED');
+    // Narratives
+    expect(text).toContain('94%');
+    expect(text).toContain('alpha');
+  });
+
+  it('omits the moments section cleanly when the moments array is empty', () => {
+    const report = mockReport();
+    (report as any).wrapped.moments = [];
+    const text = formatWrappedText(report);
+    expect(text).not.toContain('YOUR YEAR IN MOMENTS');
   });
 });
