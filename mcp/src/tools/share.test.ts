@@ -230,4 +230,59 @@ describe('runShareReport — integration', () => {
       runShareReport({ report_type: 'collab', report_json: { score: 1 } }),
     ).rejects.toThrow(/Supabase credentials not configured/);
   });
+
+  // Regression test: the dashboard Share button uploads a real wrapped report
+  // pulled from SQLite, which tends to carry project roots, local paths and
+  // user-entered preference blobs that the MCP-tool callsite never sees.
+  // Shape here mirrors what formatWrappedJson + archetype-detector actually
+  // produce in the wild (sampled from ~/.dearuser/dearuser.db rows).
+  it('anonymizes a realistic wrapped report from the dashboard path', async () => {
+    const realisticWrapped = {
+      collaborationScore: 82,
+      projectName: '/Users/karlo/clawd/dearuser',
+      archetype: {
+        nameEn: 'The System Architect',
+        description: 'Runs /Users/karlo/clawd/dearuser/mcp — heavy on rules, light on automation.',
+      },
+      wrapped: {
+        headlineStat: { value: '12', label: 'rules written' },
+        topLesson: {
+          quote: 'Contact team@poised.dk before shipping.',
+          context: 'CLAUDE.md line 42 in /Users/karlo/clawd/dearuser/CLAUDE.md',
+        },
+        systemGrid: {
+          skills: 7,
+          hooks: 3,
+          scheduledTasks: 2,
+          mcpServers: 5,
+          projects: 12,
+          prohibitionRatio: '0.3',
+        },
+      },
+      _projectRoot: '/Users/karlo/clawd/dearuser',
+    };
+
+    await runShareReport({
+      report_type: 'wrapped',
+      report_json: realisticWrapped,
+    });
+    expect(calls).toHaveLength(1);
+    const body = JSON.parse(calls[0].init.body as string);
+    const serialized = JSON.stringify(body);
+    // Absolute paths must not leak.
+    expect(serialized).not.toContain('/Users/karlo');
+    expect(serialized).not.toContain('/clawd/');
+    // Emails must not leak.
+    expect(serialized).not.toContain('team@poised.dk');
+    // _projectRoot must be dropped entirely, not anonymized.
+    expect(JSON.stringify(body.report_json)).not.toContain('_projectRoot');
+    expect(JSON.stringify(body.report_json)).not.toContain('projectRoot');
+    // Project name for the social card is the basename, not the full path.
+    expect(body.project_name).toBe('dearuser');
+    // Score is preserved.
+    expect(body.score).toBe(82);
+    // Non-sensitive content survives.
+    expect(serialized).toContain('The System Architect');
+    expect(serialized).toContain('rules written');
+  });
 });
