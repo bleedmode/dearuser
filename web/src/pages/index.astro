@@ -460,6 +460,65 @@ import Layout from '../layouts/Layout.astro';
     word-break: break-all;
   }
 
+  /* Honest FAQ ------------------------------------------------------ */
+  .faq {
+    padding: 72px 0 88px;
+    border-top: 1px solid var(--c-paper-200);
+  }
+  .faq-list {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+  .faq-item {
+    border-bottom: 1px solid var(--c-paper-200);
+    padding: 22px 0;
+  }
+  .faq-item:first-of-type { border-top: 1px solid var(--c-paper-200); }
+  .faq-item[open] summary .faq-mark { transform: rotate(45deg); }
+  .faq-item summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 20px;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+    color: var(--c-ink-900);
+    transition: color 0.15s;
+  }
+  .faq-item summary::-webkit-details-marker { display: none; }
+  .faq-item summary:hover { color: var(--c-action-600); }
+  .faq-mark {
+    flex-shrink: 0;
+    font-family: 'Geist Mono', monospace;
+    font-size: 18px;
+    color: var(--c-action-600);
+    line-height: 1.35;
+    transition: transform 0.2s ease;
+  }
+  .faq-answer {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--c-ink-700);
+    margin: 14px 0 0;
+    padding-right: 36px;
+  }
+  .faq-answer code {
+    font-family: 'Geist Mono', monospace;
+    font-size: 14px;
+    background: var(--c-paper-100);
+    border: 1px solid var(--c-paper-200);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--c-ink-900);
+  }
+
   /* Pull quote ------------------------------------------------------ */
   .pullquote {
     padding: 72px 0;
@@ -762,6 +821,123 @@ import Layout from '../layouts/Layout.astro';
         <span class="lang-en">Run dearuser collab</span>
       </code>
     </div>
+  </div>
+</section>
+
+<!-- Honest FAQ ------------------------------------------------------ -->
+<section class="faq" id="faq">
+  <div class="section-head" style="text-align:center;">
+    <div class="section-eyebrow">
+      <span class="lang-da">Ærlig FAQ</span><span class="lang-en">Honest FAQ</span>
+    </div>
+    <h2 class="section-title">
+      <span class="lang-da">Spørgsmålene folk faktisk har.</span>
+      <span class="lang-en">The questions people actually ask.</span>
+    </h2>
+    <p class="section-sub">
+      <span class="lang-da">Vi er pre-launch. Her er de ærlige svar — også når svaret er "vi ved det ikke endnu".</span>
+      <span class="lang-en">We're pre-launch. Here are the honest answers — including when the answer is "we don't know yet".</span>
+    </p>
+  </div>
+
+  <div class="faq-list">
+    <details class="faq-item">
+      <summary>
+        <span>
+          <span class="lang-da">Hvordan er det anderledes end bare at bede Claude kigge på min opsætning?</span>
+          <span class="lang-en">How is this different from just asking Claude to look at my setup?</span>
+        </span>
+        <span class="faq-mark" aria-hidden="true">+</span>
+      </summary>
+      <p class="faq-answer">
+        <span class="lang-da">Claude kan bestemt scanne dine filer hvis du beder om det. Forskellen er hukommelse og sammenligning: Dear User gemmer hvert scan lokalt så du kan se trenden over tid, og trækker konkrete advarsler fra GitHub, Supabase og npm — ikke kun mønstergenkendelse i tekst. En samtale glemmer. En database husker.</span>
+        <span class="lang-en">Claude can definitely scan your files if you ask. The difference is memory and comparison: Dear User saves every scan locally so you can see the trend over time, and pulls real warnings from GitHub, Supabase and npm — not just pattern-matching in text. A conversation forgets. A database remembers.</span>
+      </p>
+    </details>
+
+    <details class="faq-item">
+      <summary>
+        <span>
+          <span class="lang-da">Forlader mine data maskinen?</span>
+          <span class="lang-en">Does my data leave my machine?</span>
+        </span>
+        <span class="faq-mark" aria-hidden="true">+</span>
+      </summary>
+      <p class="faq-answer">
+        <span class="lang-da">Nej. Scannerne kører 100% lokalt, og din database ligger i <code>~/.dearuser/dearuser.db</code>. De to undtagelser kræver et eksplicit klik fra dig: <em>del rapport</em> (uploader den rapport du vælger, aldrig din rå data) og <em>send feedback</em> (sender beskeden du selv skriver). Ingen baggrundsafsendelse, ingen telemetri.</span>
+        <span class="lang-en">No. The scanners run 100% locally, and your database lives at <code>~/.dearuser/dearuser.db</code>. The two exceptions require an explicit click from you: <em>share report</em> (uploads the report you choose, never raw data) and <em>send feedback</em> (sends the message you type). No background sync, no telemetry.</span>
+      </p>
+    </details>
+
+    <details class="faq-item">
+      <summary>
+        <span>
+          <span class="lang-da">Hvorfor er det gratis? Hvad er haken?</span>
+          <span class="lang-en">Why is it free? What's the catch?</span>
+        </span>
+        <span class="faq-mark" aria-hidden="true">+</span>
+      </summary>
+      <p class="faq-answer">
+        <span class="lang-da">Ingen hake lige nu. Vi er pre-launch med tæt på nul brugere, og vi vil have dig til at prøve det og fortælle os hvad der ikke virker. En betalt tier kommer måske senere (team-features, monitoring, automatiske scans) — men kernen forbliver gratis og open source. Din data bliver aldrig produktet.</span>
+        <span class="lang-en">No catch right now. We're pre-launch with close to zero users, and we want you to try it and tell us what doesn't work. A paid tier may come later (team features, monitoring, auto-scans) — but the core stays free and open source. Your data will never be the product.</span>
+      </p>
+    </details>
+
+    <details class="faq-item">
+      <summary>
+        <span>
+          <span class="lang-da">Kan Dear User ændre min opsætning uden at spørge?</span>
+          <span class="lang-en">Can Dear User change my setup without asking?</span>
+        </span>
+        <span class="faq-mark" aria-hidden="true">+</span>
+      </summary>
+      <p class="faq-answer">
+        <span class="lang-da">Nej. Alle anbefalinger ligger som "pending" indtil du eksplicit siger ja via <code>implement_recommendation</code>. Dear User kan ikke skrive til dine filer, lave commits eller pushe noget på egen hånd. Du ser altid en reviewable diff først.</span>
+        <span class="lang-en">No. All recommendations sit as "pending" until you explicitly say yes via <code>implement_recommendation</code>. Dear User cannot write to your files, make commits, or push anything on its own. You always see a reviewable diff first.</span>
+      </p>
+    </details>
+
+    <details class="faq-item">
+      <summary>
+        <span>
+          <span class="lang-da">Hvad hvis min score er lav? Skal jeg være bekymret?</span>
+          <span class="lang-en">What if my score is low? Should I worry?</span>
+        </span>
+        <span class="faq-mark" aria-hidden="true">+</span>
+      </summary>
+      <p class="faq-answer">
+        <span class="lang-da">Nej. Første scan er ofte lav — det er normalt. Scoren er ikke sammenlignet med en "ideel opsætning" men med dig selv over tid. Lav score betyder bare at der er lavthængende frugt at plukke. De fleste mønstre retter sig selv efter én passende CLAUDE.md-opdatering.</span>
+        <span class="lang-en">No. First scan is often low — that's normal. The score isn't compared to an "ideal setup", it's compared to you over time. Low score just means there's low-hanging fruit to pick. Most patterns fix themselves after one solid CLAUDE.md update.</span>
+      </p>
+    </details>
+
+    <details class="faq-item">
+      <summary>
+        <span>
+          <span class="lang-da">Virker det hvis jeg lige er startet med Claude Code?</span>
+          <span class="lang-en">Does it work if I'm brand new to Claude Code?</span>
+        </span>
+        <span class="faq-mark" aria-hidden="true">+</span>
+      </summary>
+      <p class="faq-answer">
+        <span class="lang-da">Ja. <code>onboard</code>-flowet er bygget præcis til dét — en guidet samtale der hjælper dig med at skrive din første CLAUDE.md. Du behøver ikke noget eksisterende setup for at starte. Jo mere du bygger op, jo mere har Dear User at sige — men dag ét er også dækket.</span>
+        <span class="lang-en">Yes. The <code>onboard</code> flow is built for exactly that — a guided conversation that helps you write your first CLAUDE.md. You don't need any existing setup to start. The more you build up, the more Dear User has to say — but day one is covered too.</span>
+      </p>
+    </details>
+
+    <details class="faq-item">
+      <summary>
+        <span>
+          <span class="lang-da">Hvor mange brugere har I?</span>
+          <span class="lang-en">How many users do you have?</span>
+        </span>
+        <span class="faq-mark" aria-hidden="true">+</span>
+      </summary>
+      <p class="faq-answer">
+        <span class="lang-da">Tæt på nul ved launch. Vi byggede Dear User fordi vi selv brugte 4+ timer om dagen med Claude Code og ville vide hvordan det gik. Forvent rough edges i uge 1. Feedback bliver læst personligt — dit input former produktet, ikke en support-kø.</span>
+        <span class="lang-en">Close to zero at launch. We built Dear User because we were spending 4+ hours a day with Claude Code ourselves and wanted to know how it was going. Expect rough edges in week 1. Feedback gets read personally — your input shapes the product, not a support queue.</span>
+      </p>
+    </details>
   </div>
 </section>
 
