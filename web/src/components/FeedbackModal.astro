@@ -379,6 +379,17 @@ const SUPABASE_ANON_KEY =
         }
         if (form) form.hidden = true;
         if (thanks) thanks.hidden = false;
+        // Analytics signal — see web/src/lib/analytics.ts. Only booleans/source,
+        // never the message body or email address.
+        try {
+          document.dispatchEvent(new CustomEvent('dearuser:feedback-submitted', {
+            detail: {
+              source: source,
+              hasRating: rating !== null,
+              hasEmail: !!(email && email.indexOf('@') > -1),
+            },
+          }));
+        } catch (_) { /* noop */ }
       } catch (err) {
         statusEl.textContent = 'Kunne ikke sende — prøv igen om lidt.';
         statusEl.setAttribute('data-state', 'error');
