@@ -22,7 +22,8 @@ const { mode = 'modal', defaultContext = 'general' } = Astro.props;
 // local builds don't break when the secret isn't configured.
 const SUPABASE_URL =
   import.meta.env.PUBLIC_DEARUSER_FEEDBACK_SUPABASE_URL ??
-  'https://xikiuvsoskdkgxxxytci.supabase.co';
+  import.meta.env.PUBLIC_DEARUSER_SUPABASE_URL ??
+  'https://vrjohzzvncfbrzzceuik.supabase.co';
 const SUPABASE_ANON_KEY =
   import.meta.env.PUBLIC_DEARUSER_FEEDBACK_SUPABASE_ANON_KEY ?? '';
 ---

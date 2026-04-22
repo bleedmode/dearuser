@@ -54,7 +54,7 @@ export interface FeedbackResult {
 // editing code.
 const SUPABASE_URL =
   process.env.DEARUSER_FEEDBACK_SUPABASE_URL ??
-  'https://xikiuvsoskdkgxxxytci.supabase.co';
+  'https://vrjohzzvncfbrzzceuik.supabase.co';
 const SUPABASE_ANON_KEY =
   process.env.DEARUSER_FEEDBACK_SUPABASE_ANON_KEY ?? '';
 
