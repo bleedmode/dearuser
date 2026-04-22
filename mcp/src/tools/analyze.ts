@@ -7,6 +7,8 @@ import { detectArchetype } from '../engine/archetype-detector.js';
 import { score } from '../engine/scorer.js';
 import { computeCeiling } from '../engine/ceiling-scorer.js';
 import { analyzeFriction } from '../engine/friction-analyzer.js';
+import { detectStrengths } from '../engine/strengths-detector.js';
+import { buildFindings } from '../engine/findings-builder.js';
 import { detectGaps } from '../engine/gap-detector.js';
 import { generateRecommendations } from '../templates/recommendations.js';
 import { generateUserCoaching } from '../templates/user-coaching.js';
@@ -267,6 +269,18 @@ export function runAnalysis(
     { installedSkills: artifacts.filter(a => a.type === 'skill').map(a => a.name) },
   );
 
+  // 15b. Build narrative findings layer — "What I saw" in the share report.
+  //      Strengths come from a dedicated detector (gated on min sample size);
+  //      frictionPatterns are surfaced as pattern/risk findings. Wins lead the
+  //      list so every report acknowledges what works before naming what to fix.
+  const strengths = detectStrengths({
+    stats,
+    categories: categories as unknown as Record<string, { score: number }>,
+    archetype,
+    feedback,
+  });
+  const findings = buildFindings({ frictionPatterns, strengths });
+
   // 16. Persist to SQLite — agent run + score history + recommendations.
   // Skipped when persist:false (wrapped tool does this to avoid duplicate
   // "analyze" rows in the user's run history).
@@ -320,6 +334,7 @@ export function runAnalysis(
     scoreCeiling,
     categories,
     frictionPatterns,
+    findings,
     gaps,
     stats,
     recommendations,
