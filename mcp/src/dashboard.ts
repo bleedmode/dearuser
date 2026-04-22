@@ -910,11 +910,9 @@ function renderReport(id: string): string {
       if (run.tool_name === 'health' || run.tool_name === 'system-health' || run.tool_name === 'audit') {
         return renderSystemHealthLetter(run, parsed);
       }
+      if (run.tool_name === 'wrapped') return renderWrappedLetter(run, parsed);
     } catch { /* fall through to markdown */ }
   }
-  // Wrapped output is a monospace ASCII card — render it in a <pre> block
-  // so the frame characters line up. The markdown renderer breaks them.
-  if (run.tool_name === 'wrapped') return renderWrappedFallback(run);
   return renderMarkdownFallback(run);
 }
 
@@ -929,17 +927,127 @@ function stripAgentOnlyNoise(body: string): string {
     .trim();
 }
 
-function renderWrappedFallback(run: any): string {
-  const body = stripAgentOnlyNoise(run.details || run.summary || '');
+function renderWrappedLetter(run: any, report: any): string {
+  const w = report?.wrapped || {};
+  const score = typeof report?.collaborationScore === 'number' ? report.collaborationScore : null;
+  const year = new Date(run.started_at || Date.now()).getFullYear();
+  const headline = w.headlineStat?.label || '';
+  const archetype = w.archetype || {};
+  const setupArchetypeName = report?.archetype?.nameEn || '';
+  const split = w.autonomySplit || { doSelf: 0, askFirst: 0, suggest: 0 };
+  const grid = w.systemGrid || {};
+  const sc = w.shareCard || {};
+  const lesson = w.topLesson || null;
+
+  const splitRows = [
+    { label: 'Do yourself', pct: Number(split.doSelf) || 0 },
+    { label: 'Ask first', pct: Number(split.askFirst) || 0 },
+    { label: 'Suggest only', pct: Number(split.suggest) || 0 },
+  ].sort((a, b) => b.pct - a.pct);
+
+  const gridCells = [
+    { value: grid.skills ?? 0, label: 'Skills' },
+    { value: grid.hooks ?? 0, label: 'Hooks' },
+    { value: grid.scheduled ?? 0, label: 'Scheduled' },
+    { value: grid.rules ?? 0, label: 'Rules' },
+  ];
+
+  const byNumbers: Array<{ value: string | number; label: string }> = [];
+  if (typeof sc.corrections === 'number') byNumbers.push({ value: sc.corrections, label: 'course-corrections remembered' });
+  if (typeof sc.memories === 'number') byNumbers.push({ value: sc.memories, label: 'memories built up' });
+  if (typeof sc.projects === 'number') byNumbers.push({ value: sc.projects, label: 'projects managed' });
+  if (sc.prohibitionRatio) byNumbers.push({ value: sc.prohibitionRatio, label: "of your rules are DON'Ts" });
+
+  const splitHtml = splitRows.map(r => `
+    <div class="flex items-center gap-3 mb-3">
+      <span class="w-28 text-sm text-ink-700">${escapeHtml(r.label)}</span>
+      <span class="flex-1 h-2 bg-paper-200 rounded overflow-hidden">
+        <span class="block h-full bg-accent-600" style="width: ${Math.max(0, Math.min(100, r.pct))}%"></span>
+      </span>
+      <span class="w-12 text-right font-mono text-sm text-ink-900">${r.pct}%</span>
+    </div>
+  `).join('');
+
+  const gridHtml = gridCells.map(c => `
+    <div class="bg-paper-50 border border-paper-200 rounded-lg p-5 text-center">
+      <div class="font-serif text-4xl text-ink-900 mb-1">${escapeHtml(String(c.value))}</div>
+      <div class="text-xs uppercase tracking-wider text-ink-500">${escapeHtml(c.label)}</div>
+    </div>
+  `).join('');
+
+  const numbersHtml = byNumbers.length
+    ? `<section class="mb-10">
+         <h2 class="text-xs uppercase tracking-wider text-ink-500 mb-4">${t('I tal', 'By the numbers')}</h2>
+         <div class="space-y-3">
+           ${byNumbers.map(n => `
+             <div class="flex items-baseline gap-4 border-b border-paper-200 pb-3">
+               <div class="font-serif text-3xl text-ink-900 w-20">${escapeHtml(String(n.value))}</div>
+               <div class="text-sm text-ink-700">${escapeHtml(n.label)}</div>
+             </div>
+           `).join('')}
+         </div>
+       </section>`
+    : '';
+
+  const lessonHtml = lesson && lesson.quote
+    ? `<section class="mb-10">
+         <div class="text-xs uppercase tracking-wider text-ink-500 mb-3">${t('Mest gentaget lektie', 'Most repeated lesson')}</div>
+         <blockquote class="font-serif italic text-xl text-ink-900 border-l-2 border-accent-600 pl-5 mb-2">${escapeHtml(lesson.quote)}</blockquote>
+         ${lesson.context ? `<div class="text-sm text-ink-500 pl-5">${escapeHtml(lesson.context)}</div>` : ''}
+       </section>`
+    : '';
+
+  const archetypeHtml = archetype.name
+    ? `<section class="mb-10">
+         <div class="text-xs uppercase tracking-wider text-ink-500 mb-3">${t('Agent-arketype', 'Agent archetype')}</div>
+         <div class="font-serif text-2xl text-ink-900 mb-2">${escapeHtml(archetype.name)}</div>
+         ${Array.isArray(archetype.traits) && archetype.traits.length > 0
+           ? `<div class="flex flex-wrap gap-2">
+                ${archetype.traits.slice(0, 4).map((tr: string) =>
+                  `<span class="text-xs px-2 py-1 bg-paper-100 border border-paper-200 rounded text-ink-700">${escapeHtml(tr)}</span>`
+                ).join('')}
+              </div>`
+           : ''}
+         ${setupArchetypeName ? `<div class="mt-3 text-sm text-ink-500">${t('Opsætnings-stil', 'Setup style')}: <span class="text-ink-900">${escapeHtml(setupArchetypeName)}</span></div>` : ''}
+       </section>`
+    : '';
+
   return page(`${toolLabelEn(run.tool_name)}`, `
-    <article class="max-w-3xl mx-auto">
+    <article class="max-w-2xl mx-auto">
       <header class="mb-8">
         <div class="text-xs uppercase tracking-wider text-ink-500 mb-2">${tBi(toolLabelBi(run.tool_name))}</div>
         <div class="font-mono text-xs text-ink-300">${t(formatLetterDate(run.started_at), formatLetterDateEn(run.started_at))}</div>
       </header>
+
       <p class="font-serif text-2xl text-ink-900 mb-1">${t(greeting(), greetingEn())},</p>
-      <p class="text-ink-500 mb-8 leading-relaxed">${t('Her er hvad jeg fandt.', 'Here is what I found.')}</p>
-      <pre class="font-mono text-xs leading-normal whitespace-pre overflow-x-auto bg-paper-100 border border-paper-200 rounded-lg p-5 text-ink-900">${escapeHtml(body)}</pre>
+      <p class="text-ink-500 mb-8 leading-relaxed">${t('Her er dit Wrapped.', 'Here is your Wrapped.')}</p>
+
+      <div class="wrapped-hero relative rounded-2xl overflow-hidden mb-10 text-paper-50 text-center" style="background: linear-gradient(135deg, var(--color-accent-600, #ec5329) 0%, #c8401f 100%); padding: 48px 28px 36px; box-shadow: 0 12px 48px rgba(236,83,41,0.22);">
+        <div class="font-mono text-xs uppercase tracking-wider opacity-80 mb-4">Dear User · Wrapped · ${year}</div>
+        <div class="font-serif font-semibold" style="font-size: clamp(96px, 18vw, 160px); line-height: 1; letter-spacing: -0.04em;">${score !== null ? escapeHtml(String(score)) : '—'}</div>
+        <div class="font-mono text-xs uppercase tracking-wider opacity-80 mt-3">${t('ud af 100', 'out of 100')}</div>
+        ${headline ? `<div class="font-serif italic mt-5 text-lg opacity-95">${escapeHtml(headline)}</div>` : ''}
+      </div>
+
+      ${archetypeHtml}
+
+      <section class="mb-10">
+        <h2 class="text-xs uppercase tracking-wider text-ink-500 mb-4">${t('Sådan fordeler du arbejdet', 'How you split the work')}</h2>
+        ${splitHtml}
+      </section>
+
+      <section class="mb-10">
+        <h2 class="text-xs uppercase tracking-wider text-ink-500 mb-4">${t('Systemet du har bygget', 'The system you built')}</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">${gridHtml}</div>
+      </section>
+
+      ${numbersHtml}
+      ${lessonHtml}
+
+      <div class="mt-12 text-center">
+        <a href="https://dearuser.ai/" class="inline-block px-5 py-3 bg-accent-600 text-paper-50 rounded-lg text-sm font-medium hover:bg-accent-700 transition">${t('Del din egen på dearuser.ai →', 'Share yours at dearuser.ai →')}</a>
+      </div>
+
       <footer class="mt-10">
         <p class="text-ink-700 italic mb-3">${t('Med venlig hilsen,', 'Yours,')}</p>
         <p class="text-ink-900">${signature()}</p>
