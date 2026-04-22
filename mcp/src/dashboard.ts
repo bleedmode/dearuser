@@ -1012,10 +1012,10 @@ function renderAnalyzeLetter(run: any, report: any): string {
     { key: 'qualityStandards',score: categories.qualityStandards?.score?? 0 },
   ].sort((a, b) => b.score - a.score);
 
-  // Collab findings = topAction + smallThings merged into a single list,
-  // routed through the same renderer that health/security use. Keep the
-  // top action first so the strongest signal leads.
-  const findingItems = collabFindingsFromRecs(topAction, smallThings);
+  // Collab suggestions and strengths are rendered by renderWhatISaw
+  // (strengths only) and renderCollabSuggestions (risks + patterns +
+  // topAction + smallThings). Both use the same row layout; the latter
+  // adds a "Try this" action line.
 
   const body = `
     <article class="max-w-2xl mx-auto letter-prose">
@@ -1044,15 +1044,7 @@ function renderAnalyzeLetter(run: any, report: any): string {
 
       ${renderWhatISaw(report)}
 
-      ${findingItems.length > 0 ? `
-        <section class="mb-12">
-          <h2>${t('Her er hvad jeg vil foreslå', "Here's what I'd suggest")}</h2>
-          <div class="space-y-6">
-            ${findingItems.map(renderLetterFinding).join('')}
-          </div>
-          <a href="/forbedringer" class="inline-block mt-6 text-sm text-accent-600 hover:text-accent-500">${t('Se alle anbefalinger →', 'See all recommendations →')}</a>
-        </section>
-      ` : ''}
+      ${renderCollabSuggestions(report, topAction, smallThings)}
 
       <!-- Sign-off -->
       <footer class="mt-10">
@@ -1068,36 +1060,25 @@ function renderAnalyzeLetter(run: any, report: any): string {
   return page(`${toolLabelEn(run.tool_name)}`, body, 'oversigt');
 }
 
-// "What I saw" narrative layer — strengths, patterns, and risks observed in
-// the user's setup. Renders between score+categories and recommendations so
-// the letter reads: "here's your score, here's what I observed, here's what
-// to do about it." Old reports without the findings array render nothing.
-function renderWhatISaw(report: any): string {
+// "What I saw" narrative layer — STRENGTHS ONLY. Risks, patterns, and
+// recommendations all live in renderCollabSuggestions below so the letter
+// has one place for "here's what's working" and one place for "here's what
+// to try" — no risk expressed twice in two different sections.
+export function renderWhatISaw(report: any): string {
   const findings: Array<{ tag?: string; title?: string; body?: string }> =
     Array.isArray(report?.findings) ? report.findings : [];
-  if (findings.length === 0) return '';
+  const strengths = findings.filter(f => f.tag === 'win');
+  if (strengths.length === 0) return '';
 
-  const tagLabel: Record<string, { da: string; en: string; cls: string }> = {
-    win:     { da: 'Styrke',  en: 'Strength', cls: 'bg-green-100 text-green-800' },
-    pattern: { da: 'Mønster', en: 'Pattern',  cls: 'bg-blue-100 text-blue-800'   },
-    risk:    { da: 'Risiko',  en: 'Risk',     cls: 'bg-rose-100 text-rose-800'   },
-  };
-
-  const items = findings.slice(0, 6).map((f, i) => {
-    const label = tagLabel[f.tag || ''] || { da: f.tag || '', en: f.tag || '', cls: 'bg-ink-100 text-ink-700' };
+  const items = strengths.slice(0, 6).map((f, i) => {
     const num = String(i + 1).padStart(2, '0');
-    return `
-      <div class="flex gap-4 py-4 border-b border-paper-200 last:border-b-0 items-baseline">
-        <div class="font-mono text-xs text-ink-400 shrink-0">${num}</div>
-        <div class="flex-1">
-          <h3 class="flex items-baseline gap-2 text-ink-900 font-medium flex-wrap" style="margin: 0; font-size: 1.15rem; line-height: 1.35">
-            <span class="inline-block text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded ${label.cls}">${t(label.da, label.en)}</span>
-            <span>${escapeHtml(f.title || '')}</span>
-          </h3>
-          ${f.body ? `<p class="text-ink-700 text-sm leading-relaxed mt-2 mb-0">${escapeHtml(f.body)}</p>` : ''}
-        </div>
-      </div>
-    `;
+    return renderSuggestionRow({
+      num,
+      pillCls: 'bg-green-100 text-green-800',
+      pillLabel: { da: 'Styrke', en: 'Strength' },
+      title: f.title || '',
+      body: f.body || '',
+    });
   }).join('');
 
   return `
@@ -1106,6 +1087,147 @@ function renderWhatISaw(report: any): string {
       <div class="not-letter">${items}</div>
     </section>
   `;
+}
+
+// "Here's what I'd suggest" — the ONE place risks, patterns, and
+// recommendations live. Same row layout as renderWhatISaw so the letter
+// reads as one visual voice. Each row is: number + pill + title + body +
+// optional "Try this" action line. Actions come from the recommendation's
+// practiceStep; risks/patterns without a paired action just show the
+// observation (no Try-this line).
+export function renderCollabSuggestions(
+  report: any,
+  topAction: any | null,
+  smallThings: Array<{ title: LocalizedString; summary?: LocalizedString; benefit?: LocalizedString }>,
+): string {
+  const findings: Array<{ tag?: string; title?: string; body?: string }> =
+    Array.isArray(report?.findings) ? report.findings : [];
+
+  type Row = {
+    pillCls: string;
+    pillLabel: LocalizedString;
+    title: string;
+    body: string;
+    action?: string;
+    actionLabel?: LocalizedString;
+  };
+
+  const rows: Row[] = [];
+
+  // Risks first — they're the strongest signal
+  for (const f of findings.filter(f => f.tag === 'risk')) {
+    rows.push({
+      pillCls: 'bg-rose-100 text-rose-800',
+      pillLabel: { da: 'Risiko', en: 'Risk' },
+      title: f.title || '',
+      body: f.body || '',
+    });
+  }
+
+  // Top recommendation — the strongest actionable suggestion from the rec pipeline
+  if (topAction) {
+    const fl = friendlyLabel(topAction.title || '');
+    const title = bi(fl.title) || String(topAction.title || t('Det vigtigste', 'The most important thing'));
+    const body = bi(fl.benefit) || bi(asBi(topAction.why)) || bi(asBi(topAction.description)) || '';
+    const action = String(topAction.practiceStep || topAction.howItLooks || topAction.recommendation || topAction.fix || '');
+    rows.push({
+      pillCls: 'bg-amber-100 text-amber-800',
+      pillLabel: { da: 'Forslag', en: 'Suggestion' },
+      title,
+      body,
+      action,
+      actionLabel: { da: 'Prøv det næste gang', en: 'Try this next time' },
+    });
+  }
+
+  // Patterns — neutral observations worth noticing
+  for (const f of findings.filter(f => f.tag === 'pattern')) {
+    rows.push({
+      pillCls: 'bg-blue-100 text-blue-800',
+      pillLabel: { da: 'Mønster', en: 'Pattern' },
+      title: f.title || '',
+      body: f.body || '',
+    });
+  }
+
+  // Remaining recommendations (small things)
+  for (const s of smallThings) {
+    const title = bi(s.title) || '';
+    const body = bi(s.summary) || '';
+    const benefit = bi(s.benefit) || '';
+    rows.push({
+      pillCls: 'bg-amber-100 text-amber-800',
+      pillLabel: { da: 'Forslag', en: 'Suggestion' },
+      title,
+      body,
+      action: benefit,
+      actionLabel: { da: 'Hvad bliver bedre?', en: 'What gets better?' },
+    });
+  }
+
+  if (rows.length === 0) return '';
+
+  const items = rows.slice(0, 8).map((r, i) => renderSuggestionRow({
+    num: String(i + 1).padStart(2, '0'),
+    pillCls: r.pillCls,
+    pillLabel: r.pillLabel,
+    title: r.title,
+    body: r.body,
+    action: r.action,
+    actionLabel: r.actionLabel,
+  })).join('');
+
+  return `
+    <section class="mb-12">
+      <h2>${t('Her er hvad jeg vil foreslå', "Here's what I'd suggest")}</h2>
+      <div class="not-letter">${items}</div>
+      <a href="/forbedringer" class="inline-block mt-6 text-sm text-accent-600 hover:text-accent-500">${t('Se alle anbefalinger →', 'See all recommendations →')}</a>
+    </section>
+  `;
+}
+
+// Shared row renderer for "What I saw" (strengths) and "Here's what I'd
+// suggest" (risks/patterns/recommendations). Same layout, different pill +
+// optional action line keeps the letter visually coherent.
+function renderSuggestionRow(opts: {
+  num: string;
+  pillCls: string;
+  pillLabel: LocalizedString;
+  title: string;
+  body: string;
+  action?: string;
+  actionLabel?: LocalizedString;
+}): string {
+  const { num, pillCls, pillLabel, title, body, action, actionLabel } = opts;
+  const actionBlock = action && actionLabel ? `
+    <p class="text-sm text-ink-700 mt-3 mb-0 leading-relaxed">
+      <span class="text-[10px] uppercase tracking-wider font-semibold text-accent-600">${t(actionLabel.da, actionLabel.en)}</span>
+      <span class="block mt-1">${escapeHtml(action)}</span>
+    </p>
+  ` : '';
+  return `
+    <div class="flex gap-4 py-4 border-b border-paper-200 last:border-b-0 items-baseline">
+      <div class="font-mono text-xs text-ink-400 shrink-0">${num}</div>
+      <div class="flex-1">
+        <h3 class="flex items-baseline gap-2 text-ink-900 font-medium flex-wrap" style="margin: 0; font-size: 1.15rem; line-height: 1.35">
+          <span class="inline-block text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded ${pillCls}">${t(pillLabel.da, pillLabel.en)}</span>
+          <span>${escapeHtml(title)}</span>
+        </h3>
+        ${body ? `<p class="text-ink-700 text-sm leading-relaxed mt-2 mb-0">${escapeHtml(body)}</p>` : ''}
+        ${actionBlock}
+      </div>
+    </div>
+  `;
+}
+
+// Extract the English copy from a LocalizedString or return the string as-is.
+// Handles legacy shapes where some fields are already strings rather than
+// { da, en } objects.
+function bi(v: any): string {
+  if (!v) return '';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'object') return v.en || v.da || '';
+  return '';
 }
 
 // Map the top-action rec + the 3 small things into the unified finding shape
