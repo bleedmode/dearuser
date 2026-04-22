@@ -3,6 +3,7 @@
 import { scan } from '../engine/scanner.js';
 import { parse } from '../engine/parser.js';
 import { detectPersona } from '../engine/persona-detector.js';
+import { detectArchetype } from '../engine/archetype-detector.js';
 import { score } from '../engine/scorer.js';
 import { computeCeiling } from '../engine/ceiling-scorer.js';
 import { analyzeFriction } from '../engine/friction-analyzer.js';
@@ -156,8 +157,9 @@ export function runAnalysis(
   // 3. Session analysis (before scoring so it can inform scores)
   const sessionData = analyzeSession(projectRoot);
 
-  // 4. Detect persona
+  // 4. Detect persona + archetype (orthogonal axes)
   const persona = detectPersona(parsed, scanResult);
+  const archetype = detectArchetype(parsed, scanResult);
 
   // 5. Analyze friction — pass session data so correction examples contribute
   const frictionPatterns = analyzeFriction(parsed, scanResult, sessionData);
@@ -288,6 +290,7 @@ export function runAnalysis(
     installedServers: scanResult.installedServers,
     installedSkills: artifacts.filter(a => a.type === 'skill').map(a => a.name),
     persona,
+    archetype,
     collaborationScore,
     claudeMdSubScore,
     substrateEmpty,
@@ -354,8 +357,11 @@ function formatHeader(report: AnalysisReport): string[] {
     ``,
     `**Traits:** ${report.persona.traits.join(', ')}`,
     ``,
+    `## Your Setup Archetype: ${report.archetype.nameEn} · ${report.archetype.nameDa}`,
+    report.archetype.description,
+    ``,
     `## Collaboration Score: ${report.collaborationScore}/100 — Grade ${report.grade.letter} (${report.grade.percentileLabel})`,
-    `*${report.grade.summary}*`,
+    `*${report.grade.summary} · Style: ${report.archetype.nameEn}*`,
     ``,
     ...formatSubScore(report),
     ...formatRedirectNote(report),

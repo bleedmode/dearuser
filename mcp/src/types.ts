@@ -5,6 +5,42 @@ export type { ScoreGrade } from './engine/grade.js';
 
 export type PersonaId = 'vibe_coder' | 'senior_dev' | 'indie_hacker' | 'venture_studio' | 'team_lead';
 
+/**
+ * Archetype classifies the *shape* of the user's setup — orthogonal to
+ * PersonaId (which is about who the user is). A rule-heavy solo developer
+ * and an automation-orchard venture studio can both be Senior Devs.
+ */
+export type ArchetypeId =
+  | 'fresh_install'
+  | 'automation_orchard'
+  | 'polyglot_stack'
+  | 'guardrail_first'
+  | 'trust_and_go'
+  | 'rule_heavy_solo'
+  | 'balanced';
+
+export interface ArchetypeResult {
+  id: ArchetypeId;
+  nameEn: string;
+  nameDa: string;
+  description: string;
+  strengths: string[];
+  watchouts: string[];
+  /** Why this archetype was chosen — human-readable reasons derived from signals. */
+  reasons: string[];
+  /** Raw signals that went into the classification — useful for UI drill-down. */
+  signals: {
+    totalArtifacts: number;
+    rulesTotal: number;
+    doCount: number;
+    neverCount: number;
+    hooksCount: number;
+    scheduledTasksCount: number;
+    mcpServersCount: number;
+    stacksDetected: number;
+  };
+}
+
 export type RuleType = 'do_autonomously' | 'ask_first' | 'suggest_only' | 'prohibition';
 
 export type FrictionTheme = 'scope_creep' | 'communication' | 'quality' | 'autonomy' | 'tooling' | 'process';
@@ -462,6 +498,11 @@ export interface AnalysisReport {
   /** Skill names discovered in ~/.claude/skills/ — used for dedup in recommendations. */
   installedSkills: string[];
   persona: PersonaResult;
+  /**
+   * Archetype of the setup itself (orthogonal to persona). Shown in the
+   * collab report header, Wrapped output, and share card.
+   */
+  archetype: ArchetypeResult;
   collaborationScore: number;
   /**
    * CLAUDE.md-only sub-score (4 categories renormalised) — fairer for fresh
