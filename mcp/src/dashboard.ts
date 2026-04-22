@@ -1040,7 +1040,7 @@ function renderAnalyzeLetter(run: any, report: any): string {
       </section>
 
       <!-- Combined: overall score + per-category bars, one section, one glance -->
-      ${renderScoreAndCategories(score, catEntries)}
+      ${renderScoreAndCategories(score, catEntries, report)}
 
       ${renderWhatISaw(report)}
 
@@ -1152,7 +1152,7 @@ function lowerFirst(s: string): string {
 // bar + score. Clicking the row expands "what's pulling this up/down" and
 // "what your score means" — details are progressive, not demanded.
 
-function renderScoreAndCategories(score: number | null, catEntries: Array<{ key: string; score: number }>): string {
+function renderScoreAndCategories(score: number | null, catEntries: Array<{ key: string; score: number }>, report: any): string {
   // Match the visual pattern used on the home-page tiles and the other
   // letter types: colored bullet + domain label, big font-serif number
   // in the same color. No surrounding card. Verdict lives in the leadIn.
@@ -1175,6 +1175,7 @@ function renderScoreAndCategories(score: number | null, catEntries: Array<{ key:
           <span class="text-[11px] uppercase tracking-[0.15em] text-ink-500">${t('Samarbejde', 'Collaboration')}</span>
         </div>
         <div class="font-serif text-6xl ${scoreColor} leading-none">${typeof score === 'number' ? score : '—'}</div>
+        ${renderSubScoreNote(report)}
       </div>
 
       <!-- Per-category rows, sorted high→low -->
@@ -1182,6 +1183,41 @@ function renderScoreAndCategories(score: number | null, catEntries: Array<{ key:
         ${catEntries.map(c => renderCategoryRow(c.key, c.score)).join('')}
       </div>
     </section>
+  `;
+}
+
+// R1 sub-score surfacing: when substrate is empty (no hooks/skills/memory),
+// the blended 7-category score is depressed by things the user hasn't set up
+// yet. Show the CLAUDE.md-only sub-score alongside so fresh-install users see
+// both numbers and understand the gap. Mirrors formatSubScore() in analyze.ts.
+export function renderSubScoreNote(report: any): string {
+  if (!report?.substrateEmpty) return '';
+  const sub = report.claudeMdSubScore;
+  const blended = report.collaborationScore;
+  if (typeof sub !== 'number' || sub === blended) return '';
+
+  const subColor = sub >= 85 ? 'text-emerald-700'
+    : sub >= 70 ? 'text-amber-700'
+    : 'text-rose-700';
+  const grade = report.subScoreGrade;
+  const gradeSuffix = grade?.letter
+    ? `${t('Karakter', 'Grade')} ${escapeHtml(grade.letter)}${grade.percentileLabel ? ` (${escapeHtml(grade.percentileLabel)})` : ''}`
+    : '';
+
+  return `
+    <div class="mt-6 p-4 rounded-lg border border-paper-200 bg-paper-50">
+      <div class="flex items-baseline gap-3 flex-wrap">
+        <span class="text-[11px] uppercase tracking-[0.15em] text-ink-500">${t('CLAUDE.md alene', 'CLAUDE.md only')}</span>
+        <span class="font-serif text-2xl ${subColor} leading-none">${sub}</span>
+        ${gradeSuffix ? `<span class="text-xs text-ink-500">${gradeSuffix}</span>` : ''}
+      </div>
+      <p class="text-xs text-ink-600 mt-2 leading-relaxed mb-0">
+        ${t(
+          'Sub-scoren ser bort fra memory, hooks og skills — brug den mens du stadig bygger dit setup op. Den samlede score stiger automatisk, når du tilføjer disse.',
+          "The sub-score ignores memory, hooks, and skills — use it while you're still building your setup. The blended score rises automatically as you add those.",
+        )}
+      </p>
+    </div>
   `;
 }
 

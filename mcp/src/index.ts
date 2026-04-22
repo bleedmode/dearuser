@@ -106,9 +106,12 @@ function buildActionMenu(): string | null {
     actionable.forEach((r, i) => {
       const f = friendlyLabel(r.title);
       const autoHint = hintFor(r);
-      lines.push(`${i + 1}. **${f.title}**`);
-      if (f.summary) lines.push(`   _Hvad er det:_ ${f.summary}`);
-      if (f.benefit) lines.push(`   _Hvad bliver bedre:_ ${f.benefit}`);
+      const title = f.title?.en ?? f.title?.da ?? r.title;
+      const summary = f.summary?.en ?? f.summary?.da ?? '';
+      const benefit = f.benefit?.en ?? f.benefit?.da ?? '';
+      lines.push(`${i + 1}. **${title}**`);
+      if (summary) lines.push(`   _Hvad er det:_ ${summary}`);
+      if (benefit) lines.push(`   _Hvad bliver bedre:_ ${benefit}`);
       if (autoHint) lines.push(`   _(jeg ${autoHint} for dig)_`);
       lines.push(`   \`recommendation_id: ${r.id}\``);
       lines.push('');

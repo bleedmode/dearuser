@@ -15,6 +15,12 @@ import { generateUserCoaching } from '../templates/user-coaching.js';
 import { analyzeSession } from '../engine/session-analyzer.js';
 import { trackRecommendations, trackToolRecommendations, checkImplementation } from '../engine/feedback-tracker.js';
 import { friendlyLabel } from '../engine/friendly-labels.js';
+import type { LocalizedString } from '../engine/friendly-labels.js';
+
+/** Resolve a LocalizedString to English for the text output. Returns '' for undefined. */
+function en(s: LocalizedString | undefined | null): string {
+  return s?.en ?? s?.da ?? '';
+}
 import { insertAgentRun, insertScoreHistory } from '../engine/db.js';
 import { scanGitRepos } from '../engine/git-scanner.js';
 import type { GitScanResult } from '../engine/git-scanner.js';
@@ -721,13 +727,15 @@ function formatToolRecs(report: AnalysisReport, isDetailed = false): string[] {
         : 'Skill';
       const starsStr = tool.stars ? ` · ${(tool.stars / 1000).toFixed(0)}K⭐` : '';
       const f = friendlyLabel(tool.name);
-      lines.push(`### ${f.title} [${typeLabel}${starsStr}]`);
-      if (f.summary) {
-        lines.push('**Hvad er det:** ' + f.summary);
+      lines.push(`### ${en(f.title) || tool.name} [${typeLabel}${starsStr}]`);
+      const summary = en(f.summary);
+      if (summary) {
+        lines.push('**Hvad er det:** ' + summary);
       } else {
         lines.push(tool.userFriendlyDescription || tool.description);
       }
-      if (f.benefit) lines.push('**Hvad bliver bedre:** ' + f.benefit);
+      const benefit = en(f.benefit);
+      if (benefit) lines.push('**Hvad bliver bedre:** ' + benefit);
 
       const category = toolSolvesCategory(tool.solves);
       if (category && report.scoreCeiling) {
