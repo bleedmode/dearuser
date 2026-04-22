@@ -29,12 +29,123 @@ if (row && !mock) incrementViewCount(tokenStr);
 
 const reportType: ReportType = row?.report_type || 'collab';
 const report = (row?.report_json || {}) as Record<string, any>;
-const score = row?.score ?? (typeof report.collaborationScore === 'number' ? report.collaborationScore : null);
+// Score lives under a different top-level field per report type — use the
+// one that matches the type before falling back to the legacy DB column.
+const scoreFromReport = (() => {
+  if (reportType === 'collab' && typeof report.collaborationScore === 'number') return report.collaborationScore;
+  if (reportType === 'security' && typeof report.securityScore === 'number') return report.securityScore;
+  if (reportType === 'health' && typeof report.systemHealthScore === 'number') return report.systemHealthScore;
+  return null;
+})();
+const score = row?.score ?? scoreFromReport;
 const projectName = row?.project_name || (typeof report.projectName === 'string' ? report.projectName : 'a Claude Code setup');
 const persona = report.persona || null;
-const categories: Array<{ label?: string; key?: string; score?: number }> = Array.isArray(report.categories) ? report.categories : [];
-const findings: Array<{ tag?: string; title?: string; body?: string }> = Array.isArray(report.findings) ? report.findings : [];
-const recommendations: Array<{ title?: string; body?: string }> = Array.isArray(report.recommendations) ? report.recommendations : [];
+
+// English-only category labels for the share page — mirrors
+// CATEGORY_EXPLANATIONS in mcp/src/engine/category-explanations.ts so the
+// names match what users see in the local dashboard. Hardcoded instead of
+// imported so the Astro build stays independent of the MCP package.
+const CATEGORY_LABELS: Record<string, string> = {
+  // Collab
+  roleClarity: 'Clear roles',
+  communication: 'Communication',
+  autonomyBalance: 'Autonomy balance',
+  qualityStandards: 'Quality checks',
+  memoryHealth: 'Memory health',
+  systemMaturity: 'System maturity',
+  coverage: 'Coverage',
+  // Security
+  secretSafety: 'Secrets protection',
+  injectionResistance: 'Injection resistance',
+  ruleIntegrity: 'Rule integrity',
+  dependencySafety: 'Package safety',
+  platformCompliance: 'Platform compliance',
+  // Health
+  jobIntegrity: 'Job integrity',
+  artifactOverlap: 'Overlap between tools',
+  dataClosure: 'Data closure',
+  configHealth: 'Config health',
+  substrateHealth: 'Substrate health',
+};
+
+// Normalize the categories shape. Reports store categories as an object
+// keyed by category id (e.g. { roleClarity: { score: 92, ... } }), not an
+// array — the old array check always failed, which is why the page
+// rendered empty. Sort high → low so strong categories lead.
+function humanize(key: string): string {
+  return CATEGORY_LABELS[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
+}
+const categories: Array<{ label: string; key: string; score: number }> = (() => {
+  const raw = report.categories;
+  if (!raw) return [];
+  // Array form (mock fixture + any legacy callers): items already carry
+  // { key, label, score } — pass through, only filter to numeric scores.
+  if (Array.isArray(raw)) {
+    return raw
+      .map((c: any) => {
+        const s = typeof c?.score === 'number' ? c.score : null;
+        if (s === null) return null;
+        const key = c?.key || '';
+        return { key, label: c?.label || humanize(key), score: s };
+      })
+      .filter((x): x is { label: string; key: string; score: number } => x !== null)
+      .sort((a, b) => b.score - a.score);
+  }
+  // Object form (real report_json): keyed by category id. Turn into rows.
+  if (typeof raw !== 'object') return [];
+  return Object.entries(raw)
+    .map(([key, v]) => {
+      const s = (v as any)?.score;
+      return typeof s === 'number' ? { key, label: humanize(key), score: s } : null;
+    })
+    .filter((x): x is { label: string; key: string; score: number } => x !== null)
+    .sort((a, b) => b.score - a.score);
+})();
+
+// Findings live in different fields per report type. Collab and health use
+// a unified `findings` array; security splits them across five domain-
+// specific arrays. Merge into one list so the share page has a single
+// "What I saw" section regardless of report type.
+const findings: Array<{ tag?: string; title?: string; body?: string }> = (() => {
+  if (reportType === 'security') {
+    const sevTag = (sev: string) => (sev === 'critical' ? 'risk' : sev === 'recommended' ? 'pattern' : 'risk');
+    const merged: Array<{ tag?: string; title?: string; body?: string; _sev: number }> = [];
+    const sevOrder: Record<string, number> = { critical: 0, recommended: 1, nice_to_have: 2 };
+    const pushAll = (arr: any[] | undefined, kind: string) => {
+      if (!Array.isArray(arr)) return;
+      for (const f of arr) {
+        merged.push({
+          tag: sevTag(f.severity),
+          title: f.title ? `${kind}: ${f.title}` : kind,
+          body: f.detail || f.recommendation || '',
+          _sev: sevOrder[f.severity] ?? 3,
+        });
+      }
+    };
+    pushAll(report.secrets, 'Secret');
+    pushAll(report.injection, 'Injection');
+    pushAll(report.ruleConflicts, 'Rule conflict');
+    pushAll(report.cveFindings, 'CVE');
+    pushAll(report.platformFindings, 'Platform');
+    return merged.sort((a, b) => a._sev - b._sev).map(({ _sev, ...rest }) => rest);
+  }
+  if (Array.isArray(report.findings)) return report.findings;
+  return [];
+})();
+
+// Collab recommendations use { title, description } — map `description` to
+// the `body` field the template expects. Security and health don't ship
+// a separate recommendations array; their findings already carry the
+// actionable detail.
+const recommendations: Array<{ title?: string; body?: string }> = (() => {
+  if (reportType !== 'collab') return [];
+  const raw = report.recommendations;
+  if (!Array.isArray(raw)) return [];
+  const priorityOrder: Record<string, number> = { critical: 0, recommended: 1, nice_to_have: 2 };
+  return [...raw]
+    .sort((a, b) => (priorityOrder[a.priority] ?? 3) - (priorityOrder[b.priority] ?? 3))
+    .map((r: any) => ({ title: r.title, body: r.description || r.body || '' }));
+})();
 
 const REPORT_LABEL: Record<ReportType, string> = {
   collab: 'Collaboration report',
