@@ -12,11 +12,13 @@
   "scripts": {
     "build": "node esbuild.config.js",
     "build:types": "tsc --noEmit",
+    "build:reload": "node esbuild.config.js && bash scripts/reload-dashboard.sh",
     "typecheck": "tsc --noEmit",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
+    "dashboard:reload": "bash scripts/reload-dashboard.sh",
     "prepublishOnly": "npm run build"
   },
   "files": [
