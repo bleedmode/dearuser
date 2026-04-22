@@ -19,6 +19,7 @@ import { serve } from '@hono/node-server';
 import { marked } from 'marked';
 import { getRecentRuns, getRunById, getScoreHistory, getRecommendations, updateRecommendationStatus, getLatestScoresByTool } from './engine/db.js';
 import { reconcilePendingRecommendations } from './engine/reconcile-recommendations.js';
+import { getReconciliationHealth, getOpenFindings, getFindingByHash } from './engine/findings-ledger.js';
 import { getUserName, getAgentName, getPreferences, updatePreferences } from './engine/user-preferences.js';
 import { friendlyLabel } from './engine/friendly-labels.js';
 import type { LocalizedString } from './engine/friendly-labels.js';
@@ -594,6 +595,55 @@ function renderLanding(): string {
     </section>
   ` : '';
 
+  // Reconciliation health — how well the ledger and recommendations agree.
+  // Quiet by default; only surfaces when there's drift (Tenable: <1% gap is
+  // healthy, bigger gaps point to stale tasks or unacked findings).
+  const recHealth = getReconciliationHealth();
+  const totalOpen = recHealth.reduce((sum, h) => sum + h.openFindings, 0);
+  const platformLabels: Record<string, { da: string; en: string }> = {
+    supabase: { da: 'Supabase', en: 'Supabase' },
+    github: { da: 'GitHub', en: 'GitHub' },
+    npm: { da: 'npm-pakker', en: 'npm packages' },
+    vercel: { da: 'Vercel', en: 'Vercel' },
+    agent: { da: 'dit Claude-setup', en: 'your Claude setup' },
+  };
+  const reconBlock = totalOpen > 0 ? `
+    <section class="mt-16 pt-8 border-t border-paper-200">
+      <div class="flex items-baseline justify-between mb-5">
+        <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500">
+          <span class="lang-da">Jeg holder øje med</span>
+          <span class="lang-en">I'm watching</span>
+        </h2>
+        <span class="text-[11px] text-ink-400">
+          <span class="lang-da">Scan-baseret — lukker kun når et nyt scan bekræfter det</span>
+          <span class="lang-en">Scan-driven — only closes when a new scan confirms it</span>
+        </span>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-${Math.min(recHealth.length, 4)} gap-6">
+        ${recHealth.map(h => {
+          const label = platformLabels[h.platform] ?? { da: h.platform, en: h.platform };
+          const gapWarning = h.gap > 0 && h.openFindings > 0 && h.gapPct > 20;
+          return `
+            <div class="rounded-lg p-4 ${gapWarning ? 'bg-action-50' : 'bg-paper-50'}">
+              <div class="text-[10px] uppercase tracking-wider text-ink-500 mb-2">${escapeHtml(t(label.da, label.en))}</div>
+              <div class="font-serif text-3xl text-ink-900 leading-none mb-1">${h.openFindings}</div>
+              <div class="text-xs text-ink-500">
+                <span class="lang-da">${h.openFindings === 1 ? 'åbent fund' : 'åbne fund'}</span>
+                <span class="lang-en">open finding${h.openFindings === 1 ? '' : 's'}</span>
+              </div>
+              ${gapWarning ? `
+                <div class="text-[11px] text-action-700 mt-2">
+                  <span class="lang-da">${h.gap} uden workflow-opgave</span>
+                  <span class="lang-en">${h.gap} without a workflow task</span>
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </section>
+  ` : '';
+
   const pendingCount = getRecommendations('pending').length;
   const pendingBlock = pending.length > 0 ? `
     <section class="mt-24 pt-10 border-t border-paper-200">
@@ -649,6 +699,7 @@ function renderLanding(): string {
       </p>
     </section>
     ${scoreSection}
+    ${reconBlock}
     ${pendingBlock}
     ${letterSignature()}
   `, 'oversigt');
@@ -1445,6 +1496,9 @@ function renderAnbefalingCard(params: {
   dropHref?: string;
   timestamp?: string;
   source?: string | LocalizedString;
+  /** Small status line — e.g. "Open for 3 days", "Returned after being gone".
+   *  Rendered subtly under the title when present. */
+  meta?: string | LocalizedString | null;
 }): string {
   const sev = severityMeta[params.severity || 'recommended'] || severityMeta.recommended;
   const dropForm = params.dropHref ? `
@@ -1466,6 +1520,7 @@ function renderAnbefalingCard(params: {
             <span class="inline-block w-2.5 h-2.5 rounded-full ${sev.color} align-middle relative top-[-0.15em] mr-3"></span>${tBi(params.title)}
           </h3>
           ${params.source ? `<div class="text-[10px] uppercase tracking-[0.15em] text-ink-400 mt-1 pl-6">${tBi(params.source)}</div>` : ''}
+          ${params.meta ? `<div class="text-[11px] text-ink-400 mt-1 pl-6 italic">${tBi(params.meta)}</div>` : ''}
         </div>
         ${dropForm}
       </div>
@@ -1502,7 +1557,56 @@ function renderLetterFinding(f: any): string {
     body,
     action,
     actionLabel,
+    meta: findingMetaFromLedger(f),
   });
+}
+
+/**
+ * Pulls ledger info for a finding (if it carries a findingHash) and returns
+ * a short human-language status line — "seen for 3 days", "returned after
+ * being fixed", "dismissed". Old reports (pre-ledger) return null.
+ */
+function findingMetaFromLedger(f: any): LocalizedString | null {
+  if (!f || !f.findingHash) return null;
+  try {
+    const row = getFindingByHash(f.findingHash);
+    if (!row) return null;
+    const now = Date.now();
+    const ageMs = now - row.first_seen_at;
+    const ageDays = Math.max(1, Math.floor(ageMs / (24 * 60 * 60 * 1000)));
+    const reopenNote = row.reopened_count > 0
+      ? {
+          da: row.reopened_count === 1
+            ? ' — vendt tilbage efter at have været væk'
+            : ` — er vendt tilbage ${row.reopened_count} gange`,
+          en: row.reopened_count === 1
+            ? ' — returned after being gone'
+            : ` — has returned ${row.reopened_count} times`,
+        }
+      : { da: '', en: '' };
+    if (row.state === 'dismissed') {
+      return {
+        da: `Droppet ${row.dismiss_reason ? `(${row.dismiss_reason})` : ''}`.trim(),
+        en: `Dismissed ${row.dismiss_reason ? `(${row.dismiss_reason})` : ''}`.trim(),
+      };
+    }
+    if (row.state === 'closed') {
+      return { da: 'Lukket — scan ser den ikke længere', en: 'Closed — scan no longer sees it' };
+    }
+    // Open
+    if (ageDays <= 1) {
+      return {
+        da: `Ny i dag${reopenNote.da}`,
+        en: `New today${reopenNote.en}`,
+      };
+    }
+    return {
+      da: `Åben i ${ageDays} dage${reopenNote.da}`,
+      en: `Open for ${ageDays} days${reopenNote.en}`,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function severityBadge(severity: string): string {
