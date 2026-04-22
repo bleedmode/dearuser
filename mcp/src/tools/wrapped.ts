@@ -247,14 +247,19 @@ function renderSectionHeader(label: string): string[] {
 
 /**
  * Archetype block — "YOUR AGENT ARCHETYPE" as section header, archetype name
- * rendered large, traits as a single tight line.
+ * rendered large, traits as a single tight line. Optional setup archetype
+ * line appended below the persona when available (they are different axes —
+ * persona = who the user is, setup = what their config looks like).
  */
-function renderArchetype(name: string, traits: string[]): string[] {
+function renderArchetype(name: string, traits: string[], setupArchetypeName?: string): string[] {
   const lines = renderSectionHeader('Your agent archetype');
   lines.push(frameBlank());
   lines.push(frameLine(name));
   if (traits.length > 0) {
     lines.push(frameLine(traits.slice(0, 4).join(' · ')));
+  }
+  if (setupArchetypeName) {
+    lines.push(frameLine(`Setup style: ${setupArchetypeName}`));
   }
   lines.push(frameBlank());
   return lines;
@@ -437,7 +442,7 @@ export function formatWrappedText(
   // Main card frame.
   lines.push(frameTop());
   lines.push(...renderHero(report.collaborationScore, w.headlineStat.label));
-  lines.push(...renderArchetype(w.archetype.name, w.archetype.traits));
+  lines.push(...renderArchetype(w.archetype.name, w.archetype.traits, report.archetype?.nameEn));
   lines.push(...renderAutonomySplit(w.autonomySplit));
   lines.push(...renderSystemGrid(w.systemGrid));
   lines.push(...renderShareCard(w.shareCard));
