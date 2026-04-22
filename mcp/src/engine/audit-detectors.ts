@@ -13,6 +13,7 @@ import type {
   AuditGraph,
   GapSeverity,
 } from '../types.js';
+import { getOpenFindings } from './findings-ledger.js';
 
 /**
  * Paths that are "terminal" — user-facing endpoints where it's fine for data
@@ -829,11 +830,67 @@ function detectExpectedJobsMissing(graph: AuditGraph): AuditFinding[] {
 }
 
 // ============================================================================
+// Reconciliation gap — findings that have been sitting open for >14 days
+// ============================================================================
+
+/**
+ * Surface findings that have been open in the ledger for 14+ days. A
+ * long-open finding means either (a) the user isn't seeing it, (b) it's
+ * genuinely not worth fixing (should be dismissed with a reason), or
+ * (c) the workflow handoff to PVS / fix-flow is broken. Any of those is
+ * a system-health concern worth naming.
+ *
+ * We read the ledger directly rather than re-running scans — the point
+ * of the ledger is that it already knows what's open.
+ */
+function detectReconciliationGap(): AuditFinding[] {
+  try {
+    const open = getOpenFindings();
+    const now = Date.now();
+    const cutoff = 14 * 24 * 60 * 60 * 1000;
+    const stale = open.filter((f) => now - f.first_seen_at >= cutoff);
+    if (stale.length === 0) return [];
+
+    const sample = stale.slice(0, 5).map((f) => {
+      const where = f.subject ? ` (${f.platform}/${f.subject})` : ` (${f.platform})`;
+      return `${f.title}${where}`;
+    });
+    const more = stale.length > 5 ? `, +${stale.length - 5} more` : '';
+
+    const severity: GapSeverity = stale.some((f) => f.severity === 'critical')
+      ? 'critical'
+      : 'recommended';
+
+    return [{
+      id: findingId('reconciliation_gap', ['stale']),
+      type: 'reconciliation_gap',
+      severity,
+      title: stale.length === 1
+        ? `1 finding has been open for 14+ days`
+        : `${stale.length} findings have been open for 14+ days`,
+      description: `These findings keep showing up in scans but nothing has changed: ${sample.join(', ')}${more}.`,
+      affectedArtifacts: [],
+      evidence: stale.slice(0, 10).map((f) => ({
+        source: `${f.platform}:${f.subject ?? '(global)'}`,
+        excerpt: f.title,
+        kind: 'stat' as const,
+      })),
+      recommendation: 'Either act on them (fix or route to a workflow task) or dismiss each with a structured reason (false_positive / wont_fix / accepted_risk / used_in_tests). Leaving them sitting open means the scan keeps reporting the same gap forever.',
+      why: 'A finding that has been open for two weeks without being closed by a scan is a closed-loop failure: either the fix never happened, or the finding is a false positive that needs an explicit reason. Silence in the middle means the next scan will flag it again, and you\'ll see the same report tomorrow.',
+    }];
+  } catch {
+    // Ledger table may not exist yet (fresh install, migrations not run).
+    // Or any runtime issue — don't fail the audit.
+    return [];
+  }
+}
+
+// ============================================================================
 // Orchestration
 // ============================================================================
 
 export interface DetectorOptions {
-  focus?: 'orphan' | 'overlap' | 'closure' | 'substrate' | 'mcp_refs' | 'backup' | 'stale_schedule' | 'expected_jobs' | 'all';
+  focus?: 'orphan' | 'overlap' | 'closure' | 'substrate' | 'mcp_refs' | 'backup' | 'stale_schedule' | 'expected_jobs' | 'reconciliation_gap' | 'all';
 }
 
 export function runDetectors(
@@ -866,6 +923,9 @@ export function runDetectors(
   }
   if (focus === 'all' || focus === 'expected_jobs') {
     findings.push(...detectExpectedJobsMissing(graph));
+  }
+  if (focus === 'all' || focus === 'reconciliation_gap') {
+    findings.push(...detectReconciliationGap());
   }
 
   // Dedupe by id — one physical issue shouldn't surface twice

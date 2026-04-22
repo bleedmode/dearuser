@@ -191,7 +191,8 @@ export type AuditFindingType =
   | 'unregistered_mcp_tool'
   | 'unbacked_up_substrate'
   | 'stale_schedule'
-  | 'expected_job_missing';
+  | 'expected_job_missing'
+  | 'reconciliation_gap';
 
 /** A thing in the user's AI stack that can produce or consume data. */
 export interface AuditArtifact {
