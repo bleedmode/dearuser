@@ -1444,7 +1444,7 @@ export function renderSubScoreNote(report: any): string {
   return `
     <div class="mt-6 p-4 rounded-lg border border-paper-200 bg-paper-50">
       <div class="flex items-baseline gap-3 flex-wrap">
-        <span class="text-[11px] uppercase tracking-[0.15em] text-ink-500">${t('CLAUDE.md alene', 'CLAUDE.md only')}</span>
+        <span class="text-[11px] uppercase tracking-[0.15em] text-ink-500">${t('Agent-kontrakt alene', 'Agent contract only')}</span>
         <span class="font-serif text-2xl ${subColor} leading-none">${sub}</span>
         ${gradeSuffix ? `<span class="text-xs text-ink-500">${gradeSuffix}</span>` : ''}
       </div>

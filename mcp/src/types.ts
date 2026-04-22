@@ -73,6 +73,19 @@ export interface FileInfo {
   content: string;
   size: number;
   lastModified?: Date;
+  /**
+   * Which contract format this file originated as.
+   *   - 'claude'  → CLAUDE.md / claude.md
+   *   - 'agents'  → AGENTS.md / agents.md / agent.md / .agents.md (Linux Foundation
+   *                 cross-tool standard used by Cursor, Codex, Aider, Cline, Zed)
+   *   - 'merged'  → both existed in the same location; content is concatenated
+   *                 with a divider so downstream sees every rule the user wrote.
+   * Optional for backwards compat — existing callers that only read `content`
+   * keep working unchanged.
+   */
+  kind?: 'claude' | 'agents' | 'merged';
+  /** When kind === 'merged', the sibling file paths that were merged in. */
+  mergedPaths?: string[];
 }
 
 export interface ParsedRule {

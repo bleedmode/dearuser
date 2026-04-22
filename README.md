@@ -21,7 +21,7 @@ Three reports, one share button, one feedback channel:
 | Tool | What it does | Example prompt |
 |------|--------------|----------------|
 | `collab` | Full collaboration report — persona, 0-100 score, friction patterns, specific recommendations | *"How good is my Claude setup?"* |
-| `security` | Leaked secrets, prompt-injection surfaces, rule conflicts in CLAUDE.md | *"Check my config for leaked API keys"* |
+| `security` | Leaked secrets, prompt-injection surfaces, rule conflicts in your agent contract (CLAUDE.md or AGENTS.md) | *"Check my config for leaked API keys"* |
 | `health` | Structural coherence — orphan scheduled tasks, overlapping skills, dead hooks | *"Is anything broken in my setup?"* |
 | `share_report` | Anonymize a report and return a public `dearuser.ai/r/<token>` URL | *"Share my collab report"* |
 | `feedback` | Send a note to the Dear User inbox | *"Send feedback: the health report could be shorter"* |
@@ -31,8 +31,9 @@ Plus helpers: `onboard` (7-step guided setup), `wrapped` (Spotify-style stats), 
 ## Launch highlights
 
 - **Shareable reports** — run `share_report`, get back a `dearuser.ai/r/<token>` URL. The report is anonymized first (paths collapsed to basenames, emails stripped, anything matching our secret patterns redacted) before upload.
-- **12-category secret scanner** — OpenAI, Anthropic, GitHub, AWS, Stripe, Slack, Google, Supabase, Vercel, private keys, generic env secrets, bearer tokens. Scans CLAUDE.md, memory files, skills, hooks.
-- **Semantic conflict detection** (new) — finds rules in CLAUDE.md that contradict each other even when they don't share keywords. "Commit often" vs. "ask before commit" gets flagged.
+- **12-category secret scanner** — OpenAI, Anthropic, GitHub, AWS, Stripe, Slack, Google, Supabase, Vercel, private keys, generic env secrets, bearer tokens. Scans CLAUDE.md / AGENTS.md, memory files, skills, hooks.
+- **AGENTS.md native support** — first-class input alongside CLAUDE.md. Works out of the box for Cursor, Codex, Aider, Cline, Zed and anyone following the [Linux Foundation cross-tool standard](https://github.com/AgentUserInterface/agentsmd). Both files in the same directory? We merge them.
+- **Semantic conflict detection** (new) — finds rules that contradict each other even when they don't share keywords. "Commit often" vs. "ask before commit" gets flagged.
 - **Score calibrated against reality** — we scanned 2,895 public CLAUDE.md files and tuned the scoring so the distribution is honest (median 18/100, 99th percentile 47, ceiling observed 60). No fake 100s. See [`research/calibration/`](research/calibration/2026-04-22-claude-md-corpus-v2/report.md).
 
 ## Install
@@ -80,7 +81,7 @@ After installing, restart your client and try these in order:
    ```
    Run Dear User security
    ```
-   Checks CLAUDE.md, memory, skills and hooks for leaked tokens, injection surfaces and rule conflicts.
+   Checks your agent contract (CLAUDE.md or AGENTS.md), memory, skills and hooks for leaked tokens, injection surfaces and rule conflicts.
 
 3. **Share the result (optional):**
    ```
@@ -109,7 +110,7 @@ Recommendations (3 shown, 5 total):
 
 Dear User is local-first. Your scans stay on your machine:
 
-- CLAUDE.md, memory, skills, hooks and session metadata are read but **never uploaded**
+- Your agent contract (CLAUDE.md or AGENTS.md), memory, skills, hooks and session metadata are read but **never uploaded**
 - Results are stored in `~/.dearuser/dearuser.db` (SQLite, WAL mode)
 - The optional localhost dashboard reads from that DB — nothing is transmitted
 - Dear User reads session **metadata only** (counts, lengths) — never your actual conversation content
@@ -127,7 +128,7 @@ Full privacy details: [`docs/privacy.md`](docs/privacy.md).
 ## How it works
 
 ```
-Your files (CLAUDE.md, memory, hooks, skills, sessions)
+Your files (CLAUDE.md or AGENTS.md, memory, hooks, skills, sessions)
         │
     Scanner ──► Parser ──► Engines (scoring, secrets, conflicts, health)
         │
