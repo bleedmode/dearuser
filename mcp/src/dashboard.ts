@@ -27,6 +27,7 @@ import { renderWrappedHtml } from '../../web/src/lib/wrapped-html.ts';
 import { CATEGORY_EXPLANATIONS, overallVerdict, securityVerdict, systemHealthVerdict } from './engine/category-explanations.js';
 import { runOnboard } from './tools/onboard.js';
 import type { OnboardResult } from './tools/onboard.js';
+import { runShareReport } from './tools/share.js';
 
 const DEFAULT_PORT = 7700;
 const MAX_PORT_ATTEMPTS = 10;
@@ -2244,18 +2245,110 @@ function renderWrappedPage(): string {
     showShareCta: false, // private dashboard — share button is a separate action
   });
 
+  // Localized strings for the share flow — emitted into the page script as
+  // JSON so the client can switch copy without a round-trip. Keeping them
+  // server-rendered means the share button works even if the dashboard
+  // bilingual toggle is using the currently-hidden class variant.
+  const shareLabels = {
+    idleDa: 'Del offentligt',
+    idleEn: 'Share publicly',
+    loadingDa: 'Genererer link…',
+    loadingEn: 'Generating link…',
+    copiedDa: 'Link kopieret til udklipsholder',
+    copiedEn: 'Link copied to clipboard',
+    openDa: 'Åbner i ny fane',
+    openEn: 'Opening in new tab',
+    errorConfigDa: 'Offentlig deling er ikke sat op på denne maskine. Sæt DEARUSER_SUPABASE_URL og DEARUSER_SUPABASE_SERVICE_KEY for at aktivere.',
+    errorConfigEn: 'Public sharing is not set up on this machine. Set DEARUSER_SUPABASE_URL and DEARUSER_SUPABASE_SERVICE_KEY to enable it.',
+    errorNoReportDa: 'Dit seneste Wrapped har ingen rapport-data — kør `dearuser wrapped` igen.',
+    errorNoReportEn: 'Your latest Wrapped has no report data — run `dearuser wrapped` again.',
+    errorGenericDa: 'Kunne ikke oprette link',
+    errorGenericEn: 'Could not create link',
+  };
+
   return page('Wrapped', `
     <div class="max-w-2xl mx-auto mb-6 flex items-center justify-between">
       <div class="font-mono text-xs uppercase tracking-wider text-ink-400">${t('Seneste Wrapped', 'Latest Wrapped')} · ${t(formatLetterDate(latest.started_at), formatLetterDateEn(latest.started_at))}</div>
-      <button id="share-wrapped-btn" class="text-[11px] uppercase tracking-[0.15em] text-ink-500 hover:text-accent-600 transition border border-paper-200 rounded-md px-3 py-1.5">
-        <span class="lang-da">Del offentligt</span><span class="lang-en">Share publicly</span>
-      </button>
+      <div class="flex flex-col items-end gap-2">
+        <button id="share-wrapped-btn" data-state="idle" class="text-[11px] uppercase tracking-[0.15em] text-ink-500 hover:text-accent-600 transition border border-paper-200 rounded-md px-3 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
+          <span class="lang-da">${shareLabels.idleDa}</span><span class="lang-en">${shareLabels.idleEn}</span>
+        </button>
+        <div id="share-wrapped-feedback" class="text-[11px] text-ink-500 max-w-xs text-right hidden"></div>
+      </div>
     </div>
     ${wrappedHtml}
     <script>
-      document.getElementById('share-wrapped-btn')?.addEventListener('click', function() {
-        alert('${t('Kør `dearuser share-wrapped` i Claude Code for at oprette et delbart link på dearuser.ai/r/<token>.', 'Run `dearuser share-wrapped` in Claude Code to create a shareable link at dearuser.ai/r/<token>.')}');
-      });
+      (function() {
+        var btn = document.getElementById('share-wrapped-btn');
+        var feedback = document.getElementById('share-wrapped-feedback');
+        if (!btn) return;
+        var L = ${JSON.stringify(shareLabels)};
+        var isDanish = document.documentElement.lang !== 'en';
+
+        function setBtnLabel(da, en) {
+          btn.innerHTML =
+            '<span class="lang-da">' + da + '</span>' +
+            '<span class="lang-en">' + en + '</span>';
+        }
+        function showFeedback(da, en, isError) {
+          feedback.classList.remove('hidden');
+          feedback.innerHTML =
+            '<span class="lang-da">' + da + '</span>' +
+            '<span class="lang-en">' + en + '</span>';
+          feedback.className = 'text-[11px] max-w-xs text-right ' + (isError ? 'text-red-600' : 'text-ink-500');
+        }
+        function hideFeedback() {
+          feedback.classList.add('hidden');
+          feedback.innerHTML = '';
+        }
+
+        btn.addEventListener('click', async function() {
+          if (btn.disabled) return;
+          btn.disabled = true;
+          hideFeedback();
+          setBtnLabel(L.loadingDa, L.loadingEn);
+
+          try {
+            var res = await fetch('/wrapped/share', { method: 'POST' });
+            var data = null;
+            try { data = await res.json(); } catch (_) {}
+
+            if (!res.ok || !data || !data.url) {
+              var msgDa = (data && data.errorDa) || L.errorGenericDa;
+              var msgEn = (data && data.errorEn) || L.errorGenericEn;
+              showFeedback(msgDa, msgEn, true);
+              setBtnLabel(L.idleDa, L.idleEn);
+              btn.disabled = false;
+              return;
+            }
+
+            var url = data.url;
+            // Open in new tab + copy to clipboard. Clipboard may reject on
+            // non-secure contexts (http://localhost is fine in modern
+            // browsers, but fall through silently if it fails).
+            window.open(url, '_blank', 'noopener,noreferrer');
+            var copied = false;
+            try {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(url);
+                copied = true;
+              }
+            } catch (_) { /* non-fatal */ }
+
+            showFeedback(
+              (copied ? L.copiedDa : L.openDa) + ': ' + url,
+              (copied ? L.copiedEn : L.openEn) + ': ' + url,
+              false
+            );
+            setBtnLabel(L.idleDa, L.idleEn);
+            btn.disabled = false;
+          } catch (err) {
+            showFeedback(L.errorGenericDa, L.errorGenericEn, true);
+            setBtnLabel(L.idleDa, L.idleEn);
+            btn.disabled = false;
+          }
+        });
+      })();
     </script>
   `, 'wrapped');
 }
@@ -2411,6 +2504,75 @@ export function createApp(): Hono {
         da: `Noget gik galt: ${msg}. Vi starter forfra.`,
         en: `Something went wrong: ${msg}. Starting over.`,
       }));
+    }
+  });
+
+  // Share the latest Wrapped publicly. Reads the most recent wrapped run
+  // from the local DB, runs it through the anonymizer, and uploads to the
+  // shared Supabase. Returns { url, token } on success; { errorDa, errorEn }
+  // on failure so the button can render a localized message.
+  //
+  // Never echoes the service key — we only surface env-missing vs upload
+  // failure vs no-report. If the key is malformed, the Supabase REST call
+  // throws with its own (non-secret) body, which we pass through truncated.
+  app.post('/wrapped/share', async (c) => {
+    const latest = getRecentRuns(100).find((r: any) => r.tool_name === 'wrapped' && r.report_json);
+    if (!latest) {
+      return c.json({
+        errorDa: 'Intet Wrapped at dele — kør `dearuser wrapped` først.',
+        errorEn: 'No Wrapped to share — run `dearuser wrapped` first.',
+      }, 404);
+    }
+
+    let report: any = null;
+    try {
+      report = JSON.parse(latest.report_json);
+    } catch {
+      return c.json({
+        errorDa: 'Dit seneste Wrapped har ingen læsbar rapport-data.',
+        errorEn: 'Your latest Wrapped has no readable report data.',
+      }, 422);
+    }
+    if (!report || typeof report !== 'object') {
+      return c.json({
+        errorDa: 'Dit seneste Wrapped har ingen rapport-data.',
+        errorEn: 'Your latest Wrapped has no report data.',
+      }, 422);
+    }
+
+    // Env-missing → 503 with friendly message. runShareReport itself throws
+    // a detectable error but we want to differentiate "not configured" from
+    // "upload failed" so the UI can nudge the user toward env setup.
+    const envUrl = process.env.DEARUSER_SUPABASE_URL || process.env.SUPABASE_URL || '';
+    const envKey = process.env.DEARUSER_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    if (!envUrl || !envKey) {
+      return c.json({
+        errorDa: 'Offentlig deling er ikke sat op på denne maskine. Sæt DEARUSER_SUPABASE_URL og DEARUSER_SUPABASE_SERVICE_KEY for at aktivere.',
+        errorEn: 'Public sharing is not set up on this machine. Set DEARUSER_SUPABASE_URL and DEARUSER_SUPABASE_SERVICE_KEY to enable it.',
+      }, 503);
+    }
+
+    try {
+      const result = await runShareReport({
+        report_type: 'wrapped',
+        report_json: report,
+      });
+      return c.json({ url: result.url, token: result.token });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // Don't leak the service key shape — err.message from insertSharedReport
+      // already truncates Supabase body to 200 chars and never includes the
+      // Authorization header. We still scrub any stray sk_ / Bearer prefix
+      // defensively.
+      const safeMsg = msg
+        .replace(/Bearer\s+\S+/gi, 'Bearer [redacted]')
+        .replace(/apikey[\s=:]+\S+/gi, 'apikey [redacted]')
+        .slice(0, 240);
+      console.error('[dashboard] /wrapped/share failed:', safeMsg);
+      return c.json({
+        errorDa: 'Kunne ikke oprette offentligt link. Prøv igen eller tjek serverlog.',
+        errorEn: 'Could not create public link. Try again or check the server log.',
+      }, 502);
     }
   });
 
