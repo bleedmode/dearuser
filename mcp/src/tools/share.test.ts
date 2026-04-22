@@ -226,9 +226,28 @@ describe('runShareReport — integration', () => {
   it('fails gracefully when Supabase env is missing', async () => {
     delete process.env.DEARUSER_SUPABASE_URL;
     delete process.env.SUPABASE_URL;
-    await expect(
-      runShareReport({ report_type: 'collab', report_json: { score: 1 } }),
-    ).rejects.toThrow(/Supabase credentials not configured/);
+    delete process.env.DEARUSER_SUPABASE_SERVICE_KEY;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    // Temporarily hide ~/.dearuser/config.json so the fallback path also
+    // returns empty. Fallback was added for the local-dashboard case where
+    // creds live on disk; tests must still exercise the fully-empty branch.
+    const os = require('node:os');
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const configPath = path.join(os.homedir(), '.dearuser', 'config.json');
+    const backupPath = configPath + '.test-backup';
+    let moved = false;
+    if (fs.existsSync(configPath)) {
+      fs.renameSync(configPath, backupPath);
+      moved = true;
+    }
+    try {
+      await expect(
+        runShareReport({ report_type: 'collab', report_json: { score: 1 } }),
+      ).rejects.toThrow(/Supabase credentials not configured/);
+    } finally {
+      if (moved) fs.renameSync(backupPath, configPath);
+    }
   });
 
   // Regression test: the dashboard Share button uploads a real wrapped report
