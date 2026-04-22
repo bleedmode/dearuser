@@ -1,0 +1,34 @@
+{
+  "scheduledTasks": [
+    {
+      "id": "job-0",
+      "cronExpression": "0 * * * *",
+      "enabled": true,
+      "lastRunAt": "2026-04-22T12:11:14.193Z"
+    },
+    {
+      "id": "job-1",
+      "cronExpression": "0 * * * *",
+      "enabled": true,
+      "lastRunAt": "2026-04-22T12:11:14.193Z"
+    },
+    {
+      "id": "job-2",
+      "cronExpression": "0 * * * *",
+      "enabled": true,
+      "lastRunAt": "2026-04-22T12:11:14.193Z"
+    },
+    {
+      "id": "job-3",
+      "cronExpression": "0 * * * *",
+      "enabled": true,
+      "lastRunAt": "2026-04-22T12:11:14.193Z"
+    },
+    {
+      "id": "job-4",
+      "cronExpression": "0 * * * *",
+      "enabled": true,
+      "lastRunAt": "2026-04-22T12:11:14.193Z"
+    }
+  ]
+}

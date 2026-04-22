@@ -1,0 +1,11 @@
+{
+  "name": "health-score-validation",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Synthetic fixtures + runner to validate the system-health scorer",
+  "scripts": {
+    "build-fixtures": "tsx build-fixtures.ts",
+    "validate": "tsx validate.ts"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "pvs": {
+      "command": "node"
+    }
+  }
+}

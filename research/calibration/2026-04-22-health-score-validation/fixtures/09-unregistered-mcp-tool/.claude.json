@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "real_server": {
+      "command": "node",
+      "args": [
+        "server.js"
+      ]
+    }
+  }
+}

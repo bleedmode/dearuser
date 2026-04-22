@@ -1,0 +1,7 @@
+[
+  {
+    "name": "morning-standup",
+    "cron": "0 8 * * *",
+    "purpose": "Daily briefing"
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "scheduledTasks": [
+    {
+      "id": "birthday-reminder",
+      "cronExpression": "0 9 * * *",
+      "enabled": true,
+      "lastRunAt": "2026-04-22T12:11:14.186Z"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+[
+  {
+    "name": "critical-backup-job",
+    "cron": "0 3 * * *"
+  }
+]
