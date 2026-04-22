@@ -560,6 +560,33 @@ function formatCategories(report: AnalysisReport, plain: boolean): string[] {
   return lines;
 }
 
+/**
+ * "What I saw" narrative layer — strengths, patterns and risks observed in
+ * the user's setup. Renders between categories and recommendations so the
+ * report reads: score → observations → actions. Old reports without findings
+ * render nothing; empty array hides the section.
+ */
+function formatFindings(report: AnalysisReport): string[] {
+  const findings = report.findings || [];
+  if (findings.length === 0) return [];
+
+  const label: Record<string, string> = {
+    win: '💚 Strength',
+    pattern: '🔵 Pattern',
+    risk: '🟠 Risk',
+  };
+
+  const lines: string[] = ['', '## What I saw', ''];
+  findings.forEach((f, i) => {
+    const num = String(i + 1).padStart(2, '0');
+    const tag = label[f.tag] || f.tag;
+    lines.push(`**${num} — ${tag}: ${f.title}**`);
+    if (f.body) lines.push(f.body);
+    lines.push('');
+  });
+  return lines;
+}
+
 /** Recommendations split by audience. */
 function formatRecommendations(report: AnalysisReport): string[] {
   const lines: string[] = [];
@@ -981,6 +1008,7 @@ export function formatAnalyzeReport(report: AnalysisReport, format: AnalyzeForma
   const lines: string[] = [
     ...formatHeader(report),
     ...formatCategories(report, !isDetailed),
+    ...formatFindings(report),
     ...formatLintFindings(report, !isDetailed),
     ...formatRecommendations(report),
   ];
