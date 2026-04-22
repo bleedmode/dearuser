@@ -120,6 +120,25 @@ export interface FrictionPattern {
   theme: FrictionTheme;
 }
 
+/**
+ * A single narrative observation surfaced in the report's "What I saw" section.
+ * Findings are the bridge between persona/score (aggregate) and recommendations
+ * (actions). They name concrete things Dear User observed in the user's setup
+ * and sessions so the report reads like a letter from a colleague, not a
+ * horoscope + todo list.
+ *
+ * - `tag: 'win'`   → a STRENGTH the user's setup already has. No action required.
+ * - `tag: 'pattern'` → a neutral observation. Worth noticing, may or may not act.
+ * - `tag: 'risk'`  → friction or quiet breakage worth addressing.
+ */
+export type FindingTag = 'win' | 'pattern' | 'risk';
+
+export interface Finding {
+  tag: FindingTag;
+  title: string;
+  body: string;
+}
+
 export interface Gap {
   id: string;
   section: string;
@@ -590,6 +609,12 @@ export interface AnalysisReport {
     coverage: CategoryScore;
   };
   frictionPatterns: FrictionPattern[];
+  /**
+   * Narrative findings — strengths, patterns and risks — surfaced in the
+   * "What I saw" section of the share report. Derived from frictionPatterns
+   * plus a strengths-detector. Capped at 6 entries, wins first.
+   */
+  findings: Finding[];
   gaps: Gap[];
   stats: AnalysisStats;
   recommendations: Recommendation[];
