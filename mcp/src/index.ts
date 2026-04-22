@@ -16,6 +16,7 @@ import { insertAgentRun, updateRunDetails, updateRunJson, getRecommendationById,
 import { reconcilePendingRecommendations } from './engine/reconcile-recommendations.js';
 import { implementClaudeMdAppend, implementSettingsMerge, prepareShellExec, prepareManual } from './engine/implementer.js';
 import { friendlyLabel } from './engine/friendly-labels.js';
+import { isFirstTime } from './engine/user-preferences.js';
 import { existsSync, mkdirSync, openSync, readFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
@@ -170,6 +171,40 @@ const server = new McpServer({
   version: PKG_VERSION,
 });
 
+/**
+ * First-run short-circuit. If the user has never completed onboarding we
+ * bail out of the heavy tools (collab/security/health) and redirect them
+ * to the onboard flow. Scanning before we know who they are produces
+ * generic, unhelpful reports and wastes their first impression.
+ *
+ * Bypass: set DEARUSER_SKIP_ONBOARD=1 (CI, debugging, one-shot evals).
+ */
+function firstRunNudge(toolName: 'collab' | 'health' | 'security') {
+  if (process.env.DEARUSER_SKIP_ONBOARD === '1') return null;
+  if (!isFirstTime()) return null;
+  const localeDa = process.env.LANG?.startsWith('da') ?? false;
+  const msg = localeDa
+    ? [
+        '💌 **Velkommen — lad os lige lære hinanden at kende først.**',
+        '',
+        `Før jeg kører \`${toolName}\` har jeg brug for et par oplysninger om dig — hvad jeg skal kalde dig, hvordan du arbejder, og hvad du forventer af mig. Det tager under et minut.`,
+        '',
+        'Kør: `mcp__dearuser__onboard` (eller skriv `/dearuser-onboard` hvis du er i Claude Code).',
+        '',
+        '_Vil du springe over og få en generisk rapport? Sæt `DEARUSER_SKIP_ONBOARD=1` i dit miljø._',
+      ].join('\n')
+    : [
+        "💌 **Welcome — let's get to know each other first.**",
+        '',
+        `Before I run \`${toolName}\` I need a few things about you — what to call you, how you work, and what you expect from me. Takes under a minute.`,
+        '',
+        'Run: `mcp__dearuser__onboard` (or type `/dearuser-onboard` inside Claude Code).',
+        '',
+        '_Want to skip and get a generic report? Set `DEARUSER_SKIP_ONBOARD=1` in your environment._',
+      ].join('\n');
+  return { content: [{ type: 'text' as const, text: msg }] };
+}
+
 // Tool 1: analyze — full collaboration analysis
 server.tool(
   'collab',
@@ -197,6 +232,8 @@ Example prompts that should trigger this tool:
     format: z.enum(['text', 'detailed', 'json']).optional().describe('"text" (default): concise plain-language report. "detailed": full technical report with stats, sessions, injection findings. "json": raw structured data.'),
   },
   async ({ projectRoot, scope, includeGit, format }) => {
+    const nudge = firstRunNudge('collab');
+    if (nudge) return nudge;
     try {
       const root = projectRoot || process.cwd();
       const effectiveScope = scope || 'global';
@@ -263,6 +300,8 @@ Example prompts that should trigger this tool:
       .describe('Narrow to one finding type, or "all" (default). `stale_schedule` = jobs that stopped firing; `expected_jobs` = jobs declared in ~/.dearuser/expected-jobs.json but not registered; `mcp_refs` = tools calling unregistered MCP servers; `backup` = ~/.claude/ not in version control.'),
   },
   async ({ projectRoot, scope, focus }) => {
+    const nudge = firstRunNudge('health');
+    if (nudge) return nudge;
     try {
       const report = runAudit({
         projectRoot: projectRoot || process.cwd(),
@@ -438,6 +477,8 @@ Example prompts that should trigger this tool:
     scope: z.enum(['global', 'project']).optional().describe('"global" (default) scans ~/.claude/ agent setup; "project" scans a single directory.'),
   },
   async ({ projectRoot, scope }) => {
+    const nudge = firstRunNudge('security');
+    if (nudge) return nudge;
     try {
       const report = await runSecurity({ projectRoot, scope });
       const text = formatSecurityReport(report);

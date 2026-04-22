@@ -21,6 +21,7 @@ import { getRecentRuns, getRunById, getScoreHistory, getRecommendations, updateR
 import { reconcilePendingRecommendations } from './engine/reconcile-recommendations.js';
 import { getUserName, getAgentName, getPreferences, updatePreferences } from './engine/user-preferences.js';
 import { friendlyLabel } from './engine/friendly-labels.js';
+import type { LocalizedString } from './engine/friendly-labels.js';
 import { CATEGORY_EXPLANATIONS, overallVerdict, securityVerdict, systemHealthVerdict } from './engine/category-explanations.js';
 import { runOnboard } from './tools/onboard.js';
 import type { OnboardResult } from './tools/onboard.js';
@@ -32,19 +33,23 @@ const MAX_PORT_ATTEMPTS = 10;
 // Tool-name labels — friendly Danish for the Lovable audience
 // ============================================================================
 
-const TOOL_LABELS: Record<string, string> = {
-  collab: 'Samarbejde',
-  analyze: 'Samarbejde', // legacy
-  health: 'System-sundhed',
-  'system-health': 'System-sundhed', // legacy
-  audit: 'System-sundhed', // legacy
-  security: 'Sikkerhedstjek',
-  wrapped: 'Samarbejdet i tal',
-  onboard: 'Opstart',
+const TOOL_LABELS: Record<string, { da: string; en: string }> = {
+  collab: { da: 'Samarbejde', en: 'Collaboration' },
+  analyze: { da: 'Samarbejde', en: 'Collaboration' }, // legacy
+  health: { da: 'System-sundhed', en: 'System health' },
+  'system-health': { da: 'System-sundhed', en: 'System health' }, // legacy
+  audit: { da: 'System-sundhed', en: 'System health' }, // legacy
+  security: { da: 'Sikkerhedstjek', en: 'Security check' },
+  wrapped: { da: 'Samarbejdet i tal', en: 'Collaboration in numbers' },
+  onboard: { da: 'Opstart', en: 'Onboarding' },
 };
 
 function toolLabel(toolName: string): string {
-  return TOOL_LABELS[toolName] || toolName;
+  return TOOL_LABELS[toolName]?.da || toolName;
+}
+
+function toolLabelBi(toolName: string): { da: string; en: string } {
+  return TOOL_LABELS[toolName] || { da: toolName, en: toolName };
 }
 
 function toolEmoji(toolName: string): string {
@@ -83,9 +88,29 @@ function timeAgo(ts: number): string {
   return `for ${Math.floor(months / 12)} år siden`;
 }
 
+function timeAgoEn(ts: number): string {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} ${days === 1 ? 'day' : 'days'} ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} ${months === 1 ? 'month' : 'months'} ago`;
+  const years = Math.floor(months / 12);
+  return `${years} ${years === 1 ? 'year' : 'years'} ago`;
+}
+
 function formatLetterDate(ts: number): string {
   const d = new Date(ts);
   return d.toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function formatLetterDateEn(ts: number): string {
+  const d = new Date(ts);
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 // ============================================================================
@@ -115,6 +140,20 @@ function signature(): string {
 // ============================================================================
 // HTML shell — cream paper, Geist fonts, Tailwind Play CDN
 // ============================================================================
+
+/**
+ * Profile link — lives in the utility cluster next to lang/theme toggles,
+ * not in the primary text nav. A generic person icon rather than a user
+ * initial, because the profile page is "You and me" (user + agent), not
+ * a self-portrait of just the user.
+ */
+function renderProfileAvatar(activeNav: string): string {
+  const active = activeNav === 'profil';
+  return `<a href="/profil" aria-label="Profile"
+    class="inline-flex items-center justify-center w-6 h-6 rounded-full ${active ? 'text-ink-900' : 'text-ink-400 hover:text-ink-900'} transition">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    </a>`;
+}
 
 function page(title: string, body: string, activeNav: 'oversigt' | 'kørsler' | 'forbedringer' | 'profil' = 'oversigt'): string {
   return `<!DOCTYPE html>
@@ -259,13 +298,10 @@ function page(title: string, body: string, activeNav: 'oversigt' | 'kørsler' | 
       </a>
       <nav class="flex items-center gap-6 text-[11px] uppercase tracking-[0.15em]">
         <a href="/historik" class="${activeNav === 'kørsler' ? 'text-ink-900' : 'text-ink-400 hover:text-ink-900'} transition">
-          <span class="lang-da">Mine breve</span><span class="lang-en">My letters</span>
+          <span class="lang-da">Breve</span><span class="lang-en">Letters</span>
         </a>
         <a href="/forbedringer" class="${activeNav === 'forbedringer' ? 'text-ink-900' : 'text-ink-400 hover:text-ink-900'} transition">
           <span class="lang-da">Anbefalinger</span><span class="lang-en">Recommendations</span>
-        </a>
-        <a href="/profil" class="${activeNav === 'profil' ? 'text-ink-900' : 'text-ink-400 hover:text-ink-900'} transition">
-          <span class="lang-da">Profil</span><span class="lang-en">Profile</span>
         </a>
         <span class="w-px h-4 bg-paper-200"></span>
         <button id="lang-toggle" aria-label="Switch language" class="text-ink-400 hover:text-ink-900 transition">
@@ -275,6 +311,7 @@ function page(title: string, body: string, activeNav: 'oversigt' | 'kørsler' | 
           <svg id="sun-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
           <svg id="moon-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
+        ${renderProfileAvatar(activeNav)}
       </nav>
     </div>
   </header>
@@ -337,6 +374,31 @@ ${body}
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+}
+
+// Bilingual helper — emits both language variants; CSS hides the inactive one.
+// Inputs are HTML-escaped before rendering, so callers pass plain text.
+function t(da: string, en: string): string {
+  return `<span class="lang-da">${escapeHtml(da)}</span><span class="lang-en">${escapeHtml(en)}</span>`;
+}
+
+// Same as `t()` but for callers that want to embed pre-escaped/HTML content.
+function tHtml(da: string, en: string): string {
+  return `<span class="lang-da">${da}</span><span class="lang-en">${en}</span>`;
+}
+
+// Coerce a string-or-LocalizedString into bilingual form. Strings become
+// `{da: v, en: v}` which is fine for identifiers and user-submitted text.
+function asBi(v: string | LocalizedString | null | undefined): LocalizedString | null {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'string') return { da: v, en: v };
+  return v;
+}
+
+// Emit a bilingual HTML span from a string-or-LocalizedString.
+function tBi(v: string | LocalizedString | null | undefined): string {
+  const bi = asBi(v);
+  return bi ? t(bi.da, bi.en) : '';
 }
 
 function renderMarkdown(md: string): string {
@@ -541,11 +603,10 @@ function renderLanding(): string {
           return `
             <li class="py-5 flex items-start justify-between gap-6">
               <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-1">
-                  <span class="w-1.5 h-1.5 rounded-full bg-action-600"></span>
-                  <div class="font-serif text-xl text-ink-900 leading-snug">${escapeHtml(f.title)}</div>
+                <div class="font-serif text-xl text-ink-900 leading-snug mb-1 pl-3.5 -indent-3.5">
+                  <span class="inline-block w-1.5 h-1.5 rounded-full bg-action-600 align-middle relative top-[-0.18em] mr-2"></span>${t(f.title.da, f.title.en)}
                 </div>
-                ${f.summary ? `<div class="text-sm text-ink-500 leading-relaxed ml-3.5">${escapeHtml(f.summary)}</div>` : ''}
+                ${f.summary ? `<div class="text-sm text-ink-500 leading-relaxed ml-3.5">${t(f.summary.da, f.summary.en)}</div>` : ''}
               </div>
               <a href="/forbedringer#${escapeHtml(p.id)}" class="flex-shrink-0 text-sm text-ink-700 hover:text-action-600 transition whitespace-nowrap">
                 <span class="lang-da">Læs mere →</span><span class="lang-en">Read more →</span>
@@ -748,7 +809,7 @@ function renderHistorik(): string {
         <span class="w-1.5 h-1.5 rounded-full bg-action-600"></span>
         <span class="text-ink-500">
           <span class="lang-da">Seneste brev · ${escapeHtml(timeAgo(featured.started_at))}</span>
-          <span class="lang-en">Latest letter · ${escapeHtml(timeAgo(featured.started_at))}</span>
+          <span class="lang-en">Latest letter · ${escapeHtml(timeAgoEn(featured.started_at))}</span>
         </span>
       </div>
       <div class="flex items-center gap-8">
@@ -797,11 +858,11 @@ function renderHistorik(): string {
     </h2>
   ` : '';
 
-  return page('Mine breve', `
+  return page('Breve', `
     ${actionStrip}
     <section>
       <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">
-        <span class="lang-da">Mine breve</span><span class="lang-en">My letters</span>
+        <span class="lang-da">Breve</span><span class="lang-en">Letters</span>
       </h1>
       <p class="font-serif text-2xl text-ink-700 leading-snug max-w-xl">
         <span class="lang-da">Hvert brev jeg har sendt dig — nyeste først.</span>
@@ -827,9 +888,9 @@ function renderReport(id: string): string {
     return page('Rapport ikke fundet', `
       <section class="py-12 text-center">
         <div class="text-5xl mb-4">💌</div>
-        <h1 class="text-2xl font-semibold mb-3">Det her brev findes ikke</h1>
-        <p class="text-ink-500 mb-6">Måske blev det slettet, eller linket er forkert.</p>
-        <a href="/" class="text-accent-600 hover:text-accent-500 transition">Gå tilbage til forsiden</a>
+        <h1 class="text-2xl font-semibold mb-3">${t('Det her brev findes ikke', "This letter doesn't exist")}</h1>
+        <p class="text-ink-500 mb-6">${t('Måske blev det slettet, eller linket er forkert.', 'It may have been deleted, or the link is wrong.')}</p>
+        <a href="/" class="text-accent-600 hover:text-accent-500 transition">${t('Gå tilbage til forsiden', 'Go back to the home page')}</a>
       </section>
     `, 'oversigt');
   }
@@ -860,19 +921,19 @@ function renderMarkdownFallback(run: any): string {
   return page(`${toolLabel(run.tool_name)}`, `
     <article class="max-w-2xl mx-auto">
       <header class="mb-8">
-        <div class="text-xs uppercase tracking-wider text-ink-500 mb-2">${escapeHtml(toolLabel(run.tool_name))}</div>
-        <div class="font-mono text-xs text-ink-300">${escapeHtml(formatLetterDate(run.started_at))}</div>
+        <div class="text-xs uppercase tracking-wider text-ink-500 mb-2">${tBi(toolLabelBi(run.tool_name))}</div>
+        <div class="font-mono text-xs text-ink-300">${t(formatLetterDate(run.started_at), formatLetterDateEn(run.started_at))}</div>
       </header>
-      <p class="text-xl text-ink-900 font-medium mb-1">${escapeHtml(greeting())},</p>
-      <p class="text-ink-500 mb-8 leading-relaxed">Her er hvad jeg fandt.</p>
+      <p class="font-serif text-2xl text-ink-900 mb-1">${t(greeting(), greetingEn())},</p>
+      <p class="text-ink-500 mb-8 leading-relaxed">${t('Her er hvad jeg fandt.', 'Here is what I found.')}</p>
       <div class="letter-prose">${rendered}</div>
       <footer class="mt-10">
-        <p class="text-ink-700 italic mb-3">Med venlig hilsen,</p>
+        <p class="text-ink-700 italic mb-3">${t('Med venlig hilsen,', 'Yours,')}</p>
         <p class="text-ink-900">${signature()}</p>
       </footer>
     </article>
     <div class="mt-8 max-w-2xl mx-auto">
-      <a href="/historik" class="text-sm text-ink-500 hover:text-accent-600 transition">← Se alle mine breve</a>
+      <a href="/historik" class="text-sm text-ink-500 hover:text-accent-600 transition">${t('← Se alle mine breve', '← See all letters')}</a>
     </div>
   `, 'oversigt');
 }
@@ -928,16 +989,21 @@ function renderAnalyzeLetter(run: any, report: any): string {
     <article class="max-w-2xl mx-auto letter-prose">
       <!-- Header -->
       <header class="mb-10 not-letter">
-        <div class="font-mono text-xs text-ink-300">${escapeHtml(formatLetterDate(run.started_at))}</div>
+        <div class="font-mono text-xs text-ink-300">${t(formatLetterDate(run.started_at), formatLetterDateEn(run.started_at))}</div>
       </header>
 
       <!-- Greeting — brev-style, leads into the rest of the letter -->
       <section class="mb-10">
-        <p class="text-xl text-ink-900 font-medium mb-3" style="margin-bottom: 0.75rem">${escapeHtml(greeting())},</p>
+        <p class="font-serif text-2xl text-ink-900 mb-3" style="margin-bottom: 0.75rem">${t(greeting(), greetingEn())},</p>
         <p class="text-ink-700 leading-relaxed" style="margin: 0">
-          ${escapeHtml(personaBlurb
-            ? `Jeg har kigget dit setup igennem. Du arbejder som "${persona}" — ${lowerFirst(personaBlurb.split('.')[0])}. Her er hvad jeg fandt.`
-            : `Jeg har kigget dit setup igennem. Her er hvad jeg fandt.`)}
+          ${t(
+            personaBlurb
+              ? `Jeg har kigget dit setup igennem. Du arbejder som "${persona}" — ${lowerFirst(personaBlurb.split('.')[0])}. Her er hvad jeg fandt.`
+              : `Jeg har kigget dit setup igennem. Her er hvad jeg fandt.`,
+            personaBlurb
+              ? `I've looked through your setup. You work as a "${persona}" — ${lowerFirst(personaBlurb.split('.')[0])}. Here is what I found.`
+              : `I've looked through your setup. Here is what I found.`,
+          )}
         </p>
       </section>
 
@@ -946,22 +1012,22 @@ function renderAnalyzeLetter(run: any, report: any): string {
 
       ${findingItems.length > 0 ? `
         <section class="mb-12">
-          <h2>Her er hvad jeg vil foreslå</h2>
+          <h2>${t('Her er hvad jeg vil foreslå', "Here's what I'd suggest")}</h2>
           <div class="space-y-6">
             ${findingItems.map(renderLetterFinding).join('')}
           </div>
-          <a href="/forbedringer" class="inline-block mt-6 text-sm text-accent-600 hover:text-accent-500">Se alle anbefalinger →</a>
+          <a href="/forbedringer" class="inline-block mt-6 text-sm text-accent-600 hover:text-accent-500">${t('Se alle anbefalinger →', 'See all recommendations →')}</a>
         </section>
       ` : ''}
 
       <!-- Sign-off -->
       <footer class="mt-10">
-        <p class="text-ink-700 italic mb-3">Med venlig hilsen,</p>
+        <p class="text-ink-700 italic mb-3">${t('Med venlig hilsen,', 'Yours,')}</p>
         <p class="text-ink-900">${signature()}</p>
       </footer>
     </article>
     <div class="mt-8 max-w-2xl mx-auto">
-      <a href="/historik" class="text-sm text-ink-500 hover:text-accent-600 transition">← Se alle mine breve</a>
+      <a href="/historik" class="text-sm text-ink-500 hover:text-accent-600 transition">${t('← Se alle mine breve', '← See all letters')}</a>
     </div>
   `;
 
@@ -972,7 +1038,7 @@ function renderAnalyzeLetter(run: any, report: any): string {
 // (description/practiceStep/example + severity). Top action goes first.
 function collabFindingsFromRecs(
   topAction: any | null,
-  smallThings: Array<{ title: string; summary?: string; benefit?: string }>,
+  smallThings: Array<{ title: LocalizedString; summary?: LocalizedString; benefit?: LocalizedString }>,
 ): any[] {
   const items: any[] = [];
 
@@ -980,8 +1046,8 @@ function collabFindingsFromRecs(
     const f = friendlyLabel(topAction.title || '');
     items.push({
       severity: topAction.priority === 'critical' ? 'critical' : 'recommended',
-      title: f.title || topAction.title || 'Den vigtigste ting',
-      description: f.benefit || topAction.why || topAction.description || '',
+      title: f.title || (topAction.title ? { da: topAction.title, en: topAction.title } : { da: 'Den vigtigste ting', en: 'The most important thing' }),
+      description: f.benefit || asBi(topAction.why) || asBi(topAction.description) || '',
       example: topAction.howItLooks || '',
       practiceStep: topAction.practiceStep || '',
     });
@@ -1032,7 +1098,7 @@ function renderScoreAndCategories(score: number | null, catEntries: Array<{ key:
       <div class="mb-8">
         <div class="flex items-center gap-2 mb-4">
           <span class="w-1.5 h-1.5 rounded-full ${dot}"></span>
-          <span class="text-[11px] uppercase tracking-[0.15em] text-ink-500">Samarbejde</span>
+          <span class="text-[11px] uppercase tracking-[0.15em] text-ink-500">${t('Samarbejde', 'Collaboration')}</span>
         </div>
         <div class="font-serif text-6xl ${scoreColor} leading-none">${typeof score === 'number' ? score : '—'}</div>
       </div>
@@ -1050,7 +1116,7 @@ function renderCategoryRow(key: string, score: number): string {
   if (!explanation) return '';
 
   const pct = Math.max(0, Math.min(100, score));
-  const barColor = pct >= 85 ? 'bg-good-fg' : pct >= 65 ? 'bg-accent-600' : 'bg-warn-fg';
+  const barColor = pct >= 85 ? 'bg-emerald-600' : pct >= 70 ? 'bg-amber-500' : 'bg-rose-600';
   const verdict = explanation.verdict(pct);
 
   return `
@@ -1059,12 +1125,12 @@ function renderCategoryRow(key: string, score: number): string {
         <div class="flex items-baseline gap-4">
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
-              <span class="font-medium text-ink-900">${escapeHtml(explanation.label)}</span>
+              <span class="font-medium text-ink-900">${t(explanation.label.da, explanation.label.en)}</span>
               <span class="text-accent-600 text-sm transition-transform group-open:rotate-90 inline-block leading-none">▸</span>
-              <span class="text-xs text-accent-600 group-open:hidden"><span class="lang-da">Læs mere</span><span class="lang-en">Read more</span></span>
-              <span class="text-xs text-ink-400 hidden group-open:inline"><span class="lang-da">Skjul</span><span class="lang-en">Hide</span></span>
+              <span class="text-xs text-accent-600 group-open:hidden">${t('Læs mere', 'Read more')}</span>
+              <span class="text-xs text-ink-400 hidden group-open:inline">${t('Skjul', 'Hide')}</span>
             </div>
-            <div class="text-sm text-ink-500 mt-0.5 leading-snug">${escapeHtml(explanation.summary)}</div>
+            <div class="text-sm text-ink-500 mt-0.5 leading-snug">${t(explanation.summary.da, explanation.summary.en)}</div>
           </div>
           <div class="flex items-center gap-3 shrink-0">
             <div class="w-28 h-2 bg-paper-200 rounded-full overflow-hidden">
@@ -1076,12 +1142,12 @@ function renderCategoryRow(key: string, score: number): string {
       </summary>
       <div class="mt-3 ml-0 pl-4 border-l border-paper-200 text-sm leading-relaxed space-y-3">
         <div>
-          <div class="text-xs uppercase tracking-wider text-ink-500 mb-1">Hvad betyder din score</div>
-          <p class="text-ink-700 italic">${escapeHtml(verdict)}</p>
+          <div class="text-xs uppercase tracking-wider text-ink-500 mb-1">${t('Hvad betyder din score', 'What your score means')}</div>
+          <p class="text-ink-700 italic">${t(verdict.da, verdict.en)}</p>
         </div>
         <div>
-          <div class="text-xs uppercase tracking-wider text-ink-500 mb-1">Hvad trækker scoren op eller ned</div>
-          <p class="text-ink-700">${escapeHtml(explanation.whatMatters)}</p>
+          <div class="text-xs uppercase tracking-wider text-ink-500 mb-1">${t('Hvad trækker scoren op eller ned', 'What pulls the score up or down')}</div>
+          <p class="text-ink-700">${t(explanation.whatMatters.da, explanation.whatMatters.en)}</p>
         </div>
       </div>
     </details>
@@ -1101,26 +1167,29 @@ function renderCollapsedStats(stats: any, session: any): string {
       <details class="group bg-paper-100/60 border border-paper-200 rounded-xl">
         <summary class="cursor-pointer px-5 py-4 list-none flex items-center justify-between hover:bg-paper-100 rounded-xl">
           <div>
-            <div class="font-medium text-ink-900">Din daglige brug</div>
-            <div class="text-sm text-ink-500 mt-0.5">${activeSessions} sessioner sidste 7 dage · ${totalRules} regler · ${memoryFiles} memory-filer</div>
+            <div class="font-medium text-ink-900">${t('Din daglige brug', 'Your daily usage')}</div>
+            <div class="text-sm text-ink-500 mt-0.5">${t(
+              `${activeSessions} sessioner sidste 7 dage · ${totalRules} regler · ${memoryFiles} memory-filer`,
+              `${activeSessions} sessions in the last 7 days · ${totalRules} rules · ${memoryFiles} memory files`,
+            )}</div>
           </div>
           <span class="text-ink-300 transition-transform group-open:rotate-90">▸</span>
         </summary>
         <div class="px-5 pb-5 pt-2 grid grid-cols-2 gap-4 text-sm">
           <div>
-            <div class="text-xs uppercase tracking-wider text-ink-500">Regler i alt</div>
+            <div class="text-xs uppercase tracking-wider text-ink-500">${t('Regler i alt', 'Total rules')}</div>
             <div class="font-mono text-lg text-ink-800">${totalRules}</div>
           </div>
           <div>
-            <div class="text-xs uppercase tracking-wider text-ink-500">Memory-filer</div>
+            <div class="text-xs uppercase tracking-wider text-ink-500">${t('Memory-filer', 'Memory files')}</div>
             <div class="font-mono text-lg text-ink-800">${memoryFiles}</div>
           </div>
           <div>
-            <div class="text-xs uppercase tracking-wider text-ink-500">Sessioner sidste 7 dage</div>
+            <div class="text-xs uppercase tracking-wider text-ink-500">${t('Sessioner sidste 7 dage', 'Sessions in the last 7 days')}</div>
             <div class="font-mono text-lg text-ink-800">${activeSessions}</div>
           </div>
           <div>
-            <div class="text-xs uppercase tracking-wider text-ink-500">Rettelser du har givet</div>
+            <div class="text-xs uppercase tracking-wider text-ink-500">${t('Rettelser du har givet', 'Corrections you\'ve given')}</div>
             <div class="font-mono text-lg text-ink-800">${corrections}</div>
           </div>
         </div>
@@ -1140,13 +1209,19 @@ function renderCollapsedFeedback(feedback: any): string {
       <details class="group bg-paper-100/60 border border-paper-200 rounded-xl">
         <summary class="cursor-pointer px-5 py-4 list-none flex items-center justify-between hover:bg-paper-100 rounded-xl">
           <div>
-            <div class="font-medium text-ink-900">Hvad er der sket siden sidst</div>
-            <div class="text-sm text-ink-500 mt-0.5">${implemented} implementeret · ${pending} venter · ${total} i alt</div>
+            <div class="font-medium text-ink-900">${t('Hvad er der sket siden sidst', "What's happened since last time")}</div>
+            <div class="text-sm text-ink-500 mt-0.5">${t(
+              `${implemented} implementeret · ${pending} venter · ${total} i alt`,
+              `${implemented} implemented · ${pending} waiting · ${total} total`,
+            )}</div>
           </div>
           <span class="text-ink-300 transition-transform group-open:rotate-90">▸</span>
         </summary>
         <div class="px-5 pb-5 pt-2 text-sm text-ink-600 leading-relaxed">
-          Jeg holder styr på hvilke anbefalinger du har taget imod og hvilke der stadig venter. Se detaljerne på <a href="/forbedringer" class="text-accent-600 hover:text-accent-500">Anbefalinger-siden</a>.
+          ${tHtml(
+            'Jeg holder styr på hvilke anbefalinger du har taget imod og hvilke der stadig venter. Se detaljerne på <a href="/forbedringer" class="text-accent-600 hover:text-accent-500">Anbefalinger-siden</a>.',
+            'I keep track of which recommendations you\'ve acted on and which are still waiting. See the details on the <a href="/forbedringer" class="text-accent-600 hover:text-accent-500">Recommendations page</a>.',
+          )}
         </div>
       </details>
     </section>
@@ -1183,32 +1258,35 @@ function renderSecurityLetter(run: any, report: any): string {
   allFindings.sort((a, b) => (sevOrder[a.severity] ?? 3) - (sevOrder[b.severity] ?? 3));
 
   const ceiling = report.scoreCeiling;
-  const leadIn = allFindings.length === 0
+  const leadInDa = allFindings.length === 0
     ? 'Jeg har gennemgået dit setup for leaks, injection-overflader, regel-konflikter og eksterne advisors. Alt ser rent ud.'
     : `Jeg har gennemgået dit setup for leaks, injection-overflader, regel-konflikter og eksterne advisors. Jeg fandt ${allFindings.length} ${allFindings.length === 1 ? 'ting' : 'ting'} værd at kigge på.`;
+  const leadInEn = allFindings.length === 0
+    ? "I've reviewed your setup for leaks, injection surfaces, rule conflicts and external advisors. Everything looks clean."
+    : `I've reviewed your setup for leaks, injection surfaces, rule conflicts and external advisors. I found ${allFindings.length} ${allFindings.length === 1 ? 'thing' : 'things'} worth looking at.`;
 
   const body = `
     <article class="max-w-2xl mx-auto letter-prose">
       <header class="mb-10 not-letter">
-        <div class="font-mono text-xs text-ink-300">${escapeHtml(formatLetterDate(run.started_at))}</div>
+        <div class="font-mono text-xs text-ink-300">${t(formatLetterDate(run.started_at), formatLetterDateEn(run.started_at))}</div>
       </header>
 
       <section class="mb-10">
-        <p class="text-xl text-ink-900 font-medium mb-3" style="margin-bottom: 0.75rem">${escapeHtml(greeting())},</p>
-        <p class="text-ink-700 leading-relaxed" style="margin: 0">${escapeHtml(leadIn)}</p>
+        <p class="font-serif text-2xl text-ink-900 mb-3" style="margin-bottom: 0.75rem">${t(greeting(), greetingEn())},</p>
+        <p class="text-ink-700 leading-relaxed" style="margin: 0">${t(leadInDa, leadInEn)}</p>
       </section>
 
-      ${renderDomainScoreAndCategories(score, catEntries, securityVerdict, ceiling, 'Sikkerhed')}
+      ${renderDomainScoreAndCategories(score, catEntries, securityVerdict, ceiling, { da: 'Sikkerhed', en: 'Security' })}
 
       ${renderSecurityFindings(allFindings)}
 
       <footer class="mt-10">
-        <p class="text-ink-700 italic mb-3">Med venlig hilsen,</p>
+        <p class="text-ink-700 italic mb-3">${t('Med venlig hilsen,', 'Yours,')}</p>
         <p class="text-ink-900">${signature()}</p>
       </footer>
     </article>
     <div class="mt-8 max-w-2xl mx-auto">
-      <a href="/historik" class="text-sm text-ink-500 hover:text-accent-600 transition">← Se alle mine breve</a>
+      <a href="/historik" class="text-sm text-ink-500 hover:text-accent-600 transition">${t('← Se alle mine breve', '← See all letters')}</a>
     </div>
   `;
 
@@ -1238,34 +1316,39 @@ function renderSystemHealthLetter(run: any, report: any): string {
   // repeating the percentage here reads as "something's wrong" when it
   // isn't. Only mention it if there are actual findings to pair it with.
   const userFindingsCount = findings.filter((f: any) => !f.suitePrefix).length;
-  const leadIn = userFindingsCount === 0
+  const leadInDa = userFindingsCount === 0
     ? (typeof score === 'number' && score >= 95
         ? 'Dit setup er rent — værktøjer, schedules og data passer sammen. Der er ikke noget du skal gøre.'
         : 'Jeg har kigget dit setup igennem for orphan jobs, døde schedules, overlap og substrat-problemer. Alt hænger sammen.')
     : `Jeg har kigget dit setup igennem for orphan jobs, døde schedules, overlap og substrat-problemer. Jeg fandt ${userFindingsCount} ${userFindingsCount === 1 ? 'ting' : 'ting'} værd at tage fat på.`;
+  const leadInEn = userFindingsCount === 0
+    ? (typeof score === 'number' && score >= 95
+        ? 'Your setup is clean — tools, schedules and data fit together. There is nothing you need to do.'
+        : "I've looked through your setup for orphan jobs, dead schedules, overlap and substrate issues. Everything hangs together.")
+    : `I've looked through your setup for orphan jobs, dead schedules, overlap and substrate issues. I found ${userFindingsCount} ${userFindingsCount === 1 ? 'thing' : 'things'} worth tackling.`;
 
   const body = `
     <article class="max-w-2xl mx-auto letter-prose">
       <header class="mb-10 not-letter">
-        <div class="font-mono text-xs text-ink-300">${escapeHtml(formatLetterDate(run.started_at))}</div>
+        <div class="font-mono text-xs text-ink-300">${t(formatLetterDate(run.started_at), formatLetterDateEn(run.started_at))}</div>
       </header>
 
       <section class="mb-10">
-        <p class="text-xl text-ink-900 font-medium mb-3" style="margin-bottom: 0.75rem">${escapeHtml(greeting())},</p>
-        <p class="text-ink-700 leading-relaxed" style="margin: 0">${escapeHtml(leadIn)}</p>
+        <p class="font-serif text-2xl text-ink-900 mb-3" style="margin-bottom: 0.75rem">${t(greeting(), greetingEn())},</p>
+        <p class="text-ink-700 leading-relaxed" style="margin: 0">${t(leadInDa, leadInEn)}</p>
       </section>
 
-      ${renderDomainScoreAndCategories(score, catEntries, systemHealthVerdict, ceiling, 'System-sundhed')}
+      ${renderDomainScoreAndCategories(score, catEntries, systemHealthVerdict, ceiling, { da: 'System-sundhed', en: 'System health' })}
 
       ${renderSystemHealthFindings(sortedFindings)}
 
       <footer class="mt-10">
-        <p class="text-ink-700 italic mb-3">Med venlig hilsen,</p>
+        <p class="text-ink-700 italic mb-3">${t('Med venlig hilsen,', 'Yours,')}</p>
         <p class="text-ink-900">${signature()}</p>
       </footer>
     </article>
     <div class="mt-8 max-w-2xl mx-auto">
-      <a href="/historik" class="text-sm text-ink-500 hover:text-accent-600 transition">← Se alle mine breve</a>
+      <a href="/historik" class="text-sm text-ink-500 hover:text-accent-600 transition">${t('← Se alle mine breve', '← See all letters')}</a>
     </div>
   `;
 
@@ -1283,9 +1366,9 @@ function renderSystemHealthLetter(run: any, report: any): string {
 function renderDomainScoreAndCategories(
   score: number | null,
   catEntries: Array<{ key: string; score: number }>,
-  _verdictFn: (s: number) => string,
+  _verdictFn: (s: number) => { da: string; en: string } | string,
   _ceiling: any,
-  domainLabel: string = 'Score',
+  domainLabel: { da: string; en: string } = { da: 'Score', en: 'Score' },
 ): string {
   // Match the home-page tile treatment: colored bullet + label, big
   // font-serif number in the same color, no surrounding card. Verdict
@@ -1308,7 +1391,7 @@ function renderDomainScoreAndCategories(
       <div class="mb-8">
         <div class="flex items-center gap-2 mb-4">
           <span class="w-1.5 h-1.5 rounded-full ${dot}"></span>
-          <span class="text-[11px] uppercase tracking-[0.15em] text-ink-500">${escapeHtml(domainLabel)}</span>
+          <span class="text-[11px] uppercase tracking-[0.15em] text-ink-500">${t(domainLabel.da, domainLabel.en)}</span>
         </div>
         <div class="font-serif text-6xl ${scoreColor} leading-none">${typeof score === 'number' ? score : '—'}</div>
       </div>
@@ -1343,54 +1426,56 @@ function renderDomainScoreAndCategories(
 // Shared severity chrome — used on both the Anbefalinger page and inside
 // every letter type so findings look identical everywhere.
 const severityRank: Record<string, number> = { critical: 0, recommended: 1, nice_to_have: 2 };
-const severityMeta: Record<string, { color: string; label: string }> = {
-  critical:     { color: 'bg-rose-600', label: 'Kritisk' },
-  recommended:  { color: 'bg-amber-500', label: 'Vigtigt' },
-  nice_to_have: { color: 'bg-ink-300',   label: 'Idé' },
+const severityMeta: Record<string, { color: string; label: LocalizedString }> = {
+  critical:     { color: 'bg-rose-600', label: { da: 'Kritisk', en: 'Critical' } },
+  recommended:  { color: 'bg-amber-500', label: { da: 'Vigtigt', en: 'Important' } },
+  nice_to_have: { color: 'bg-ink-300',   label: { da: 'Idé', en: 'Idea' } },
 };
 
 function renderAnbefalingCard(params: {
-  title: string;
+  title: string | LocalizedString;
   severity?: string;
-  body?: string;
-  action?: string;
-  actionLabel?: string;
+  body?: string | LocalizedString;
+  action?: string | LocalizedString;
+  actionLabel?: string | LocalizedString;
   dropHref?: string;
   timestamp?: string;
-  source?: string;
+  source?: string | LocalizedString;
 }): string {
   const sev = severityMeta[params.severity || 'recommended'] || severityMeta.recommended;
   const dropForm = params.dropHref ? `
     <form method="POST" action="${params.dropHref}" class="ml-3 shrink-0">
       <button type="submit"
         class="text-xs text-ink-500 hover:text-bad-fg border border-paper-300 hover:border-bad-fg rounded-full px-3 py-1 transition">
-        Drop
+        ${t('Drop', 'Dismiss')}
       </button>
     </form>
   ` : '';
+  const body = asBi(params.body);
+  const action = asBi(params.action);
+  const actionLabel = asBi(params.actionLabel) || { da: 'Hvad skal du gøre?', en: 'What should you do?' };
   return `
     <article class="border border-paper-300 rounded-lg px-6 py-5">
       <div class="flex items-start justify-between gap-3 pb-4 mb-5 border-b border-dashed border-paper-300">
-        <div class="flex items-start gap-3 min-w-0">
-          <span class="w-2.5 h-2.5 rounded-full ${sev.color} mt-2.5 shrink-0" title="${sev.label}"></span>
-          <div class="min-w-0">
-            <h3 class="font-serif text-xl text-ink-900 leading-snug" style="margin:0">${escapeHtml(params.title)}</h3>
-            ${params.source ? `<div class="text-[10px] uppercase tracking-[0.15em] text-ink-400 mt-1">${escapeHtml(params.source)}</div>` : ''}
-          </div>
+        <div class="min-w-0 flex-1">
+          <h3 class="font-serif text-xl text-ink-900 leading-snug pl-6 -indent-6" style="margin:0" title="${escapeHtml(sev.label.da)}">
+            <span class="inline-block w-2.5 h-2.5 rounded-full ${sev.color} align-middle relative top-[-0.15em] mr-3"></span>${tBi(params.title)}
+          </h3>
+          ${params.source ? `<div class="text-[10px] uppercase tracking-[0.15em] text-ink-400 mt-1 pl-6">${tBi(params.source)}</div>` : ''}
         </div>
         ${dropForm}
       </div>
       <div class="space-y-4">
-        ${params.body ? `
+        ${body ? `
           <div>
-            <div class="text-xs uppercase tracking-wider text-ink-300 mb-1">Hvad er det?</div>
-            <div class="text-sm text-ink-700 leading-relaxed whitespace-pre-line">${escapeHtml(params.body)}</div>
+            <div class="text-xs uppercase tracking-wider text-ink-300 mb-1">${t('Hvad er det?', 'What is this?')}</div>
+            <div class="text-sm text-ink-700 leading-relaxed whitespace-pre-line">${tBi(body)}</div>
           </div>
         ` : ''}
-        ${params.action ? `
+        ${action ? `
           <div>
-            <div class="text-xs uppercase tracking-wider text-ink-300 mb-1">${params.actionLabel || 'Hvad skal du gøre?'}</div>
-            <div class="text-sm text-ink-700 leading-relaxed whitespace-pre-line">${escapeHtml(params.action)}</div>
+            <div class="text-xs uppercase tracking-wider text-ink-300 mb-1">${tBi(actionLabel)}</div>
+            <div class="text-sm text-ink-700 leading-relaxed whitespace-pre-line">${tBi(action)}</div>
           </div>
         ` : ''}
         ${params.timestamp ? `<div class="font-mono text-xs text-ink-300 pt-1">${params.timestamp}</div>` : ''}
@@ -1404,7 +1489,9 @@ function renderLetterFinding(f: any): string {
   const body = f.description || f.summary || f.why || '';
   const practiceStep = f.practiceStep || '';
   const action = practiceStep || f.recommendation || f.fix || '';
-  const actionLabel = practiceStep ? 'Prøv det næste gang' : 'Hvad skal du gøre?';
+  const actionLabel: LocalizedString = practiceStep
+    ? { da: 'Prøv det næste gang', en: 'Try this next time' }
+    : { da: 'Hvad skal du gøre?', en: 'What should you do?' };
   return renderAnbefalingCard({
     title,
     severity: f.severity,
@@ -1415,16 +1502,16 @@ function renderLetterFinding(f: any): string {
 }
 
 function severityBadge(severity: string): string {
-  if (severity === 'critical') return '<span class="inline-flex items-center gap-1.5 text-xs font-medium text-rose-700"><span class="w-1.5 h-1.5 rounded-full bg-rose-600"></span>Kritisk</span>';
-  if (severity === 'recommended') return '<span class="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Anbefalet</span>';
-  return '<span class="inline-flex items-center gap-1.5 text-xs font-medium text-ink-500"><span class="w-1.5 h-1.5 rounded-full bg-ink-300"></span>Nice to have</span>';
+  if (severity === 'critical') return `<span class="inline-flex items-center gap-1.5 text-xs font-medium text-rose-700"><span class="w-1.5 h-1.5 rounded-full bg-rose-600"></span>${t('Kritisk', 'Critical')}</span>`;
+  if (severity === 'recommended') return `<span class="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>${t('Anbefalet', 'Recommended')}</span>`;
+  return `<span class="inline-flex items-center gap-1.5 text-xs font-medium text-ink-500"><span class="w-1.5 h-1.5 rounded-full bg-ink-300"></span>${t('Idé', 'Idea')}</span>`;
 }
 
 function renderSecurityFindings(findings: any[]): string {
   if (findings.length === 0) {
     return `
       <section class="mb-12">
-        <p class="text-ink-700 leading-relaxed italic">Ingen fund i dag. Kom tilbage efter næste scan.</p>
+        <p class="text-ink-700 leading-relaxed italic">${t('Ingen fund i dag. Kom tilbage efter næste scan.', 'No findings today. Come back after the next scan.')}</p>
       </section>
     `;
   }
@@ -1469,26 +1556,33 @@ function renderSecurityFindings(findings: any[]): string {
   const enriched = shown.map(g => {
     const f = g.first;
     const projectPrefix = f.projectName ? `${f.projectName}: ` : '';
-    let merged: string;
+    let description: LocalizedString;
     if (g.count > 1) {
       const preview = g.subjects.slice(0, 5).join(', ');
-      const more = g.subjects.length > 5 ? ` +${g.subjects.length - 5} mere` : '';
-      merged = `${g.count} tilfælde${projectPrefix ? ` i ${f.projectName}` : ''}: ${preview}${more}`;
+      const moreDa = g.subjects.length > 5 ? ` +${g.subjects.length - 5} mere` : '';
+      const moreEn = g.subjects.length > 5 ? ` +${g.subjects.length - 5} more` : '';
+      description = {
+        da: `${g.count} tilfælde${projectPrefix ? ` i ${f.projectName}` : ''}: ${preview}${moreDa}`,
+        en: `${g.count} cases${projectPrefix ? ` in ${f.projectName}` : ''}: ${preview}${moreEn}`,
+      };
     } else {
       const where = g.subjects[0] || f.location || f.artifactPath || f.conflictingPath || f.projectName || '';
       const body = f.description || f.why || '';
-      merged = where ? (body ? `${body}\n\nSted: ${where}` : `Sted: ${where}`) : body;
+      description = {
+        da: where ? (body ? `${body}\n\nSted: ${where}` : `Sted: ${where}`) : body,
+        en: where ? (body ? `${body}\n\nLocation: ${where}` : `Location: ${where}`) : body,
+      };
     }
-    return { ...f, title: f.title || f.category || f._kind, description: merged };
+    return { ...f, title: f.title || f.category || f._kind, description };
   });
 
   return `
     <section class="mb-12">
-      <h2>Det jeg fandt</h2>
+      <h2>${t('Det jeg fandt', 'What I found')}</h2>
       <div class="space-y-6">
         ${enriched.map(renderLetterFinding).join('')}
       </div>
-      ${extra > 0 ? `<p class="text-sm text-ink-500 mt-4 italic">…og ${extra} typer til. Kør med format="detailed" for alle.</p>` : ''}
+      ${extra > 0 ? `<p class="text-sm text-ink-500 mt-4 italic">${t(`…og ${extra} typer til. Kør med format="detailed" for alle.`, `…and ${extra} more types. Run with format="detailed" for all of them.`)}</p>` : ''}
     </section>
   `;
 }
@@ -1497,7 +1591,7 @@ function renderSystemHealthFindings(findings: any[]): string {
   if (findings.length === 0) {
     return `
       <section class="mb-12">
-        <p class="text-ink-700 leading-relaxed">Ingen ting at rydde op i. Setup\'et hænger sammen.</p>
+        <p class="text-ink-700 leading-relaxed">${t('Ingen ting at rydde op i. Setup\'et hænger sammen.', 'Nothing to clean up. Your setup holds together.')}</p>
       </section>
     `;
   }
@@ -1512,7 +1606,7 @@ function renderSystemHealthFindings(findings: any[]): string {
   if (regularFindings.length === 0) {
     return `
       <section class="mb-12">
-        <p class="text-ink-700 leading-relaxed">Ingen ting at rydde op i. Setup\'et hænger sammen.</p>
+        <p class="text-ink-700 leading-relaxed">${t('Ingen ting at rydde op i. Setup\'et hænger sammen.', 'Nothing to clean up. Your setup holds together.')}</p>
       </section>
     `;
   }
@@ -1522,11 +1616,11 @@ function renderSystemHealthFindings(findings: any[]): string {
 
   return `
     <section class="mb-12">
-      <h2>Det jeg fandt</h2>
+      <h2>${t('Det jeg fandt', 'What I found')}</h2>
       <div class="space-y-6">
         ${shown.map(renderLetterFinding).join('')}
       </div>
-      ${extra > 0 ? `<p class="text-sm text-ink-500 mt-4 italic">…og ${extra} fund til.</p>` : ''}
+      ${extra > 0 ? `<p class="text-sm text-ink-500 mt-4 italic">${t(`…og ${extra} fund til.`, `…and ${extra} more findings.`)}</p>` : ''}
     </section>
   `;
 }
@@ -1549,8 +1643,8 @@ function pickSmallThings(
   recs: any[],
   toolRecs: any[],
   topAction: any | null,
-): Array<{ title: string; summary?: string; benefit?: string }> {
-  const out: Array<{ title: string; summary?: string; benefit?: string }> = [];
+): Array<{ title: LocalizedString; summary?: LocalizedString; benefit?: LocalizedString }> {
+  const out: Array<{ title: LocalizedString; summary?: LocalizedString; benefit?: LocalizedString }> = [];
   const seenTitles = new Set<string>();
   if (topAction?.title) seenTitles.add(topAction.title);
 
@@ -1561,17 +1655,25 @@ function pickSmallThings(
     if (r === topAction) continue;
     if (r.priority === 'critical') continue;
     const f = friendlyLabel(r.title);
-    out.push({ title: f.title, summary: f.summary || r.description, benefit: f.benefit });
+    out.push({
+      title: f.title,
+      summary: f.summary || asBi(r.description) || undefined,
+      benefit: f.benefit,
+    });
     seenTitles.add(r.title);
   }
 
   // 1-2 tool recommendations
-  for (const t of toolRecs) {
+  for (const tr of toolRecs) {
     if (out.length >= 3) break;
-    if (!t.name || seenTitles.has(t.name)) continue;
-    const f = friendlyLabel(t.name);
-    out.push({ title: f.title, summary: f.summary || t.userFriendlyDescription || t.description, benefit: f.benefit });
-    seenTitles.add(t.name);
+    if (!tr.name || seenTitles.has(tr.name)) continue;
+    const f = friendlyLabel(tr.name);
+    out.push({
+      title: f.title,
+      summary: f.summary || asBi(tr.userFriendlyDescription) || asBi(tr.description) || undefined,
+      benefit: f.benefit,
+    });
+    seenTitles.add(tr.name);
   }
 
   return out.slice(0, 3);
@@ -1581,11 +1683,11 @@ function pickSmallThings(
 // Forbedringer — recommendations, cleaned of jargon
 // ============================================================================
 
-function sourceLabel(toolName?: string | null): string | undefined {
+function sourceLabel(toolName?: string | null): LocalizedString | undefined {
   if (!toolName) return undefined;
-  if (toolName === 'collab' || toolName === 'analyze') return 'Samarbejde';
-  if (toolName === 'security') return 'Sikkerhed';
-  if (toolName === 'health' || toolName === 'audit') return 'System-sundhed';
+  if (toolName === 'collab' || toolName === 'analyze') return { da: 'Samarbejde', en: 'Collaboration' };
+  if (toolName === 'security') return { da: 'Sikkerhed', en: 'Security' };
+  if (toolName === 'health' || toolName === 'audit') return { da: 'System-sundhed', en: 'System health' };
   return undefined;
 }
 
@@ -1601,7 +1703,7 @@ function renderForbedringer(): string {
   const dismissed = stripObservations(getRecommendations('dismissed'));
 
   const renderList = (items: any[], canDrop: boolean) => {
-    if (items.length === 0) return `<p class="text-ink-500 text-sm">Ingen lige nu.</p>`;
+    if (items.length === 0) return `<p class="text-ink-500 text-sm">${t('Ingen lige nu.', 'None right now.')}</p>`;
     const sorted = [...items].sort((a, b) => {
       const sa = severityRank[a.severity] ?? 1;
       const sb = severityRank[b.severity] ?? 1;
@@ -1614,6 +1716,7 @@ function renderForbedringer(): string {
           const f = friendlyLabel(r.title);
           const body = f.summary || (r.text_snippet ? r.text_snippet.toString() : '');
           const action = r.action_data || '';
+          const tsBi = r.given_at ? tHtml(timeAgo(r.given_at), timeAgoEn(r.given_at)) : '';
           return renderAnbefalingCard({
             title: f.title,
             severity: r.severity,
@@ -1621,7 +1724,7 @@ function renderForbedringer(): string {
             action,
             source: sourceLabel(r.source_tool),
             dropHref: canDrop ? `/forbedringer/${escapeHtml(r.id)}/dismiss` : undefined,
-            timestamp: timeAgo(r.given_at),
+            timestamp: tsBi,
           });
         }).join('')}
       </div>
@@ -1632,9 +1735,12 @@ function renderForbedringer(): string {
     return page('Anbefalinger', `
       <section class="py-12 text-center">
         <div class="text-5xl mb-4">💌</div>
-        <h1 class="text-2xl font-semibold mb-3">Ingen anbefalinger endnu</h1>
+        <h1 class="text-2xl font-semibold mb-3">${t('Ingen anbefalinger endnu', 'No recommendations yet')}</h1>
         <p class="text-ink-500 max-w-md mx-auto">
-          Når jeg har lavet min første rapport for dig, samler jeg anbefalinger her — ting du kan ændre for at få mere ud af din assistent.
+          ${t(
+            'Når jeg har lavet min første rapport for dig, samler jeg anbefalinger her — ting du kan ændre for at få mere ud af din assistent.',
+            "Once I've written my first report for you, I'll gather recommendations here — things you can change to get more out of your assistant.",
+          )}
         </p>
       </section>
     `, 'forbedringer');
@@ -1643,26 +1749,26 @@ function renderForbedringer(): string {
   return page('Anbefalinger', `
     ${pageDateStrip()}
     <section>
-      <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">Anbefalinger</h1>
-      <p class="font-serif text-2xl text-ink-700 leading-snug max-w-xl">Ting jeg har lagt mærke til — de vigtigste øverst.</p>
+      <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">${t('Anbefalinger', 'Recommendations')}</h1>
+      <p class="font-serif text-2xl text-ink-700 leading-snug max-w-xl">${t('Ting jeg har lagt mærke til — de vigtigste øverst.', 'Things I\'ve noticed — the most important first.')}</p>
     </section>
 
     <div class="mt-16">
       <div class="mb-10">
-        <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-3">Venter på dig (${pending.length})</h2>
+        <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-3">${t(`Venter på dig (${pending.length})`, `Waiting on you (${pending.length})`)}</h2>
         ${renderList(pending, true)}
       </div>
 
       ${implemented.length > 0 ? `
         <div class="mb-10">
-          <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-3">Allerede gjort (${implemented.length})</h2>
+          <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-3">${t(`Allerede gjort (${implemented.length})`, `Already done (${implemented.length})`)}</h2>
           ${renderList(implemented, false)}
         </div>
       ` : ''}
 
       ${dismissed.length > 0 ? `
         <div>
-          <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-3">Droppet (${dismissed.length})</h2>
+          <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-3">${t(`Droppet (${dismissed.length})`, `Dismissed (${dismissed.length})`)}</h2>
           ${renderList(dismissed, false)}
         </div>
       ` : ''}
@@ -1683,70 +1789,192 @@ function renderForbedringer(): string {
 // config + shows the plan.
 // ============================================================================
 
-function renderOnboardForm(result: OnboardResult, error?: string): string {
-  const totalSteps = 5;
+function renderOnboardForm(result: OnboardResult, error?: LocalizedString): string {
+  const totalSteps = 6;
+  const isWelcome = result.step === 'welcome';
   const stepNo = result.done ? totalSteps : Math.max(1, Math.min(stepNumberFromResult(result), totalSteps));
   const progress = Math.round((stepNo / totalSteps) * 100);
 
+  // Welcome = pure letter screen. Render it separately so the layout can
+  // breathe (no progress bar, no input, single "Ready" button).
+  if (isWelcome) {
+    return renderOnboardWelcome(result);
+  }
+
   const teaching = result.teaching
-    ? `<div class="prose prose-stone max-w-none text-ink-700 mb-6 leading-relaxed whitespace-pre-wrap">${escapeHtml(result.teaching)}</div>`
+    ? `<div class="font-serif text-xl md:text-2xl text-ink-700 leading-snug mb-10 max-w-xl whitespace-pre-wrap">${t(result.teaching.da, result.teaching.en)}</div>`
     : '';
 
   const optionsChips = result.options.length > 0
     ? `
-      <div class="mb-3 flex flex-wrap gap-2">
+      <div class="mb-8 flex flex-wrap gap-2">
         ${result.options.map(opt => `
-          <button type="button" onclick="document.getElementById('answer').value = ${JSON.stringify(opt)}; document.getElementById('answer').focus();"
+          <button type="button"
+            data-opt-da="${escapeHtml(opt.da)}"
+            data-opt-en="${escapeHtml(opt.en)}"
+            onclick="(function(btn){ var lang = document.documentElement.getAttribute('data-lang') || 'da'; var v = btn.getAttribute('data-opt-' + lang) || ''; var el = document.getElementById('answer'); el.value = v; el.focus(); })(this);"
             class="text-sm bg-paper-100 hover:bg-accent-100 border border-paper-300 hover:border-accent-600 rounded-full px-3 py-1 text-ink-700 transition">
-            ${escapeHtml(opt)}
+            ${t(opt.da, opt.en)}
           </button>
         `).join('')}
       </div>
-      <p class="text-xs text-ink-500 mb-3">Klik et forslag eller skriv dit eget svar.</p>
     `
     : '';
 
   const errorBlock = error
-    ? `<div class="bg-bad-bg border border-bad-fg/30 text-bad-fg rounded-lg px-4 py-3 mb-4 text-sm">${escapeHtml(error)}</div>`
+    ? `<div class="bg-bad-bg border border-bad-fg/30 text-bad-fg rounded-lg px-4 py-3 mb-6 text-sm">${t(error.da, error.en)}</div>`
     : '';
 
   const body = `
-    <section class="max-w-xl mx-auto">
-      <div class="mb-6">
-        <div class="text-xs uppercase tracking-wider text-ink-500 mb-2">Spørgsmål ${stepNo} af ${totalSteps}</div>
-        <div class="h-1.5 bg-paper-200 rounded-full overflow-hidden">
-          <div class="h-full bg-accent-600 rounded-full transition-all" style="width: ${progress}%"></div>
+    <section class="max-w-2xl mx-auto">
+      <div class="mb-12">
+        <div class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-2">${t(`Spørgsmål ${stepNo} af ${totalSteps}`, `Question ${stepNo} of ${totalSteps}`)}</div>
+        <div class="h-px bg-paper-200 overflow-hidden">
+          <div class="h-full bg-accent-600 transition-all" style="width: ${progress}%"></div>
         </div>
       </div>
 
       ${teaching}
-
       ${errorBlock}
 
-      <form method="POST" action="/onboard" class="space-y-4">
+      <form method="POST" action="/onboard">
         <input type="hidden" name="step" value="${escapeHtml(result.nextStep || 'greet')}">
         <input type="hidden" name="state" value="${escapeHtml(result.state)}">
 
-        <label for="answer" class="block font-medium text-ink-900 text-lg leading-relaxed">
-          ${escapeHtml(result.question)}
-        </label>
+        <label for="answer" class="block font-serif text-xl md:text-2xl text-ink-900 leading-snug mb-5 whitespace-pre-wrap">${result.question ? t(result.question.da, result.question.en) : ''}</label>
 
         ${optionsChips}
 
-        <textarea
-          id="answer"
-          name="answer"
-          rows="${result.options.length > 0 ? 2 : 4}"
-          class="w-full bg-paper-50 border border-paper-300 focus:border-accent-600 focus:ring-2 focus:ring-accent-100 rounded-lg p-3 text-ink-900 placeholder-ink-300 font-sans resize-y transition"
-          placeholder="Skriv dit svar her..."
-          autofocus
-        ></textarea>
+        <div class="letter-lines-wrap">
+          <textarea
+            id="answer"
+            name="answer"
+            rows="1"
+            autocomplete="off"
+            autocorrect="on"
+            spellcheck="true"
+            class="letter-lines"
+            data-ph-da="skriv her"
+            data-ph-en="write here"
+            placeholder=""
+            autofocus
+          ></textarea>
+        </div>
+        <script>
+          (function() {
+            var el = document.getElementById('answer');
+            if (!el) return;
+            // Keep placeholder in sync with active language.
+            var applyPh = function() {
+              var lang = document.documentElement.getAttribute('data-lang') || 'da';
+              el.setAttribute('placeholder', el.getAttribute('data-ph-' + lang) || '');
+            };
+            applyPh();
+            document.addEventListener('DOMContentLoaded', applyPh);
+            var obs = new MutationObserver(applyPh);
+            obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-lang'] });
 
-        <div class="flex items-center justify-between pt-2">
-          <a href="/" class="text-sm text-ink-500 hover:text-ink-900 transition">Afbryd</a>
+            // Auto-grow: as the user writes, new ruled lines appear beneath.
+            var grow = function() {
+              el.style.height = 'auto';
+              el.style.height = el.scrollHeight + 'px';
+            };
+            el.addEventListener('input', grow);
+            // Also grow when an option-chip pre-fills the value programmatically.
+            var onFocus = function() { setTimeout(grow, 0); };
+            el.addEventListener('focus', onFocus);
+            // Initial sizing after the browser has laid out the textarea.
+            requestAnimationFrame(grow);
+            // Ctrl/Cmd+Enter submits; plain Enter makes a newline.
+            el.addEventListener('keydown', function(e) {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                if (el.form) el.form.requestSubmit();
+              }
+            });
+          })();
+        </script>
+        <style>
+          .letter-lines-wrap {
+            position: relative;
+            margin-bottom: 4px;
+          }
+          /* Ruled-paper effect: a dashed horizontal line sits at the bottom
+             of every line-height stripe. The SVG is stretched to fill each
+             stripe (preserveAspectRatio=none), placing its line just above
+             the next line's start — so each line of text gets its own rule
+             as the textarea grows. */
+          .letter-lines {
+            display: block;
+            width: 100%;
+            min-height: 2.9rem;
+            background: transparent;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='42' preserveAspectRatio='none'><line x1='0' y1='40' x2='40' y2='40' stroke='rgb(150,150,150)' stroke-width='1.5' stroke-dasharray='6 4' stroke-opacity='0.65'/></svg>");
+            background-size: 40px 2.9rem;
+            background-repeat: repeat;
+            background-position: 0 0.15rem;
+            border: 0;
+            outline: none;
+            resize: none;
+            overflow: hidden;
+            padding: 0;
+            font-family: var(--font-serif, Georgia, 'Times New Roman', serif);
+            font-style: italic;
+            font-size: 1.75rem;
+            line-height: 2.9rem;
+            color: var(--c-ink-900, inherit);
+            caret-color: var(--c-accent-600, #EC5329);
+            transition: background-image 150ms ease;
+          }
+          .letter-lines::placeholder {
+            color: var(--c-ink-400, rgba(150,150,150,0.45));
+            font-style: italic;
+          }
+          .letter-lines:focus {
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='42' preserveAspectRatio='none'><line x1='0' y1='40' x2='40' y2='40' stroke='rgb(236,83,41)' stroke-width='2' stroke-dasharray='6 4'/></svg>");
+          }
+        </style>
+
+        <div class="flex items-center justify-end pt-10">
           <button type="submit"
-            class="bg-accent-600 hover:bg-accent-500 text-white font-medium px-5 py-2 rounded-lg transition">
-            Næste →
+            class="bg-accent-600 hover:bg-accent-500 text-white font-medium px-6 py-2.5 rounded-lg transition">
+            ${t('Næste →', 'Next →')}
+          </button>
+        </div>
+      </form>
+    </section>
+  `;
+
+  return page('Opstart', body, 'oversigt');
+}
+
+// ----------------------------------------------------------------------------
+// Welcome screen — pure letter, no question, no input, single "Ready" button.
+// The POST carries a hidden answer="ready" so the server's empty-answer guard
+// doesn't fire and stepWelcome advances to the name question.
+// ----------------------------------------------------------------------------
+function renderOnboardWelcome(result: OnboardResult): string {
+  const teaching = result.teaching
+    ? `<div class="font-serif text-xl md:text-2xl text-ink-700 leading-relaxed mb-10 whitespace-pre-wrap">${t(result.teaching.da, result.teaching.en)}</div>`
+    : '';
+
+  const body = `
+    <section class="max-w-2xl mx-auto">
+      <p class="font-serif italic text-5xl md:text-6xl text-ink-900 leading-tight mb-10">
+        ${t('Hej', 'Hi')}
+      </p>
+
+      ${teaching}
+
+      <form method="POST" action="/onboard">
+        <input type="hidden" name="step" value="welcome">
+        <input type="hidden" name="state" value="${escapeHtml(result.state)}">
+        <input type="hidden" name="answer" value="ready">
+
+        <div class="flex items-center justify-end pt-4">
+          <button type="submit"
+            class="bg-accent-600 hover:bg-accent-500 text-white font-medium px-6 py-2.5 rounded-lg transition">
+            ${t('Klar →', 'Ready →')}
           </button>
         </div>
       </form>
@@ -1758,7 +1986,7 @@ function renderOnboardForm(result: OnboardResult, error?: string): string {
 
 function stepNumberFromResult(result: OnboardResult): number {
   const map: Record<string, number> = {
-    greet: 1, intro: 2, work: 3, data: 4, cadence: 5, plan: 5,
+    welcome: 1, greet: 1, intro: 2, work: 3, data: 4, cadence: 5, audience: 6, plan: 6,
   };
   if (result.nextStep && result.nextStep !== result.step && result.nextStep !== 'plan') {
     return map[result.nextStep] || 1;
@@ -1766,25 +1994,124 @@ function stepNumberFromResult(result: OnboardResult): number {
   return map[result.step] || 1;
 }
 
-function renderOnboardDone(plan: string): string {
-  const rendered = renderMarkdown(plan);
-  return page('Færdig!', `
-    <section>
-      <div class="text-center mb-8">
-        <div class="text-5xl mb-3">💌</div>
-        <h1 class="text-3xl font-semibold mb-2">Færdig — tak!</h1>
-        <p class="text-ink-500">Jeg har gemt dine svar. Din plan er klar nedenfor.</p>
+function renderOnboardDone(result: OnboardResult): string {
+  const name = (result.state && (() => {
+    try {
+      const s = JSON.parse(Buffer.from(result.state, 'base64').toString('utf-8'));
+      return s?.name || null;
+    } catch { return null; }
+  })()) as string | null;
+
+  const greetingName = name ? `, ${name}` : '';
+
+  const step = (s: { ok: boolean; title: { da: string; en: string }; detail?: string }) => {
+    const icon = s.ok
+      ? `<span class="text-emerald-500 font-bold mr-2" aria-hidden="true">✓</span>`
+      : `<span class="text-amber-500 font-bold mr-2" aria-hidden="true">⚠</span>`;
+    const detail = !s.ok && s.detail
+      ? `<span class="text-ink-500 text-sm block mt-1 pl-6">${escapeHtml(s.detail)}</span>`
+      : '';
+    return `<li class="flex items-start">${icon}<span>${t(s.title.da, s.title.en)}</span>${detail}</li>`;
+  };
+
+  const installList = (result.installSteps && result.installSteps.length > 0)
+    ? `
+      <div class="mb-12">
+        <h2 class="font-serif text-xl text-ink-900 mb-4">${t('Hvad jeg har ordnet', 'What I took care of')}</h2>
+        <ul class="space-y-2 text-ink-700 text-lg leading-relaxed">
+          ${result.installSteps.map(step).join('')}
+        </ul>
       </div>
-      <div class="letter-prose bg-paper-100 border border-paper-200 rounded-xl p-6">
-        ${rendered}
+    `
+    : '';
+
+  // Clipboard-copy block for a single prompt.
+  const copyBlock = (promptDa: string, promptEn: string, labelDa: string, labelEn: string) => `
+    <div class="mb-4">
+      <p class="text-sm text-ink-500 mb-2">${t(labelDa, labelEn)}</p>
+      <div class="flex items-stretch gap-2">
+        <pre class="flex-1 font-serif italic text-base leading-relaxed text-ink-900 bg-paper-100 border border-paper-200 rounded-lg p-3 whitespace-pre-wrap">${t(promptDa, promptEn)}</pre>
+        <button type="button"
+          onclick="(function(btn){ var lang = document.documentElement.getAttribute('data-lang') || 'da'; var txt = btn.getAttribute('data-txt-' + lang); navigator.clipboard.writeText(txt).then(function(){ btn.textContent = btn.getAttribute('data-done-' + lang); setTimeout(function(){ btn.textContent = btn.getAttribute('data-copy-' + lang); }, 1500); }); })(this);"
+          data-txt-da="${escapeHtml(promptDa)}"
+          data-txt-en="${escapeHtml(promptEn)}"
+          data-copy-da="Kopiér"
+          data-copy-en="Copy"
+          data-done-da="Kopieret"
+          data-done-en="Copied"
+          class="bg-accent-600 hover:bg-accent-500 text-white font-medium text-sm px-4 rounded-lg transition">Kopiér</button>
       </div>
-      <div class="mt-8 text-center">
-        <a href="/" class="inline-block bg-accent-600 hover:bg-accent-500 text-white font-medium px-5 py-2 rounded-lg transition">
-          Gå til forsiden
-        </a>
+    </div>
+  `;
+
+  const needsSetup = (result.platformStatus || []).filter(p => p.state === 'needs-setup');
+  const connected = (result.platformStatus || []).filter(p => p.state === 'connected');
+
+  const platformBlock = (result.platformStatus && result.platformStatus.length > 0)
+    ? `
+      <div class="mb-12">
+        <h2 class="font-serif text-xl text-ink-900 mb-2">${t('Jeg fandt også disse i dine projekter', 'I also found these in your projects')}</h2>
+        <p class="text-ink-500 text-sm mb-5">${t('Kopiér sætningen og send til din agent — den ordner resten.', 'Copy the sentence and send it to your agent — it takes care of the rest.')}</p>
+        ${connected.length > 0 ? `
+          <ul class="space-y-1 text-ink-700 mb-4">
+            ${connected.map(p => `<li class="flex items-start"><span class="text-emerald-500 font-bold mr-2" aria-hidden="true">✓</span><span>${escapeHtml(p.label)} — ${t('forbundet', 'connected')}</span></li>`).join('')}
+          </ul>
+        ` : ''}
+        ${needsSetup.map(p => p.prompt ? `
+          <div class="mb-5">
+            <p class="text-ink-900 font-medium mb-2">${escapeHtml(p.label)}</p>
+            ${copyBlock(p.prompt.da, p.prompt.en, 'Send til din agent:', 'Send to your agent:')}
+          </div>
+        ` : '').join('')}
+      </div>
+    `
+    : '';
+
+  const scheduledBlock = result.scheduledPrompt
+    ? `
+      <div class="mb-12">
+        <h2 class="font-serif text-xl text-ink-900 mb-2">${t('Din rutine', 'Your routine')}</h2>
+        <p class="text-ink-500 text-sm mb-4">${t('Så du får automatiske breve i den rytme du ønskede.', 'So you get automatic letters at the rhythm you wanted.')}</p>
+        ${copyBlock(result.scheduledPrompt.da, result.scheduledPrompt.en, 'Send til din agent:', 'Send to your agent:')}
+      </div>
+    `
+    : '';
+
+  const body = `
+    <section class="max-w-2xl mx-auto">
+      <p class="font-serif italic text-5xl md:text-6xl text-ink-900 leading-tight mb-8">
+        ${t(`Tak${greetingName}`, `Thank you${greetingName}`)}
+      </p>
+
+      <div class="font-serif text-xl md:text-2xl text-ink-700 leading-relaxed mb-12 whitespace-pre-wrap">
+        ${t(
+          'Jeg har sat det grundlæggende op for dig. Jeg lærer dig bedre at kende efterhånden — de første breve er generelle, efter et par uger begynder de at ramme mere præcist.',
+          'I\'ve taken care of the basics. I\'ll get to know you better over time — the first letters are general, after a few weeks they\'ll start landing more precisely.',
+        )}
+      </div>
+
+      ${installList}
+      ${platformBlock}
+      ${scheduledBlock}
+
+      <div class="mb-12">
+        <h2 class="font-serif text-xl text-ink-900 mb-3">${t('Næste skridt', 'Next step')}</h2>
+        <p class="text-ink-700 text-lg leading-relaxed mb-4">
+          ${t(
+            'Åbn Claude Code og skriv <code class="font-mono text-base bg-paper-100 px-1.5 py-0.5 rounded">/dearuser-collab</code>. Så sender jeg mit første brev om hvordan du og din agent arbejder sammen.',
+            'Open Claude Code and type <code class="font-mono text-base bg-paper-100 px-1.5 py-0.5 rounded">/dearuser-collab</code>. Then I\'ll send my first letter about how you and your agent are working together.',
+          )}
+        </p>
+      </div>
+
+      <div class="flex justify-between items-center pt-8 border-t border-paper-200">
+        <a href="/" class="text-ink-500 hover:text-ink-900 transition">${t('← Forsiden', '← Home')}</a>
+        <div class="opacity-80">${signature()}</div>
       </div>
     </section>
-  `, 'oversigt');
+  `;
+
+  return page('Opstart færdig', body, 'oversigt');
 }
 
 // ============================================================================
@@ -1811,37 +2138,41 @@ function renderProfil(): string {
   const persona = report?.persona?.archetypeName || report?.persona?.detected || null;
   const personaBlurb = report?.persona?.archetypeDescription || null;
 
-  const roleLabel: Record<string, string> = {
-    coder: 'Udvikler',
-    occasional: 'Blander kode og no-code',
-    non_coder: 'Ikke-udvikler',
+  const cadenceLabel: Record<string, LocalizedString> = {
+    daily: { da: 'Dagligt', en: 'Daily' },
+    weekly: { da: 'Ugentligt', en: 'Weekly' },
+    'on-demand': { da: 'Når der er behov', en: 'On demand' },
+    event: { da: 'Ved bestemte begivenheder', en: 'At specific events' },
   };
-  const cadenceLabel: Record<string, string> = {
-    daily: 'Dagligt',
-    weekly: 'Ugentligt',
-    'on-demand': 'Når der er behov',
-    event: 'Ved bestemte begivenheder',
-  };
-  const audienceLabel: Record<string, string> = {
-    self: 'Mig selv',
-    team: 'Mit team',
-    customers: 'Mine kunder',
+  const audienceLabel: Record<string, LocalizedString> = {
+    self: { da: 'Mig selv', en: 'Myself' },
+    team: { da: 'Mit team', en: 'My team' },
+    customers: { da: 'Mine kunder', en: 'My customers' },
   };
 
-  const row = (label: string, value: string | null | undefined, placeholder = 'Ikke sat') => `
+  const row = (
+    label: LocalizedString,
+    value: string | LocalizedString | null | undefined,
+  ) => {
+    const placeholder = `<span class="text-ink-300 italic">${t('Ikke sat', 'Not set')}</span>`;
+    const valueHtml = value
+      ? (typeof value === 'string' ? escapeHtml(value) : tBi(value))
+      : placeholder;
+    return `
     <div class="py-5 grid grid-cols-[180px_1fr] gap-6 border-b border-paper-200">
-      <div class="text-[11px] uppercase tracking-[0.15em] text-ink-500 pt-1">${escapeHtml(label)}</div>
-      <div class="text-ink-900">${value ? escapeHtml(value) : `<span class="text-ink-300 italic">${placeholder}</span>`}</div>
+      <div class="text-[11px] uppercase tracking-[0.15em] text-ink-500 pt-1">${tBi(label)}</div>
+      <div class="text-ink-900">${valueHtml}</div>
     </div>
   `;
+  };
 
   const archetypeBlock = persona ? `
     <section class="mt-16">
-      <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-4">Din arketype</h2>
+      <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-4">${t('Din arketype', 'Your archetype')}</h2>
       <div class="bg-paper-100 rounded-xl p-6">
         <div class="flex items-center gap-2 mb-3">
           <span class="w-1.5 h-1.5 rounded-full bg-action-600"></span>
-          <span class="text-[11px] uppercase tracking-[0.15em] text-action-600">Baseret på seneste rapport</span>
+          <span class="text-[11px] uppercase tracking-[0.15em] text-action-600">${t('Baseret på seneste rapport', 'Based on the latest report')}</span>
         </div>
         <h3 class="font-serif italic text-3xl text-ink-900 mb-3">${escapeHtml(persona)}</h3>
         ${personaBlurb ? `<p class="text-ink-700 leading-relaxed max-w-xl">${escapeHtml(personaBlurb)}</p>` : ''}
@@ -1849,9 +2180,12 @@ function renderProfil(): string {
     </section>
   ` : `
     <section class="mt-16">
-      <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-4">Din arketype</h2>
+      <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-4">${t('Din arketype', 'Your archetype')}</h2>
       <div class="bg-paper-100 rounded-xl p-6">
-        <p class="text-ink-500 leading-relaxed">Jeg har ikke nok til at kende dig endnu. Bed mig om en <span class="italic">samarbejds-rapport</span>, så finder jeg din arketype.</p>
+        <p class="text-ink-500 leading-relaxed">${t(
+          'Jeg har ikke nok til at kende dig endnu. Bed mig om en samarbejds-rapport, så finder jeg din arketype.',
+          "I don't have enough to know you yet. Ask me for a collaboration report and I'll figure out your archetype.",
+        )}</p>
       </div>
     </section>
   `;
@@ -1859,27 +2193,31 @@ function renderProfil(): string {
   return page('Profil', `
     ${pageDateStrip()}
     <section>
-      <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">Dig og mig</h1>
-      <p class="font-serif text-xl text-ink-700 leading-snug max-w-xl">Her er hvad jeg ved om dig, og hvordan vi arbejder sammen. Ret den i din <span class="italic">config.json</span> eller kør onboarding igen.</p>
+      <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">${t('Dig og mig', 'You and me')}</h1>
+      <p class="font-serif text-xl text-ink-700 leading-snug max-w-xl">${t(
+        'Her er hvad jeg ved om dig, og hvordan vi arbejder sammen. Ret den i din config.json eller kør onboarding igen.',
+        'Here is what I know about you, and how we work together. Edit it in your config.json or run onboarding again.',
+      )}</p>
     </section>
 
     <section class="mt-14">
-      <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-2">Hvem vi er</h2>
+      <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-2">${t('Hvem vi er', 'Who we are')}</h2>
       <div>
-        ${row('Dit navn', userName)}
-        ${row('Mit navn', agentName)}
+        ${row({ da: 'Dit navn', en: 'Your name' }, userName)}
+        ${row({ da: 'Mit navn', en: 'My name' }, agentName)}
       </div>
     </section>
 
     ${archetypeBlock}
 
     <section class="mt-16">
-      <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-2">Hvordan du arbejder</h2>
+      <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-2">${t('Hvad du fortalte mig', 'What you told me')}</h2>
       <div>
-        ${row('Rolle', prefs.role ? roleLabel[prefs.role] : null)}
-        ${row('Kadence', prefs.cadence ? cadenceLabel[prefs.cadence] : null)}
-        ${row('Arbejder for', prefs.audience ? audienceLabel[prefs.audience] : null)}
-        ${row('Stack', prefs.stack && prefs.stack.length > 0 ? prefs.stack.join(', ') : null)}
+        ${row({ da: 'Hvad du arbejder med', en: 'What you work with' }, prefs.work)}
+        ${row({ da: 'Hvad der føles som spildt tid', en: "What feels like wasted time" }, prefs.pains)}
+        ${row({ da: 'Hvor dine ting ligger', en: 'Where your things live' }, prefs.dataDescription)}
+        ${row({ da: 'Kadence', en: 'Cadence' }, prefs.cadence ? cadenceLabel[prefs.cadence] : null)}
+        ${row({ da: 'Arbejder for', en: 'Working for' }, prefs.audience ? audienceLabel[prefs.audience] : null)}
       </div>
     </section>
 
@@ -1911,21 +2249,25 @@ export function createApp(): Hono {
     // Empty submission — re-render the same step with a gentle nudge.
     if (!answer) {
       const current = runOnboard({ step, state });
-      return c.html(renderOnboardForm(current, 'Skriv dit svar før du går videre.'));
+      return c.html(renderOnboardForm(current, { da: 'Skriv dit svar før du går videre.', en: 'Write your answer before you continue.' }));
     }
 
     try {
       const result = runOnboard({ step, answer, state });
-      if (result.done && result.plan) {
-        // runOnboard's stepPlan already writes the config (via its own
-        // writeConfigTemplate). Nothing more to persist here.
-        return c.html(renderOnboardDone(result.plan));
+      if (result.done) {
+        // runOnboard's stepPlan handles all filesystem writes (config,
+        // skills, CLAUDE.md, hooks, shell env) and attaches structured
+        // results to the OnboardResult so the done screen can render them.
+        return c.html(renderOnboardDone(result));
       }
       return c.html(renderOnboardForm(result));
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const reset = runOnboard({});
-      return c.html(renderOnboardForm(reset, `Noget gik galt: ${msg}. Vi starter forfra.`));
+      return c.html(renderOnboardForm(reset, {
+        da: `Noget gik galt: ${msg}. Vi starter forfra.`,
+        en: `Something went wrong: ${msg}. Starting over.`,
+      }));
     }
   });
 

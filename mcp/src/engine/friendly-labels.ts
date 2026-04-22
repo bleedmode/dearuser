@@ -1,23 +1,20 @@
 // friendly-labels.ts — single source of truth for explaining Dear User's
-// recommendations in plain Danish that the Lovable audience can understand.
+// recommendations in plain language that the Lovable audience can understand.
+// Bilingual (DA/EN) — every callsite pulls both variants and wraps them in
+// the shared `t(da, en)` helper so the active language renders.
 //
 // Every consumer (dashboard cards, chat action menu, analyze report tool
 // section) should go through friendlyLabel() so the wording stays consistent.
-// Previously each surface reinvented its own copy and tool-recs (Firecrawl,
-// Vercel MCP, …) slipped through with just the raw technical name.
-//
-// Structure per label:
-//   title    — short Danish headline (falls back to original if unknown)
-//   summary  — "Hvad er det?" in one plain sentence
-//   benefit  — "Hvad bliver bedre?" — what the user actually gains
-//
-// Any of the three can be undefined for unknown titles; callers should
-// show whatever exists and omit missing lines.
+
+export interface LocalizedString {
+  da: string;
+  en: string;
+}
 
 export interface FriendlyLabel {
-  title: string;
-  summary?: string;
-  benefit?: string;
+  title: LocalizedString;
+  summary?: LocalizedString;
+  benefit?: LocalizedString;
 }
 
 interface LabelRule {
@@ -33,89 +30,188 @@ const NARRATIVE_RULES: LabelRule[] = [
   {
     match: /enable agent memory/i,
     label: {
-      title: 'Lad din assistent huske dine rettelser',
-      summary: 'Når du retter din assistent, kan rettelsen gemmes så den ikke gentages.',
-      benefit: 'Du skal ikke forklare det samme igen og igen, hver gang I starter forfra.',
+      title: {
+        da: 'Lad din assistent huske dine rettelser',
+        en: 'Let your assistant remember your corrections',
+      },
+      summary: {
+        da: 'Når du retter din assistent, kan rettelsen gemmes så den ikke gentages.',
+        en: "When you correct your assistant, the correction can be saved so it doesn't happen again.",
+      },
+      benefit: {
+        da: 'Du skal ikke forklare det samme igen og igen, hver gang I starter forfra.',
+        en: "You don't have to explain the same thing over and over every time you start fresh.",
+      },
     },
   },
   {
     match: /add quality hooks/i,
     label: {
-      title: 'Fang fejl automatisk mens du arbejder',
-      summary: 'Dit system kan køre en hurtig kontrol hver gang en fil ændres.',
-      benefit: 'Du opdager problemer med det samme — ikke først når noget går galt senere.',
+      title: {
+        da: 'Fang fejl automatisk mens du arbejder',
+        en: 'Catch mistakes automatically while you work',
+      },
+      summary: {
+        da: 'Dit system kan køre en hurtig kontrol hver gang en fil ændres.',
+        en: 'Your system can run a quick check every time a file changes.',
+      },
+      benefit: {
+        da: 'Du opdager problemer med det samme — ikke først når noget går galt senere.',
+        en: 'You spot problems right away — not only once something goes wrong later.',
+      },
     },
   },
   {
     match: /wrap .+ in an mcp server/i,
     label: {
-      title: 'Gør dit script til et værktøj din assistent kan bruge',
-      summary: 'Scripts du kører manuelt kan pakkes ind så assistenten kalder dem selv.',
-      benefit: 'Du slipper for at kopiere kommandoer frem og tilbage — assistenten gør det direkte.',
+      title: {
+        da: 'Gør dit script til et værktøj din assistent kan bruge',
+        en: 'Turn your script into a tool your assistant can use',
+      },
+      summary: {
+        da: 'Scripts du kører manuelt kan pakkes ind så assistenten kalder dem selv.',
+        en: 'Scripts you run manually can be wrapped so your assistant calls them itself.',
+      },
+      benefit: {
+        da: 'Du slipper for at kopiere kommandoer frem og tilbage — assistenten gør det direkte.',
+        en: 'You skip copying commands back and forth — the assistant does it directly.',
+      },
     },
   },
   {
     match: /catch scope creep/i,
     label: {
-      title: 'Stop med at lave mere end aftalt',
-      summary: 'Nævn det når assistenten begynder at lave ekstra ting udover det du bad om.',
-      benefit: 'Du bruger mindre tid på at rydde op i uventede ændringer og får hurtigere det du faktisk ville have.',
+      title: {
+        da: 'Stop med at lave mere end aftalt',
+        en: 'Stop doing more than agreed',
+      },
+      summary: {
+        da: 'Nævn det når assistenten begynder at lave ekstra ting udover det du bad om.',
+        en: "Call it out when the assistant starts doing extras beyond what you asked for.",
+      },
+      benefit: {
+        da: 'Du bruger mindre tid på at rydde op i uventede ændringer og får hurtigere det du faktisk ville have.',
+        en: 'You spend less time cleaning up unexpected changes and get what you actually wanted faster.',
+      },
     },
   },
   {
     match: /don.?t accept .it should work|demand verification/i,
     label: {
-      title: 'Bed altid om bevis for at det virker',
-      summary: 'I stedet for at stole på "det burde virke": bed om et konkret tjek eller test.',
-      benefit: 'Færre tilbageslag fordi problemer fanges mens de er små — ikke efter deploy.',
+      title: {
+        da: 'Bed altid om bevis for at det virker',
+        en: 'Always ask for proof that it works',
+      },
+      summary: {
+        da: 'I stedet for at stole på "det burde virke": bed om et konkret tjek eller test.',
+        en: 'Instead of trusting "it should work": ask for a concrete check or test.',
+      },
+      benefit: {
+        da: 'Færre tilbageslag fordi problemer fanges mens de er små — ikke efter deploy.',
+        en: 'Fewer setbacks because problems are caught while small — not after deploy.',
+      },
     },
   },
   {
     match: /calibrate the ask\/do line/i,
     label: {
-      title: 'Aftal hvornår assistenten må handle selv',
-      summary: 'Skriv ned hvad assistenten må gøre uden at spørge, og hvad den skal spørge om først.',
-      benefit: 'Du behøver ikke forklare det forfra hver gang — og du undgår overraskelser.',
+      title: {
+        da: 'Aftal hvornår assistenten må handle selv',
+        en: 'Agree when the assistant may act on its own',
+      },
+      summary: {
+        da: 'Skriv ned hvad assistenten må gøre uden at spørge, og hvad den skal spørge om først.',
+        en: 'Write down what the assistant may do without asking, and what it must ask about first.',
+      },
+      benefit: {
+        da: 'Du behøver ikke forklare det forfra hver gang — og du undgår overraskelser.',
+        en: "You don't need to explain from scratch every time — and you avoid surprises.",
+      },
     },
   },
   {
     match: /name the tone mismatch/i,
     label: {
-      title: 'Sig til når tonen ikke passer',
-      summary: 'Hvis svaret føles for teknisk eller for fladt, sig det.',
-      benefit: 'Assistenten tilpasser sig, så du får svar på dit niveau fremover.',
+      title: {
+        da: 'Sig til når tonen ikke passer',
+        en: "Speak up when the tone isn't right",
+      },
+      summary: {
+        da: 'Hvis svaret føles for teknisk eller for fladt, sig det.',
+        en: "If the reply feels too technical or too flat, say so.",
+      },
+      benefit: {
+        da: 'Assistenten tilpasser sig, så du får svar på dit niveau fremover.',
+        en: 'The assistant adapts so you get answers at your level going forward.',
+      },
     },
   },
   {
     match: /upgrade repeating manual tasks/i,
     label: {
-      title: 'Automatiser de ting du laver igen og igen',
-      summary: 'Opgaver du gentager manuelt hver uge kan som regel køre af sig selv.',
-      benefit: 'Du vinder tid og laver færre fejl — computeren glemmer ikke et step.',
+      title: {
+        da: 'Automatiser de ting du laver igen og igen',
+        en: 'Automate the things you do over and over',
+      },
+      summary: {
+        da: 'Opgaver du gentager manuelt hver uge kan som regel køre af sig selv.',
+        en: 'Tasks you repeat manually each week can usually run themselves.',
+      },
+      benefit: {
+        da: 'Du vinder tid og laver færre fejl — computeren glemmer ikke et step.',
+        en: "You save time and make fewer mistakes — the computer doesn't forget a step.",
+      },
     },
   },
   {
     match: /^\d+ project.*uncommitted/i,
     label: {
-      title: 'Du har ting der ikke er gemt i Git',
-      summary: 'Nogle af dine filer er ændret men ikke gemt i din version-historik.',
-      benefit: 'Hvis din computer crasher nu, mister du arbejdet. Gem det så du har en kopi.',
+      title: {
+        da: 'Du har ting der ikke er gemt i Git',
+        en: "You have things that aren't saved in Git",
+      },
+      summary: {
+        da: 'Nogle af dine filer er ændret men ikke gemt i din version-historik.',
+        en: "Some of your files are changed but not saved to your version history.",
+      },
+      benefit: {
+        da: 'Hvis din computer crasher nu, mister du arbejdet. Gem det så du har en kopi.',
+        en: 'If your computer crashes now you lose the work. Save it so you have a copy.',
+      },
     },
   },
   {
     match: /stale project.*haven.?t been touched/i,
     label: {
-      title: 'Et projekt ligger og samler støv',
-      summary: 'Et af dine projekter er ikke blevet rørt i over 60 dage.',
-      benefit: 'Overvej om det skal genoptages eller arkiveres — du får mere fokus på det du faktisk arbejder med.',
+      title: {
+        da: 'Et projekt ligger og samler støv',
+        en: 'A project is gathering dust',
+      },
+      summary: {
+        da: 'Et af dine projekter er ikke blevet rørt i over 60 dage.',
+        en: "One of your projects hasn't been touched in over 60 days.",
+      },
+      benefit: {
+        da: 'Overvej om det skal genoptages eller arkiveres — du får mere fokus på det du faktisk arbejder med.',
+        en: 'Consider whether to resume or archive it — you get more focus on what you actually work on.',
+      },
     },
   },
   {
     match: /show repeated .fix again. commits/i,
     label: {
-      title: 'Du fixer det samme flere gange',
-      summary: 'Der er tegn på at samme problem fixes igen og igen.',
-      benefit: 'Typisk betyder det at noget er uklart — enten koden eller instruktionen til assistenten. Løs det én gang og spar mange gentagelser.',
+      title: {
+        da: 'Du fixer det samme flere gange',
+        en: "You're fixing the same thing multiple times",
+      },
+      summary: {
+        da: 'Der er tegn på at samme problem fixes igen og igen.',
+        en: 'There are signs the same problem is being fixed again and again.',
+      },
+      benefit: {
+        da: 'Typisk betyder det at noget er uklart — enten koden eller instruktionen til assistenten. Løs det én gang og spar mange gentagelser.',
+        en: 'Usually it means something is unclear — either the code or the instructions to the assistant. Fix it once and save many repeats.',
+      },
     },
   },
 ];
@@ -128,81 +224,171 @@ const TOOL_RULES: LabelRule[] = [
   {
     match: /^firecrawl$/i,
     label: {
-      title: 'Firecrawl — din assistent kan læse hjemmesider',
-      summary: 'En web-skraber der lader din assistent læse indholdet af en hjemmeside pænt formateret.',
-      benefit: 'Du slipper for at kopiere og indsætte fra artikler, dokumentation eller produktsider — din assistent kan læse dem selv.',
+      title: {
+        da: 'Firecrawl — din assistent kan læse hjemmesider',
+        en: 'Firecrawl — your assistant can read websites',
+      },
+      summary: {
+        da: 'En web-skraber der lader din assistent læse indholdet af en hjemmeside pænt formateret.',
+        en: 'A web scraper that lets your assistant read a website neatly formatted.',
+      },
+      benefit: {
+        da: 'Du slipper for at kopiere og indsætte fra artikler, dokumentation eller produktsider — din assistent kan læse dem selv.',
+        en: 'You skip copy-pasting from articles, docs or product pages — your assistant can read them itself.',
+      },
     },
   },
   {
     match: /^exa search$/i,
     label: {
-      title: 'Exa Search — bedre søgeresultater til din assistent',
-      summary: 'Et søgesystem lavet specifikt til AI-assistenter, hurtigere og mere præcist end almindelig web-søgning.',
-      benefit: 'Din assistent finder præcise svar på faglige spørgsmål og relevante referencer hurtigere.',
+      title: {
+        da: 'Exa Search — bedre søgeresultater til din assistent',
+        en: 'Exa Search — better search results for your assistant',
+      },
+      summary: {
+        da: 'Et søgesystem lavet specifikt til AI-assistenter, hurtigere og mere præcist end almindelig web-søgning.',
+        en: 'A search system built specifically for AI assistants, faster and more precise than regular web search.',
+      },
+      benefit: {
+        da: 'Din assistent finder præcise svar på faglige spørgsmål og relevante referencer hurtigere.',
+        en: 'Your assistant finds precise answers and relevant references faster.',
+      },
     },
   },
   {
     match: /^vercel mcp$/i,
     label: {
-      title: 'Vercel MCP — styr din Vercel-konto fra assistenten',
-      summary: 'Forbinder din assistent med din Vercel-konto, hvor dine hjemmesider og apps bor.',
-      benefit: 'Du kan deploye, tjekke status eller finde fejl uden at åbne Vercel-dashboardet selv.',
+      title: {
+        da: 'Vercel MCP — styr din Vercel-konto fra assistenten',
+        en: 'Vercel MCP — control your Vercel account from the assistant',
+      },
+      summary: {
+        da: 'Forbinder din assistent med din Vercel-konto, hvor dine hjemmesider og apps bor.',
+        en: 'Connects your assistant to your Vercel account, where your sites and apps live.',
+      },
+      benefit: {
+        da: 'Du kan deploye, tjekke status eller finde fejl uden at åbne Vercel-dashboardet selv.',
+        en: 'You can deploy, check status or find errors without opening the Vercel dashboard yourself.',
+      },
     },
   },
   {
     match: /^context7$/i,
     label: {
-      title: 'Context7 — opdateret dokumentation til din assistent',
-      summary: 'Giver din assistent adgang til den nyeste dokumentation for kode-biblioteker.',
-      benefit: 'Stopper med at gætte på kommandoer og bruger den rigtige syntaks fra første forsøg.',
+      title: {
+        da: 'Context7 — opdateret dokumentation til din assistent',
+        en: 'Context7 — up-to-date documentation for your assistant',
+      },
+      summary: {
+        da: 'Giver din assistent adgang til den nyeste dokumentation for kode-biblioteker.',
+        en: 'Gives your assistant access to the latest documentation for code libraries.',
+      },
+      benefit: {
+        da: 'Stopper med at gætte på kommandoer og bruger den rigtige syntaks fra første forsøg.',
+        en: 'Stops guessing commands and uses the right syntax on the first try.',
+      },
     },
   },
   {
     match: /^auto-build after edit$/i,
     label: {
-      title: 'Automatisk tjek efter redigering',
-      summary: 'Kører en hurtig kontrol hver gang din assistent ændrer en fil.',
-      benefit: 'Du opdager fejl med det samme i stedet for først når du skal bruge resultatet.',
+      title: {
+        da: 'Automatisk tjek efter redigering',
+        en: 'Automatic check after editing',
+      },
+      summary: {
+        da: 'Kører en hurtig kontrol hver gang din assistent ændrer en fil.',
+        en: 'Runs a quick check every time your assistant changes a file.',
+      },
+      benefit: {
+        da: 'Du opdager fejl med det samme i stedet for først når du skal bruge resultatet.',
+        en: 'You spot mistakes right away instead of only when you need the result.',
+      },
     },
   },
   {
     match: /^claude-code-prompt-improver$/i,
     label: {
-      title: 'Prompt-hjælper',
-      summary: 'Fanger uklare instruktioner før din assistent går i gang med arbejdet.',
-      benefit: 'Du får bedre svar fordi assistenten beder dig præcisere, hvis noget er tvetydigt.',
+      title: {
+        da: 'Prompt-hjælper',
+        en: 'Prompt helper',
+      },
+      summary: {
+        da: 'Fanger uklare instruktioner før din assistent går i gang med arbejdet.',
+        en: 'Catches unclear instructions before your assistant starts the work.',
+      },
+      benefit: {
+        da: 'Du får bedre svar fordi assistenten beder dig præcisere, hvis noget er tvetydigt.',
+        en: 'You get better answers because the assistant asks you to clarify if something is ambiguous.',
+      },
     },
   },
   {
     match: /^playwright$/i,
     label: {
-      title: 'Playwright — lad din assistent teste hjemmesider',
-      summary: 'Din assistent kan åbne en browser, klikke rundt og tjekke om din hjemmeside virker.',
-      benefit: 'Du slipper for at teste manuelt efter hver ændring.',
+      title: {
+        da: 'Playwright — lad din assistent teste hjemmesider',
+        en: 'Playwright — let your assistant test websites',
+      },
+      summary: {
+        da: 'Din assistent kan åbne en browser, klikke rundt og tjekke om din hjemmeside virker.',
+        en: 'Your assistant can open a browser, click around and check whether your site works.',
+      },
+      benefit: {
+        da: 'Du slipper for at teste manuelt efter hver ændring.',
+        en: 'You skip testing manually after every change.',
+      },
     },
   },
   {
     match: /^github( mcp)?$/i,
     label: {
-      title: 'GitHub — din assistent kan arbejde direkte i dine projekter',
-      summary: 'Forbinder din assistent med GitHub, hvor koden ligger.',
-      benefit: 'Din assistent kan læse issues, lave pull requests og gennemse ændringer uden at du skifter værktøj.',
+      title: {
+        da: 'GitHub — din assistent kan arbejde direkte i dine projekter',
+        en: 'GitHub — your assistant can work directly in your projects',
+      },
+      summary: {
+        da: 'Forbinder din assistent med GitHub, hvor koden ligger.',
+        en: 'Connects your assistant to GitHub, where the code lives.',
+      },
+      benefit: {
+        da: 'Din assistent kan læse issues, lave pull requests og gennemse ændringer uden at du skifter værktøj.',
+        en: 'Your assistant can read issues, open pull requests and review changes without you switching tools.',
+      },
     },
   },
   {
     match: /^supabase( mcp)?$/i,
     label: {
-      title: 'Supabase — assistenten kan arbejde med din database',
-      summary: 'Forbinder din assistent med din Supabase-database.',
-      benefit: 'Spørgsmål om data kan besvares direkte — assistenten slår op i stedet for at gætte.',
+      title: {
+        da: 'Supabase — assistenten kan arbejde med din database',
+        en: 'Supabase — the assistant can work with your database',
+      },
+      summary: {
+        da: 'Forbinder din assistent med din Supabase-database.',
+        en: 'Connects your assistant to your Supabase database.',
+      },
+      benefit: {
+        da: 'Spørgsmål om data kan besvares direkte — assistenten slår op i stedet for at gætte.',
+        en: 'Questions about data can be answered directly — the assistant looks them up instead of guessing.',
+      },
     },
   },
   {
     match: /^notion( mcp)?$/i,
     label: {
-      title: 'Notion — din assistent kan læse og skrive i dine sider',
-      summary: 'Forbinder din assistent med dine Notion-sider og databaser.',
-      benefit: 'Dine noter, dokumenter og tracker-sider er tilgængelige for assistenten uden copy-paste.',
+      title: {
+        da: 'Notion — din assistent kan læse og skrive i dine sider',
+        en: 'Notion — your assistant can read and write your pages',
+      },
+      summary: {
+        da: 'Forbinder din assistent med dine Notion-sider og databaser.',
+        en: 'Connects your assistant to your Notion pages and databases.',
+      },
+      benefit: {
+        da: 'Dine noter, dokumenter og tracker-sider er tilgængelige for assistenten uden copy-paste.',
+        en: 'Your notes, documents and tracker pages are available to the assistant without copy-paste.',
+      },
     },
   },
 ];
@@ -212,16 +398,17 @@ const TOOL_RULES: LabelRule[] = [
 // ===========================================================================
 
 /**
- * Resolve a raw recommendation title into a Lovable-friendly label.
+ * Resolve a raw recommendation title into a Lovable-friendly bilingual label.
  * Callers should prefer the returned fields; for unknown titles we pass
- * the original title through and leave summary/benefit undefined so the
- * UI can decide how to handle the fallback (e.g. show the DB text_snippet).
+ * the original title through as both languages and leave summary/benefit
+ * undefined so the UI can decide how to handle the fallback.
  */
 export function friendlyLabel(title: string): FriendlyLabel {
   for (const rule of [...NARRATIVE_RULES, ...TOOL_RULES]) {
     if (rule.match.test(title)) return rule.label;
   }
   // Fallback: just the original title, stripped of backticks that confuse
-  // users reading the dashboard.
-  return { title: title.replace(/`/g, '') };
+  // users reading the dashboard. Same text for both languages.
+  const clean = title.replace(/`/g, '');
+  return { title: { da: clean, en: clean } };
 }
