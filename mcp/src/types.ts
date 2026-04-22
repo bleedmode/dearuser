@@ -366,6 +366,7 @@ export type LintCheckId =
   | 'mental_note'
   | 'ambiguous_pronoun'
   | 'compressible_padding'
+  | 'over_specified'
   // B. Document Structure (9)
   | 'file_too_long'
   | 'long_section_no_headers'
