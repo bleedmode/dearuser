@@ -620,8 +620,9 @@ function checkLongSections(content: string, file: string): LintFinding[] {
 /** B3. Empty sections — headers with no meaningful content. */
 // R4 (calibration study): these are structural / navigational headers that
 // conventionally have little or no prose directly under them — the content
-// arrives via sub-sections or bullet lists. Flagging them adds report noise
-// on 77 of 50 corpus files with zero real false-negative risk.
+// arrives via sub-sections or bullet lists. Flagging them added noise in
+// the v1 50-file corpus study (77 findings, zero real false-negative risk);
+// suppression still holds against the expanded v2 2,895-file corpus.
 const CONVENTION_SECTION_TITLES = /^(overview|introduction|getting started|project overview|table of contents|toc|contents|index)$/i;
 
 function checkEmptySections(content: string, file: string): LintFinding[] {
