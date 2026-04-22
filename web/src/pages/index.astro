@@ -1,7 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 ---
-<Layout title="Dear User — Your AI collaboration partner" active="home">
+<Layout title="Dear User — Audit din Claude Code-opsætning" active="home">
 
 <style>
   /* Hero ----------------------------------------------------------- */
@@ -11,7 +11,7 @@ import Layout from '../layouts/Layout.astro';
     justify-content: center;
     align-items: center;
     text-align: center;
-    padding: 88px 24px 96px;
+    padding: 88px 24px 80px;
     position: relative;
   }
   .hero-eyebrow {
@@ -39,13 +39,12 @@ import Layout from '../layouts/Layout.astro';
     font-size: clamp(17px, 1.7vw, 19px);
     color: var(--c-ink-700);
     line-height: 1.55;
-    max-width: 560px;
+    max-width: 620px;
     margin: 28px 0 36px;
   }
   .hero-sub p { margin: 0 0 12px; }
   .hero-sub p:last-child { margin-bottom: 0; }
 
-  /* Hero actions — primary install + secondary example link */
   .hero-actions {
     display: flex;
     flex-direction: column;
@@ -98,23 +97,24 @@ import Layout from '../layouts/Layout.astro';
   }
   .install:hover .copy { background: var(--c-action-100); color: var(--c-action-700); }
 
-  .hero-secondary {
-    margin-top: 20px;
-    font-size: 14px;
+  /* Quick-facts row under hero -------------------------------------- */
+  .hero-facts {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 22px 32px;
+    margin-top: 36px;
+    font-size: 13px;
     color: var(--c-ink-500);
   }
-  .hero-secondary a {
-    color: var(--c-ink-700);
-    text-decoration: none;
-    border-bottom: 1px solid var(--c-paper-300);
-    padding-bottom: 1px;
-    transition: color 0.15s, border-color 0.15s;
+  .hero-facts .dot {
+    color: var(--c-action-600);
+    margin-right: 8px;
   }
-  .hero-secondary a:hover { color: var(--c-action-600); border-color: var(--c-action-600); }
 
   /* Features grid --------------------------------------------------- */
   .features-section {
-    padding: 64px 0 40px;
+    padding: 72px 0 48px;
     border-top: 1px solid var(--c-paper-200);
   }
   .section-head {
@@ -147,13 +147,13 @@ import Layout from '../layouts/Layout.astro';
   }
   .features-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 20px;
     max-width: 1080px;
     margin: 0 auto;
     padding: 0 24px;
   }
-  @media (max-width: 760px) {
+  @media (max-width: 900px) {
     .features-grid { grid-template-columns: 1fr; }
   }
   .feature {
@@ -162,6 +162,8 @@ import Layout from '../layouts/Layout.astro';
     border-radius: 14px;
     padding: 28px;
     transition: border-color 0.15s, transform 0.15s;
+    display: flex;
+    flex-direction: column;
   }
   .feature:hover {
     border-color: var(--c-accent-500);
@@ -178,6 +180,7 @@ import Layout from '../layouts/Layout.astro';
     margin-bottom: 18px;
     background: var(--c-action-100);
     color: var(--c-action-700);
+    align-self: flex-start;
   }
   .feature h3 {
     font-family: 'Fraunces', Georgia, serif;
@@ -189,10 +192,29 @@ import Layout from '../layouts/Layout.astro';
     color: var(--c-ink-900);
   }
   .feature p {
-    margin: 0 0 18px;
+    margin: 0 0 16px;
     font-size: 15px;
     line-height: 1.55;
     color: var(--c-ink-700);
+  }
+  .feature ul {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 18px;
+    font-size: 14px;
+    color: var(--c-ink-700);
+    line-height: 1.55;
+  }
+  .feature ul li {
+    padding-left: 18px;
+    position: relative;
+    margin-bottom: 6px;
+  }
+  .feature ul li:before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--c-action-600);
   }
   .feature-cmd {
     display: inline-block;
@@ -203,8 +225,187 @@ import Layout from '../layouts/Layout.astro';
     color: var(--c-ink-700);
     padding: 7px 11px;
     border-radius: 6px;
+    margin-top: auto;
+    align-self: flex-start;
   }
   .feature-cmd .fn { color: var(--c-ink-900); }
+
+  /* "Also included" row (onboard/wrapped/history) ------------------- */
+  .also {
+    max-width: 1080px;
+    margin: 48px auto 0;
+    padding: 0 24px;
+  }
+  .also-title {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--c-ink-400);
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .also-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 760px) { .also-grid { grid-template-columns: 1fr; } }
+  .also-item {
+    background: var(--c-paper-50);
+    border: 1px solid var(--c-paper-200);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .also-item h4 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 17px;
+    margin: 0 0 4px;
+    color: var(--c-ink-900);
+  }
+  .also-item p {
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--c-ink-500);
+  }
+
+  /* Share section --------------------------------------------------- */
+  .share {
+    padding: 80px 0;
+    border-top: 1px solid var(--c-paper-200);
+  }
+  .share-inner {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+  @media (max-width: 900px) {
+    .share-inner { grid-template-columns: 1fr; gap: 32px; }
+  }
+  .share-copy h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: clamp(28px, 4vw, 40px);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    color: var(--c-ink-900);
+    margin: 0 0 16px;
+  }
+  .share-copy p {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--c-ink-700);
+    margin: 0 0 14px;
+  }
+  .share-copy .share-url {
+    display: inline-block;
+    font-family: 'Geist Mono', monospace;
+    font-size: 13.5px;
+    background: var(--c-paper-100);
+    border: 1px solid var(--c-paper-200);
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-top: 12px;
+    color: var(--c-ink-700);
+  }
+  .share-copy .share-url .path { color: var(--c-action-600); }
+  .share-note {
+    font-size: 13px;
+    color: var(--c-ink-500);
+    margin-top: 16px !important;
+    line-height: 1.55;
+  }
+
+  /* Share card mock ------------------------------------------------- */
+  .share-card-mock {
+    aspect-ratio: 1200 / 630;
+    border: 1px solid var(--c-paper-200);
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--c-paper-100) 0%, var(--c-paper-50) 100%);
+    padding: 36px 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 20px 40px -20px rgba(31, 26, 20, 0.15);
+  }
+  .share-card-mock .sc-mark {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-size: 18px;
+    color: var(--c-ink-900);
+  }
+  .share-card-mock .sc-mark svg { width: 22px; height: 22px; }
+  .share-card-mock .sc-body {
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
+  }
+  .share-card-mock .sc-score {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: clamp(56px, 11vw, 96px);
+    line-height: 1;
+    color: var(--c-action-600);
+    letter-spacing: -0.03em;
+  }
+  .share-card-mock .sc-score-unit {
+    font-family: 'Geist Mono', monospace;
+    font-size: 14px;
+    color: var(--c-ink-400);
+  }
+  .share-card-mock .sc-label {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-size: clamp(16px, 1.8vw, 20px);
+    color: var(--c-ink-700);
+    max-width: 60%;
+  }
+  .share-card-mock .sc-foot {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--c-ink-400);
+  }
+
+  /* Social proof placeholder --------------------------------------- */
+  .social-proof {
+    padding: 56px 24px;
+    border-top: 1px solid var(--c-paper-200);
+    text-align: center;
+  }
+  .social-proof .sp-label {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--c-ink-400);
+    margin-bottom: 20px;
+  }
+  .social-proof .sp-placeholder {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 28px 24px;
+    border: 1px dashed var(--c-paper-300);
+    border-radius: 12px;
+    color: var(--c-ink-500);
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-size: 16px;
+    line-height: 1.55;
+  }
 
   /* How it works ---------------------------------------------------- */
   .how {
@@ -259,36 +460,7 @@ import Layout from '../layouts/Layout.astro';
     word-break: break-all;
   }
 
-  /* Principles ------------------------------------------------------ */
-  .principles {
-    padding: 72px 0;
-    border-top: 1px solid var(--c-paper-200);
-    text-align: center;
-  }
-  .principle-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 28px;
-    max-width: 880px;
-    margin: 32px auto 0;
-    padding: 0 24px;
-  }
-  @media (max-width: 760px) { .principle-grid { grid-template-columns: 1fr; text-align: left; } }
-  .principle h5 {
-    font-family: 'Fraunces', Georgia, serif;
-    font-weight: 500;
-    font-size: 18px;
-    margin: 0 0 8px;
-    color: var(--c-ink-900);
-  }
-  .principle p {
-    margin: 0;
-    font-size: 14px;
-    color: var(--c-ink-500);
-    line-height: 1.55;
-  }
-
-  /* Quote from the letter ------------------------------------------ */
+  /* Pull quote ------------------------------------------------------ */
   .pullquote {
     padding: 72px 0;
     border-top: 1px solid var(--c-paper-200);
@@ -321,23 +493,27 @@ import Layout from '../layouts/Layout.astro';
 <!-- Hero ------------------------------------------------------------- -->
 <section class="hero">
   <div class="hero-eyebrow">
-    <span class="lang-da">Din AI-samarbejdspartner</span>
-    <span class="lang-en">Your AI collaboration partner</span>
+    <span class="lang-da">Kære bruger</span>
+    <span class="lang-en">Dear user</span>
   </div>
   <h1>
-    <span class="lang-da">Kære bruger,<br/>hvordan går samarbejdet med din <span class="accent">agent?</span></span>
-    <span class="lang-en">Dear User,<br/>how's the collaboration with your <span class="accent">agent?</span></span>
+    <span class="lang-da">Find lækkede nøgler og dårlige vaner <span class="accent">i din Claude-opsætning.</span></span>
+    <span class="lang-en">Find leaked keys and bad habits <span class="accent">in your Claude setup.</span></span>
   </h1>
 
   <div class="hero-sub">
     <p>
-      <span class="lang-da">I år vil du bruge flere timer med din AI-agent end med de fleste mennesker i dit liv. Dear User er bygget til at få det bedste ud af de timer.</span>
-      <span class="lang-en">This year, you'll spend more hours with your AI agent than with most people in your life. Dear User was built to make the most of those hours.</span>
+      <span class="lang-da">Dear User læser dine Claude-filer — instruktioner, memory, hooks, skills — og skriver et brev tilbage. Hvor samarbejder du og din agent godt? Hvor har du efterladt en API-nøgle i en fil? Hvad er gået i stykker siden sidst?</span>
+      <span class="lang-en">Dear User reads your Claude files — instructions, memory, hooks, skills — and writes a letter back. Where are you and your agent working well together? Where did you leave an API key in a file? What's broken since last time?</span>
+    </p>
+    <p>
+      <span class="lang-da">Alt kører på din maskine. Ingen konto. Ingen cloud.</span>
+      <span class="lang-en">Everything runs on your machine. No account. No cloud.</span>
     </p>
   </div>
 
   <div class="hero-actions">
-    <div class="install" id="install-cta" title="Click to copy">
+    <div class="install" id="install-cta" data-analytics="install-copy" title="Click to copy">
       <span class="prompt">$</span>
       <span class="cmd">claude mcp add dearuser -- npx dearuser-mcp</span>
       <span class="copy" id="copy-label">
@@ -345,9 +521,21 @@ import Layout from '../layouts/Layout.astro';
       </span>
     </div>
     <a href="/example" class="hero-example-link">
-      <span class="lang-da">Eller se et eksempel →</span>
-      <span class="lang-en">Or see an example →</span>
+      <span class="lang-da">Eller se et eksempel-brev →</span>
+      <span class="lang-en">Or see an example letter →</span>
     </a>
+  </div>
+
+  <div class="hero-facts">
+    <span><span class="dot">●</span>
+      <span class="lang-da">Kører lokalt</span><span class="lang-en">Runs locally</span>
+    </span>
+    <span><span class="dot">●</span>
+      <span class="lang-da">Én linje at installere</span><span class="lang-en">One-line install</span>
+    </span>
+    <span><span class="dot">●</span>
+      <span class="lang-da">Gratis og open source</span><span class="lang-en">Free &amp; open source</span>
+    </span>
   </div>
 </section>
 
@@ -372,121 +560,177 @@ import Layout from '../layouts/Layout.astro';
 <section class="features-section" id="features">
   <div class="section-head">
     <div class="section-eyebrow">
-      <span class="lang-da">Seks værktøjer</span><span class="lang-en">Six tools</span>
+      <span class="lang-da">Tre rapporter</span><span class="lang-en">Three reports</span>
     </div>
     <h2 class="section-title">
-      <span class="lang-da">Hver ét spørgsmål. Hvert et svar som et brev.</span>
-      <span class="lang-en">One question each. Each answer a letter.</span>
+      <span class="lang-da">Ét scan. Tre vinkler på din opsætning.</span>
+      <span class="lang-en">One scan. Three angles on your setup.</span>
     </h2>
     <p class="section-sub">
-      <span class="lang-da">Dear User scanner din <em>CLAUDE.md</em>, memory, hooks, skills og sessioner — og orkestrerer sikkerheds­tjekkene der allerede kigger på din stack. Så skriver den et brev til dig. Alle værktøjer kører lokalt via MCP. Kald dem fra Claude Code — eller fra det lille lokale dashboard der følger med. Ingen dashboards uden stemme. Ingen råd uden konkret kode.</span>
-      <span class="lang-en">Dear User reads your <em>CLAUDE.md</em>, memory, hooks, skills and sessions — and orchestrates the security advisors already watching your stack. Then it writes you a letter. All tools run locally over MCP. Call them from Claude Code — or from the small local dashboard that ships with it. No dashboards without a voice. No advice without concrete code.</span>
+      <span class="lang-da">Dear User ser på de samme filer som din agent — og fortæller dig hvad den finder. I klart sprog. Med kode du kan kopiere.</span>
+      <span class="lang-en">Dear User looks at the same files your agent reads — and tells you what it finds. In plain language. With code you can copy.</span>
     </p>
   </div>
 
   <div class="features-grid">
+    <!-- Collab -->
     <div class="feature">
       <span class="feature-badge">
         <span class="lang-da">Samarbejde</span><span class="lang-en">Collab</span>
       </span>
       <h3>
-        <span class="lang-da">Læser jeres samarbejde.</span>
-        <span class="lang-en">Reads how you two work.</span>
+        <span class="lang-da">Hvordan I arbejder sammen.</span>
+        <span class="lang-en">How you two work together.</span>
       </h3>
       <p>
-        <span class="lang-da">Scanner CLAUDE.md, memory, hooks, skills, sessioner og lokal git-aktivitet. Returnerer en persona, en samarbejds-score, friktionsmønstre og proaktive anbefalinger baseret på hvad I faktisk gør — for eksempel <em>"wrap det CLI-værktøj du kalder fra mange skills som en MCP server"</em>.</span>
-        <span class="lang-en">Reads your CLAUDE.md, memory, hooks, skills, sessions and local git activity. Returns a persona, a collaboration score, friction patterns and proactive recommendations based on what you actually do — for example <em>"wrap the CLI you call from many skills as an MCP server"</em>.</span>
+        <span class="lang-da">En score for samarbejdet, din agents "arketype" og konkrete forslag — ikke bare "overvej bedre instruktioner".</span>
+        <span class="lang-en">A score for your collaboration, your agent's "archetype", and concrete suggestions — not just "consider better instructions".</span>
       </p>
+      <ul>
+        <li><span class="lang-da">Fanger mønstre: rettelser du gør igen og igen</span><span class="lang-en">Catches patterns: corrections you make over and over</span></li>
+        <li><span class="lang-da">Forslag med kode-snippets klar til paste</span><span class="lang-en">Suggestions with code snippets ready to paste</span></li>
+        <li><span class="lang-da">Fortæller hvor din opsætning er stærk</span><span class="lang-en">Tells you where your setup is strong</span></li>
+      </ul>
       <span class="feature-cmd"><span class="fn">mcp__dearuser__collab</span></span>
     </div>
 
+    <!-- Security — emphasize secrets -->
     <div class="feature">
-      <span class="feature-badge health">
-        <span class="lang-da">System-sundhed</span><span class="lang-en">Health</span>
-      </span>
-      <h3>
-        <span class="lang-da">Finder inkoherensen.</span>
-        <span class="lang-en">Finds the incoherence.</span>
-      </h3>
-      <p>
-        <span class="lang-da">Bygger en graf af din stack — skills, scheduled tasks, hooks, memory — og finder orphan-jobs (output ingen læser), overlappende artefakter, manglende lukning og markdown-filer brugt som databaser. Det tjek, din opsætning har brug for <em>før</em> den bryder stille ned.</span>
-        <span class="lang-en">Builds a graph of your stack — skills, scheduled tasks, hooks, memory — and surfaces orphan jobs (produce output nothing reads), overlapping artifacts, missing closure and markdown files used as databases. The audit your setup needs <em>before</em> it breaks silently.</span>
-      </p>
-      <span class="feature-cmd"><span class="fn">mcp__dearuser__health</span></span>
-    </div>
-
-    <div class="feature">
-      <span class="feature-badge security">
+      <span class="feature-badge">
         <span class="lang-da">Sikkerhed</span><span class="lang-en">Security</span>
       </span>
       <h3>
-        <span class="lang-da">Én rude. Alle platforme.</span>
-        <span class="lang-en">One pane. Every platform.</span>
+        <span class="lang-da">Leder efter nøgler du har glemt.</span>
+        <span class="lang-en">Looks for keys you forgot.</span>
       </h3>
       <p>
-        <span class="lang-da">Orkestrerer sikkerheds-advisors du allerede har men aldrig tjekker samlet. Supabase RLS-lints. GitHub Dependabot og secret-scanning. <em>npm audit</em>. Vercel env vars. Plus det agent-setup-scan kun Dear User kan: lækkede nøgler i CLAUDE.md, prompt-injection-overflader i hooks, regel-konflikter hvor CLAUDE.md siger <em>"never force-push"</em> men en hook gør det alligevel.</span>
-        <span class="lang-en">Orchestrates the security advisors you already have but never check in one place. Supabase RLS lints. GitHub Dependabot and secret scanning. <em>npm audit</em>. Vercel env vars. Plus the agent-setup scan only Dear User can do: leaked keys in CLAUDE.md, prompt-injection surfaces in hooks, rule conflicts where CLAUDE.md says <em>"never force-push"</em> but a hook does it anyway.</span>
+        <span class="lang-da">Scanner dine Claude-filer for lækkede API-nøgler (OpenAI, Anthropic, GitHub, AWS, Stripe og 8 andre typer) og samler signaler fra de platforme du allerede bruger.</span>
+        <span class="lang-en">Scans your Claude files for leaked API keys (OpenAI, Anthropic, GitHub, AWS, Stripe and 8 other types) and pulls signals from the platforms you already use.</span>
       </p>
+      <ul>
+        <li><span class="lang-da">12 typer hemmeligheder fanget i instruktioner, memory, hooks og skills</span><span class="lang-en">12 secret types caught in instructions, memory, hooks and skills</span></li>
+        <li><span class="lang-da">Henter advarsler fra GitHub, Supabase, npm og Vercel</span><span class="lang-en">Pulls warnings from GitHub, Supabase, npm and Vercel</span></li>
+        <li><span class="lang-da">Fanger regler der modsiger hinanden (fx "force-push aldrig" + en hook der gør det)</span><span class="lang-en">Catches rules that contradict each other (e.g. "never force-push" + a hook that does)</span></li>
+      </ul>
       <span class="feature-cmd"><span class="fn">mcp__dearuser__security</span></span>
     </div>
 
+    <!-- Health -->
     <div class="feature">
-      <span class="feature-badge onboard">
-        <span class="lang-da">Opstart</span><span class="lang-en">Onboard</span>
+      <span class="feature-badge">
+        <span class="lang-da">System-sundhed</span><span class="lang-en">Health</span>
       </span>
       <h3>
-        <span class="lang-da">Sat op, guidet.</span>
-        <span class="lang-en">Set up, guided.</span>
+        <span class="lang-da">Hvad er gået i stykker?</span>
+        <span class="lang-en">What's quietly broken?</span>
       </h3>
       <p>
-        <span class="lang-da">En samtale i syv trin der lærer dig at kende, forklarer grundbegreberne (kode, chat, schedule, OS — de fire substrates) og producerer en plan: en CLAUDE.md-starter, skill-valg, hook-valg og dine næste tre konkrete skridt. Lavet både til ikke-tekniske professionelle og tekniske power-users.</span>
-        <span class="lang-en">A seven-step conversation that learns about you, teaches the core concepts (code, chat, schedule, OS — the four substrates) and produces a plan: a CLAUDE.md starter, skill picks, hook picks and your next three concrete steps. Built for non-technical professionals and technical power-users alike.</span>
+        <span class="lang-da">Tegner et kort over din opsætning og finder de stille problemer: skills ingen kalder, jobs der skriver til filer ingen læser, regler der dublerer hinanden.</span>
+        <span class="lang-en">Draws a map of your setup and surfaces the silent issues: skills nothing calls, jobs writing to files nothing reads, rules that duplicate each other.</span>
       </p>
-      <span class="feature-cmd"><span class="fn">mcp__dearuser__onboard</span></span>
+      <ul>
+        <li><span class="lang-da">Finder "orphan jobs" — output der aldrig bliver brugt</span><span class="lang-en">Finds "orphan jobs" — output that's never consumed</span></li>
+        <li><span class="lang-da">Fanger overlap mellem skills, hooks og memory</span><span class="lang-en">Catches overlap between skills, hooks and memory</span></li>
+        <li><span class="lang-da">Advarer før din opsætning bryder stille ned</span><span class="lang-en">Warns before your setup breaks silently</span></li>
+      </ul>
+      <span class="feature-cmd"><span class="fn">mcp__dearuser__health</span></span>
     </div>
+  </div>
 
-    <div class="feature">
-      <span class="feature-badge wrapped">
-        <span class="lang-da">I tal</span><span class="lang-en">Wrapped</span>
-      </span>
-      <h3>
-        <span class="lang-da">Det sjove tal.</span>
-        <span class="lang-en">See what's fun.</span>
-      </h3>
-      <p>
-        <span class="lang-da">Spotify Wrapped-agtige stats om hvordan du og din agent faktisk arbejder sammen. Dine rettelser, dit <em>"Don't"</em>-regel-forhold, din agents arketype, systemet du har bygget. Kan deles. Kan screenshottes.</span>
-        <span class="lang-en">Spotify Wrapped-style stats about how you and your agent actually work together. Your corrections, your <em>"Don't"</em>-rules ratio, your agent archetype, the system you've built. Shareable. Screenshotable.</span>
-      </p>
-      <span class="feature-cmd"><span class="fn">mcp__dearuser__wrapped</span></span>
+  <!-- Also included — smaller row ---------------------------------- -->
+  <div class="also">
+    <div class="also-title">
+      <span class="lang-da">Plus tre til, med i pakken</span><span class="lang-en">Plus three more, included</span>
     </div>
-
-    <div class="feature">
-      <span class="feature-badge history">
-        <span class="lang-da">Historik</span><span class="lang-en">History</span>
-      </span>
-      <h3>
-        <span class="lang-da">Hvad har ændret sig?</span>
-        <span class="lang-en">What changed?</span>
-      </h3>
-      <p>
-        <span class="lang-da">Viser seneste rapporter, score-trend over tid, eller hvad der blev bedre og værre siden sidste scan. Ingen re-scan nødvendig — bare et hurtigt overblik over samarbejdets retning.</span>
-        <span class="lang-en">Shows recent reports, score trend over time, or what improved and regressed since the last scan. No re-scan needed — just a quick look at where the collaboration is going.</span>
-      </p>
-      <span class="feature-cmd"><span class="fn">mcp__dearuser__history</span></span>
+    <div class="also-grid">
+      <div class="also-item">
+        <h4><span class="lang-da">Opstart</span><span class="lang-en">Onboard</span></h4>
+        <p>
+          <span class="lang-da">En guidet samtale der hjælper dig med at skrive din første CLAUDE.md.</span>
+          <span class="lang-en">A guided conversation that helps you write your first CLAUDE.md.</span>
+        </p>
+      </div>
+      <div class="also-item">
+        <h4><span class="lang-da">Samarbejdet i tal</span><span class="lang-en">Wrapped</span></h4>
+        <p>
+          <span class="lang-da">Spotify Wrapped-stil stats om hvordan du og din agent faktisk arbejder.</span>
+          <span class="lang-en">Spotify Wrapped-style stats on how you and your agent actually work.</span>
+        </p>
+      </div>
+      <div class="also-item">
+        <h4><span class="lang-da">Historik</span><span class="lang-en">History</span></h4>
+        <p>
+          <span class="lang-da">Se score-trenden over tid og hvad der blev bedre siden sidste scan.</span>
+          <span class="lang-en">See the score trend over time and what improved since last scan.</span>
+        </p>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- Pull quote from an example letter -------------------------------- -->
-<section class="pullquote">
-  <blockquote>
-    <span class="lang-da">"Jeg har bemærket at du retter din agent på den samme måde 3-4 gange om ugen — men det står ikke i CLAUDE.md endnu. Skal vi gemme det som en regel, så du slipper for at sige det igen?"</span>
-    <span class="lang-en">"I've noticed you correct your agent the same way three or four times a week — but it's not in CLAUDE.md yet. Should we save it as a rule, so you don't have to say it again?"</span>
-  </blockquote>
-  <cite>
-    <span class="lang-da">Uddrag fra en collab-rapport</span>
-    <span class="lang-en">From a collab letter</span>
-  </cite>
+<!-- Share section ---------------------------------------------------- -->
+<section class="share" id="share">
+  <div class="share-inner">
+    <div class="share-copy">
+      <div class="section-eyebrow">
+        <span class="lang-da">Del din rapport</span><span class="lang-en">Share your report</span>
+      </div>
+      <h2>
+        <span class="lang-da">Ét link. Én score. Når <em>du</em> er klar.</span>
+        <span class="lang-en">One link. One score. When <em>you're</em> ready.</span>
+      </h2>
+      <p>
+        <span class="lang-da">Har du fået en god rapport? Lav et delbart link på én kommando. Ingen deling sker automatisk — du bestemmer hvornår og hvad.</span>
+        <span class="lang-en">Got a good report? Create a shareable link with one command. Nothing gets shared automatically — you decide when and what.</span>
+      </p>
+      <p>
+        <span class="lang-da">Linket viser en pæn offentlig side med din score, de vigtigste findings og din agents arketype. Forhåndsvisningen på X, LinkedIn og Discord får automatisk et smukt kort med dit tal.</span>
+        <span class="lang-en">The link opens a clean public page with your score, top findings and your agent's archetype. Previews on X, LinkedIn and Discord get a nice card with your number.</span>
+      </p>
+      <span class="share-url">
+        dearuser.ai<span class="path">/r/a1b2c3</span>
+      </span>
+      <p class="share-note">
+        <span class="lang-da">Din rå data bliver ikke uploadet. Kun rapporten du eksplicit deler.</span>
+        <span class="lang-en">Your raw data stays on your machine. Only the report you explicitly share goes up.</span>
+      </p>
+    </div>
+
+    <!-- Mock share card (OG preview) -->
+    <div class="share-card-mock" aria-hidden="true">
+      <div class="sc-mark">
+        <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="20" cy="20" r="20" fill="#EC5329" />
+          <path d="M 11 22 Q 20 32 29 22" stroke="#FDFBF6" stroke-width="2.5" stroke-linecap="round" fill="none" />
+        </svg>
+        <span>Dear User</span>
+      </div>
+      <div class="sc-body">
+        <span class="sc-score">82<span class="sc-score-unit"> /100</span></span>
+        <span class="sc-label">
+          <span class="lang-da">Samarbejds-score for <em>din-opsætning</em></span>
+          <span class="lang-en">Collaboration score for <em>your-setup</em></span>
+        </span>
+      </div>
+      <div class="sc-foot">
+        <span>dearuser.ai/r/a1b2c3</span>
+        <span>
+          <span class="lang-da">Lokal audit</span><span class="lang-en">Local audit</span>
+        </span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Social proof placeholder ---------------------------------------- -->
+<section class="social-proof" aria-label="Social proof (coming soon)">
+  <div class="sp-label">
+    <span class="lang-da">Stemmer fra brugerne</span><span class="lang-en">What users are saying</span>
+  </div>
+  <div class="sp-placeholder">
+    <span class="lang-da">Citater lander her snart, efter launch. Prøv det gratis nu — så er dit måske et af dem.</span>
+    <span class="lang-en">Quotes drop in here soon, after launch. Try it free now — yours might be one of them.</span>
+  </div>
 </section>
 
 <!-- Install / How it works ------------------------------------------ -->
@@ -502,7 +746,7 @@ import Layout from '../layouts/Layout.astro';
   <div class="steps">
     <div class="step">
       <div class="step-num">01 — <span class="lang-da">Installér</span><span class="lang-en">Install</span></div>
-      <h4><span class="lang-da">Tilføj MCP-serveren</span><span class="lang-en">Add the MCP server</span></h4>
+      <h4><span class="lang-da">Tilføj én linje</span><span class="lang-en">Add one line</span></h4>
       <p>
         <span class="lang-da">Registrér Dear User i Claude Code. Ingen konti, ingen cloud.</span>
         <span class="lang-en">Register Dear User in Claude Code. No accounts, no cloud.</span>
@@ -510,7 +754,7 @@ import Layout from '../layouts/Layout.astro';
       <code>claude mcp add dearuser -- npx dearuser-mcp</code>
     </div>
     <div class="step">
-      <div class="step-num">02 — <span class="lang-da">Skriv første brev</span><span class="lang-en">Write first letter</span></div>
+      <div class="step-num">02 — <span class="lang-da">Kør første scan</span><span class="lang-en">Run first scan</span></div>
       <h4><span class="lang-da">Bed din agent</span><span class="lang-en">Ask your agent</span></h4>
       <p>
         <span class="lang-da">I en hvilken som helst Claude Code-session:</span>
@@ -523,10 +767,10 @@ import Layout from '../layouts/Layout.astro';
     </div>
     <div class="step">
       <div class="step-num">03 — <span class="lang-da">Læs &amp; del</span><span class="lang-en">Read &amp; share</span></div>
-      <h4><span class="lang-da">Åbn dashboardet</span><span class="lang-en">Open the dashboard</span></h4>
+      <h4><span class="lang-da">Åbn rapporten</span><span class="lang-en">Open the report</span></h4>
       <p>
-        <span class="lang-da">Rapporter åbnes lokalt på <code style="background:none;padding:0;border:0;font-family:'Geist Mono',monospace;color:var(--c-action-600);">localhost:7700</code>. Del en screenshot — eller generer et Wrapped.</span>
-        <span class="lang-en">Reports open locally at <code style="background:none;padding:0;border:0;font-family:'Geist Mono',monospace;color:var(--c-action-600);">localhost:7700</code>. Share a screenshot — or generate a Wrapped.</span>
+        <span class="lang-da">Rapporter åbnes lokalt på <code style="background:none;padding:0;border:0;font-family:'Geist Mono',monospace;color:var(--c-action-600);">localhost:7700</code>. Del den hvis du vil — eller bare gem den for dig selv.</span>
+        <span class="lang-en">Reports open locally at <code style="background:none;padding:0;border:0;font-family:'Geist Mono',monospace;color:var(--c-action-600);">localhost:7700</code>. Share if you want — or just keep it for yourself.</span>
       </p>
       <code>
         <span class="lang-da">Kør dearuser wrapped</span>
@@ -536,46 +780,16 @@ import Layout from '../layouts/Layout.astro';
   </div>
 </section>
 
-<!-- Principles ------------------------------------------------------ -->
-<section class="principles">
-  <div class="section-head" style="margin-bottom:8px;">
-    <div class="section-eyebrow" style="text-align:center;">
-      <span class="lang-da">Sådan virker det</span><span class="lang-en">How it works</span>
-    </div>
-    <h2 class="section-title" style="text-align:center;">
-      <span class="lang-da">Tre kilder. Ét brev.</span>
-      <span class="lang-en">Three sources. One letter.</span>
-    </h2>
-  </div>
-  <div class="principle-grid">
-    <div class="principle">
-      <h5>
-        <span class="lang-da">Lokalt som standard</span><span class="lang-en">Local by default</span>
-      </h5>
-      <p>
-        <span class="lang-da">Alt kører på din maskine. Intet data forlader din opsætning. SQLite-database i <code style="font-family:'Geist Mono',monospace;">~/.dearuser/</code>.</span>
-        <span class="lang-en">Everything runs on your machine. No data leaves your setup. SQLite database in <code style="font-family:'Geist Mono',monospace;">~/.dearuser/</code>.</span>
-      </p>
-    </div>
-    <div class="principle">
-      <h5>
-        <span class="lang-da">Tre videnskilder</span><span class="lang-en">Three knowledge sources</span>
-      </h5>
-      <p>
-        <span class="lang-da">Dine filer, en ekstern kuratet vidensbase, og et feedback-loop der tracker hvad der faktisk virkede efter en anbefaling.</span>
-        <span class="lang-en">Your files, a curated external knowledge base, and a feedback loop that tracks what actually worked after a recommendation.</span>
-      </p>
-    </div>
-    <div class="principle">
-      <h5>
-        <span class="lang-da">Konkret, ikke vagt</span><span class="lang-en">Concrete, not vague</span>
-      </h5>
-      <p>
-        <span class="lang-da">Reel kode og config at paste. Ikke <em>"overvej at forbedre dit memory-system"</em>.</span>
-        <span class="lang-en">Actual code and config to paste. Not <em>"consider improving your memory system"</em>.</span>
-      </p>
-    </div>
-  </div>
+<!-- Pull quote from an example letter -------------------------------- -->
+<section class="pullquote">
+  <blockquote>
+    <span class="lang-da">"Jeg har bemærket at du retter din agent på den samme måde 3-4 gange om ugen — men det står ikke i CLAUDE.md endnu. Skal vi gemme det som en regel, så du slipper for at sige det igen?"</span>
+    <span class="lang-en">"I've noticed you correct your agent the same way three or four times a week — but it's not in CLAUDE.md yet. Should we save it as a rule, so you don't have to say it again?"</span>
+  </blockquote>
+  <cite>
+    <span class="lang-da">Uddrag fra en collab-rapport</span>
+    <span class="lang-en">From a collab letter</span>
+  </cite>
 </section>
 
 </Layout>
