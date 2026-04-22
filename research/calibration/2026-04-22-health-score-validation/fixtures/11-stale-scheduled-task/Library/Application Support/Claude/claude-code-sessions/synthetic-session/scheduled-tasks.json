@@ -1,0 +1,10 @@
+{
+  "scheduledTasks": [
+    {
+      "id": "nightly-backup",
+      "cronExpression": "0 2 * * *",
+      "enabled": true,
+      "lastRunAt": "2026-04-12T12:11:14.182Z"
+    }
+  ]
+}

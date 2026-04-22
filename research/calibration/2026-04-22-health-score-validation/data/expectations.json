@@ -1,0 +1,139 @@
+{
+  "fixtures": [
+    {
+      "name": "01-empty",
+      "expect_score_gte": 100,
+      "expect_findings": [],
+      "purpose": "Empty setup → ceiling"
+    },
+    {
+      "name": "02-minimal-clean",
+      "expect_score_gte": 95,
+      "expect_findings": [],
+      "purpose": "Healthy minimal stack → near-ceiling"
+    },
+    {
+      "name": "03-overlap-duplicate-skills",
+      "expect_findings": ["overlap"],
+      "expect_score_lt": 100,
+      "purpose": "3 near-duplicate skills → overlap fires"
+    },
+    {
+      "name": "04-overlap-suite",
+      "expect_findings_exclude_from_score": true,
+      "expect_score_gte": 95,
+      "purpose": "dearuser-* suite → findings kept but excluded from score"
+    },
+    {
+      "name": "05-orphan-scheduled-task",
+      "expect_findings": ["orphan_job"],
+      "expect_severity": "critical",
+      "purpose": "Scheduled task writes to data path with no reader → critical orphan"
+    },
+    {
+      "name": "06-orphan-effect-task",
+      "expect_findings": ["orphan_job"],
+      "expect_severity": "recommended",
+      "purpose": "Effect-orphan (no produces-edges) → recommended"
+    },
+    {
+      "name": "07-missing-closure-skill",
+      "expect_findings": ["missing_closure"],
+      "purpose": "Non-scheduled producer writes to orphan path"
+    },
+    {
+      "name": "08-substrate-mismatch",
+      "expect_findings": ["substrate_mismatch"],
+      "purpose": "Markdown memory file with 25 structured entries"
+    },
+    {
+      "name": "09-unregistered-mcp-tool",
+      "expect_findings": ["unregistered_mcp_tool"],
+      "expect_severity": "critical",
+      "purpose": "Skill references MCP server not in ~/.claude.json"
+    },
+    {
+      "name": "10-unbacked-substrate",
+      "expect_findings": ["unbacked_up_substrate"],
+      "expect_severity": "critical",
+      "purpose": "12 recent skills, no git repo"
+    },
+    {
+      "name": "11-stale-scheduled-task",
+      "expect_findings": ["stale_schedule"],
+      "expect_severity": "critical",
+      "purpose": "Daily cron, last run 10 days ago"
+    },
+    {
+      "name": "12-expected-job-missing",
+      "expect_findings": ["expected_job_missing"],
+      "expect_severity": "critical",
+      "purpose": "Manifest declares job, scheduler has none"
+    },
+    {
+      "name": "13-implicit-consumer-notify",
+      "expect_findings": [],
+      "purpose": "Task says 'sends notification' → NOT orphan"
+    },
+    {
+      "name": "14-terminal-path-write",
+      "expect_findings": [],
+      "purpose": "Writes to CLAUDE.md/memory → terminal path, NOT orphan"
+    },
+    {
+      "name": "15-many-small-issues",
+      "expect_score_between": [90, 99],
+      "purpose": "Mix of nice-to-haves"
+    },
+    {
+      "name": "16-one-critical",
+      "expect_findings": ["unregistered_mcp_tool"],
+      "purpose": "Single critical in 3-skill stack"
+    },
+    {
+      "name": "17-multiple-criticals",
+      "expect_score_lt": 75,
+      "purpose": "3+ criticals → noticeable score drop"
+    },
+    {
+      "name": "18-skill-references-task",
+      "expect_findings": [],
+      "purpose": "Reference edge prevents orphan"
+    },
+    {
+      "name": "19-prose-reminder-task",
+      "expect_findings": [],
+      "purpose": "Short reminder task → implicit consumer"
+    },
+    {
+      "name": "20-stacked-overlaps-no-suite",
+      "expect_findings": ["overlap"],
+      "purpose": "3 similar skills, different prefixes → scored overlap"
+    },
+    {
+      "name": "21-mixed-realistic-small",
+      "expect_score_gte": 90,
+      "purpose": "Small coherent stack"
+    },
+    {
+      "name": "22-mixed-realistic-medium",
+      "expect_score_between": [70, 90],
+      "purpose": "Medium stack with 2 criticals + some recommended"
+    },
+    {
+      "name": "23-large-healthy",
+      "expect_score_gte": 90,
+      "purpose": "20 skills with unique vocab — should score high"
+    },
+    {
+      "name": "24-many-overlaps",
+      "expect_findings": ["overlap"],
+      "purpose": "6 pairwise similar skills"
+    },
+    {
+      "name": "25-no-scheduled-tasks",
+      "expect_score_gte": 95,
+      "purpose": "Skills-only stack — empty categories stay at 100"
+    }
+  ]
+}

@@ -1,0 +1,181 @@
+{
+  "passed": 25,
+  "total": 25,
+  "checks": [
+    {
+      "fixture": "01-empty",
+      "purpose": "Empty setup → ceiling",
+      "score": 100,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "02-minimal-clean",
+      "purpose": "Healthy minimal stack → near-ceiling",
+      "score": 100,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "03-overlap-duplicate-skills",
+      "purpose": "3 near-duplicate skills → overlap fires",
+      "score": 94,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "04-overlap-suite",
+      "purpose": "dearuser-* suite → findings kept but excluded from score",
+      "score": 99,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "05-orphan-scheduled-task",
+      "purpose": "Scheduled task writes to data path with no reader → critical orphan",
+      "score": 91,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "06-orphan-effect-task",
+      "purpose": "Effect-orphan (no produces-edges) → recommended",
+      "score": 97,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "07-missing-closure-skill",
+      "purpose": "Non-scheduled producer writes to orphan path",
+      "score": 99,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "08-substrate-mismatch",
+      "purpose": "Markdown memory file with 25 structured entries",
+      "score": 99,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "09-unregistered-mcp-tool",
+      "purpose": "Skill references MCP server not in ~/.claude.json",
+      "score": 94,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "10-unbacked-substrate",
+      "purpose": "12 recent skills, no git repo",
+      "score": 96,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "11-stale-scheduled-task",
+      "purpose": "Daily cron, last run 10 days ago",
+      "score": 91,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "12-expected-job-missing",
+      "purpose": "Manifest declares job, scheduler has none",
+      "score": 91,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "13-implicit-consumer-notify",
+      "purpose": "Task says 'sends notification' → NOT orphan",
+      "score": 100,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "14-terminal-path-write",
+      "purpose": "Writes to CLAUDE.md/memory → terminal path, NOT orphan",
+      "score": 100,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "15-many-small-issues",
+      "purpose": "Mix of nice-to-haves",
+      "score": 97,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "16-one-critical",
+      "purpose": "Single critical in 3-skill stack",
+      "score": 93,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "17-multiple-criticals",
+      "purpose": "3+ criticals → noticeable score drop",
+      "score": 64,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "18-skill-references-task",
+      "purpose": "Reference edge prevents orphan",
+      "score": 100,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "19-prose-reminder-task",
+      "purpose": "Short reminder task → implicit consumer",
+      "score": 100,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "20-stacked-overlaps-no-suite",
+      "purpose": "3 similar skills, different prefixes → scored overlap",
+      "score": 94,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "21-mixed-realistic-small",
+      "purpose": "Small coherent stack",
+      "score": 96,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "22-mixed-realistic-medium",
+      "purpose": "Medium stack with 2 criticals + some recommended",
+      "score": 82,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "23-large-healthy",
+      "purpose": "20 skills with unique vocab — should score high",
+      "score": 96,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "24-many-overlaps",
+      "purpose": "6 pairwise similar skills",
+      "score": 99,
+      "pass": true,
+      "notes": []
+    },
+    {
+      "fixture": "25-no-scheduled-tasks",
+      "purpose": "Skills-only stack — empty categories stay at 100",
+      "score": 99,
+      "pass": true,
+      "notes": []
+    }
+  ]
+}
