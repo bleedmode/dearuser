@@ -48,6 +48,10 @@ function toolLabel(toolName: string): string {
   return TOOL_LABELS[toolName]?.da || toolName;
 }
 
+function toolLabelEn(toolName: string): string {
+  return TOOL_LABELS[toolName]?.en || toolName;
+}
+
 function toolLabelBi(toolName: string): { da: string; en: string } {
   return TOOL_LABELS[toolName] || { da: toolName, en: toolName };
 }
@@ -702,7 +706,7 @@ function renderHistorik(): string {
   const actionStrip = pageDateStrip();
 
   if (runs.length === 0) {
-    return page('Mine breve', `
+    return page('My letters', `
       ${actionStrip}
       <section>
         <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">
@@ -858,7 +862,7 @@ function renderHistorik(): string {
     </h2>
   ` : '';
 
-  return page('Breve', `
+  return page('Letters', `
     ${actionStrip}
     <section>
       <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">
@@ -885,7 +889,7 @@ function renderHistorik(): string {
 function renderReport(id: string): string {
   const run = getRunById(id);
   if (!run) {
-    return page('Rapport ikke fundet', `
+    return page('Report not found', `
       <section class="py-12 text-center">
         <div class="text-5xl mb-4">💌</div>
         <h1 class="text-2xl font-semibold mb-3">${t('Det her brev findes ikke', "This letter doesn't exist")}</h1>
@@ -918,7 +922,7 @@ function renderMarkdownFallback(run: any): string {
   // just reads as confusing bureaucracy.
   const stripped = body.replace(/\n*---\n*## Hvad vil du gøre nu\?[\s\S]*?(?=\n---|\s*$)/m, '');
   const rendered = renderMarkdown(stripped);
-  return page(`${toolLabel(run.tool_name)}`, `
+  return page(`${toolLabelEn(run.tool_name)}`, `
     <article class="max-w-2xl mx-auto">
       <header class="mb-8">
         <div class="text-xs uppercase tracking-wider text-ink-500 mb-2">${tBi(toolLabelBi(run.tool_name))}</div>
@@ -1031,7 +1035,7 @@ function renderAnalyzeLetter(run: any, report: any): string {
     </div>
   `;
 
-  return page(`${toolLabel(run.tool_name)}`, body, 'oversigt');
+  return page(`${toolLabelEn(run.tool_name)}`, body, 'oversigt');
 }
 
 // Map the top-action rec + the 3 small things into the unified finding shape
@@ -1290,7 +1294,7 @@ function renderSecurityLetter(run: any, report: any): string {
     </div>
   `;
 
-  return page(`${toolLabel(run.tool_name)}`, body, 'oversigt');
+  return page(`${toolLabelEn(run.tool_name)}`, body, 'oversigt');
 }
 
 function renderSystemHealthLetter(run: any, report: any): string {
@@ -1352,7 +1356,7 @@ function renderSystemHealthLetter(run: any, report: any): string {
     </div>
   `;
 
-  return page(`${toolLabel(run.tool_name)}`, body, 'oversigt');
+  return page(`${toolLabelEn(run.tool_name)}`, body, 'oversigt');
 }
 
 /**
@@ -1732,7 +1736,7 @@ function renderForbedringer(): string {
   };
 
   if (pending.length === 0 && implemented.length === 0) {
-    return page('Anbefalinger', `
+    return page('Recommendations', `
       <section class="py-12 text-center">
         <div class="text-5xl mb-4">💌</div>
         <h1 class="text-2xl font-semibold mb-3">${t('Ingen anbefalinger endnu', 'No recommendations yet')}</h1>
@@ -1746,7 +1750,7 @@ function renderForbedringer(): string {
     `, 'forbedringer');
   }
 
-  return page('Anbefalinger', `
+  return page('Recommendations', `
     ${pageDateStrip()}
     <section>
       <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">${t('Anbefalinger', 'Recommendations')}</h1>
@@ -1945,7 +1949,7 @@ function renderOnboardForm(result: OnboardResult, error?: LocalizedString): stri
     </section>
   `;
 
-  return page('Opstart', body, 'oversigt');
+  return page('Onboarding', body, 'oversigt');
 }
 
 // ----------------------------------------------------------------------------
@@ -1981,7 +1985,7 @@ function renderOnboardWelcome(result: OnboardResult): string {
     </section>
   `;
 
-  return page('Opstart', body, 'oversigt');
+  return page('Onboarding', body, 'oversigt');
 }
 
 function stepNumberFromResult(result: OnboardResult): number {
@@ -2111,7 +2115,7 @@ function renderOnboardDone(result: OnboardResult): string {
     </section>
   `;
 
-  return page('Opstart færdig', body, 'oversigt');
+  return page('Onboarding complete', body, 'oversigt');
 }
 
 // ============================================================================
@@ -2190,7 +2194,7 @@ function renderProfil(): string {
     </section>
   `;
 
-  return page('Profil', `
+  return page('Profile', `
     ${pageDateStrip()}
     <section>
       <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">${t('Dig og mig', 'You and me')}</h1>
