@@ -309,6 +309,9 @@ function page(title: string, body: string, activeNav: 'oversigt' | 'kørsler' | 
         <a href="/forbedringer" class="${activeNav === 'forbedringer' ? 'text-ink-900' : 'text-ink-400 hover:text-ink-900'} transition">
           <span class="lang-da">Anbefalinger</span><span class="lang-en">Recommendations</span>
         </a>
+        <a href="/wrapped" class="${activeNav === 'wrapped' ? 'text-ink-900' : 'text-ink-400 hover:text-ink-900'} transition">
+          <span class="lang-da">Wrapped</span><span class="lang-en">Wrapped</span>
+        </a>
         <span class="w-px h-4 bg-paper-200"></span>
         <button id="lang-toggle" aria-label="Switch language" class="text-ink-400 hover:text-ink-900 transition">
           <span id="lang-label">EN</span>
@@ -704,7 +707,11 @@ function pageDateStrip(): string {
 }
 
 function renderHistorik(): string {
-  const runs = getRecentRuns(100).filter((r: any) => r.details && r.details.trim().length > 0);
+  // Wrapped is its own nav-level feature (see /wrapped), not a diagnostic
+  // letter like collab/security/health. Filter it out of the Letters list.
+  const runs = getRecentRuns(100).filter((r: any) =>
+    r.details && r.details.trim().length > 0 && r.tool_name !== 'wrapped'
+  );
   const actionStrip = pageDateStrip();
 
   if (runs.length === 0) {
@@ -929,40 +936,13 @@ function stripAgentOnlyNoise(body: string): string {
 }
 
 function renderWrappedLetter(run: any, report: any): string {
-  const score = typeof report?.collaborationScore === 'number' ? report.collaborationScore : null;
-  const year = new Date(run.started_at || Date.now()).getFullYear();
-
-  // Single source of truth: shared renderer that also powers
-  // dearuser.ai/r/<token>. Dashboard just wraps it in the letter chrome.
-  const wrappedHtml = renderWrappedHtml({
-    score,
-    year,
-    wrapped: report?.wrapped || {},
-    setupArchetypeName: report?.archetype?.nameEn || null,
-    showShareCta: false, // dashboard has its own CTA + is private
-  });
-
-  return page(`${toolLabelEn(run.tool_name)}`, `
-    <article class="max-w-2xl mx-auto">
-      <header class="mb-8">
-        <div class="text-xs uppercase tracking-wider text-ink-500 mb-2">${tBi(toolLabelBi(run.tool_name))}</div>
-        <div class="font-mono text-xs text-ink-300">${t(formatLetterDate(run.started_at), formatLetterDateEn(run.started_at))}</div>
-      </header>
-
-      <p class="font-serif text-2xl text-ink-900 mb-1">${t(greeting(), greetingEn())},</p>
-      <p class="text-ink-500 mb-8 leading-relaxed">${t('Her er dit Wrapped.', 'Here is your Wrapped.')}</p>
-
-      ${wrappedHtml}
-
-      <footer class="mt-10">
-        <p class="text-ink-700 italic mb-3">${t('Med venlig hilsen,', 'Yours,')}</p>
-        <p class="text-ink-900">${signature()}</p>
-      </footer>
-    </article>
-    <div class="mt-8 max-w-3xl mx-auto">
-      <a href="/historik" class="text-sm text-ink-500 hover:text-accent-600 transition">${t('← Se alle mine breve', '← See all letters')}</a>
-    </div>
-  `, 'oversigt');
+  // Wrapped is its own top-level page — deep links to individual wrapped
+  // runs just forward to the canonical /wrapped page (which always shows
+  // the latest). No letter chrome.
+  return page('Wrapped', `
+    <meta http-equiv="refresh" content="0;url=/wrapped">
+    <p class="text-ink-500 text-sm">Redirecting to <a href="/wrapped" class="text-accent-600">Wrapped</a>…</p>
+  `, 'wrapped');
 }
 
 function renderMarkdownFallback(run: any): string {
@@ -2218,6 +2198,69 @@ function renderOnboardDone(result: OnboardResult): string {
 // ============================================================================
 
 // ============================================================================
+// Wrapped — top-level viral snapshot page. Not a letter, not a diagnostic.
+// Always shows the latest wrapped run, full-bleed, with the same visual as
+// the public share page (dearuser.ai/r/<token>). Empty state nudges the
+// user to run `dearuser wrapped` from their terminal.
+// ============================================================================
+
+function renderWrappedPage(): string {
+  const latest = getRecentRuns(100).find((r: any) => r.tool_name === 'wrapped' && r.report_json);
+
+  if (!latest) {
+    return page('Wrapped', `
+      <section class="max-w-xl mx-auto text-center py-16">
+        <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-6">
+          <span class="lang-da">Intet Wrapped endnu</span><span class="lang-en">No Wrapped yet</span>
+        </h1>
+        <p class="font-serif text-xl text-ink-700 leading-snug mb-8">
+          <span class="lang-da">Åbn Claude Code og bed mig lave dit første Wrapped — et delbart snapshot af din collaboration.</span>
+          <span class="lang-en">Open Claude Code and ask me to make your first Wrapped — a shareable snapshot of your collaboration.</span>
+        </p>
+        <code class="inline-block bg-paper-100 border border-paper-200 rounded-lg px-4 py-3 font-mono text-sm text-ink-900">dearuser wrapped</code>
+      </section>
+    `, 'wrapped');
+  }
+
+  let report: any = null;
+  try {
+    report = JSON.parse(latest.report_json);
+  } catch {
+    return page('Wrapped', `
+      <section class="max-w-xl mx-auto text-center py-16">
+        <p class="text-ink-500"><span class="lang-da">Kunne ikke læse dit seneste Wrapped.</span><span class="lang-en">Could not read your latest Wrapped.</span></p>
+      </section>
+    `, 'wrapped');
+  }
+
+  const score = typeof report?.collaborationScore === 'number' ? report.collaborationScore : null;
+  const year = new Date(latest.started_at || Date.now()).getFullYear();
+
+  const wrappedHtml = renderWrappedHtml({
+    score,
+    year,
+    wrapped: report?.wrapped || {},
+    setupArchetypeName: report?.archetype?.nameEn || null,
+    showShareCta: false, // private dashboard — share button is a separate action
+  });
+
+  return page('Wrapped', `
+    <div class="max-w-2xl mx-auto mb-6 flex items-center justify-between">
+      <div class="font-mono text-xs uppercase tracking-wider text-ink-400">${t('Seneste Wrapped', 'Latest Wrapped')} · ${t(formatLetterDate(latest.started_at), formatLetterDateEn(latest.started_at))}</div>
+      <button id="share-wrapped-btn" class="text-[11px] uppercase tracking-[0.15em] text-ink-500 hover:text-accent-600 transition border border-paper-200 rounded-md px-3 py-1.5">
+        <span class="lang-da">Del offentligt</span><span class="lang-en">Share publicly</span>
+      </button>
+    </div>
+    ${wrappedHtml}
+    <script>
+      document.getElementById('share-wrapped-btn')?.addEventListener('click', function() {
+        alert('${t('Kør `dearuser share-wrapped` i Claude Code for at oprette et delbart link på dearuser.ai/r/<token>.', 'Run `dearuser share-wrapped` in Claude Code to create a shareable link at dearuser.ai/r/<token>.')}');
+      });
+    </script>
+  `, 'wrapped');
+}
+
+// ============================================================================
 // Profil — user's name, agent's name, detected archetype, preferences.
 // Persona doesn't belong on the landing page (it's static once detected) —
 // it lives here where you can read what "The System Architect" means and
@@ -2330,6 +2373,7 @@ export function createApp(): Hono {
   app.get('/', (c) => c.html(renderLanding()));
   app.get('/historik', (c) => c.html(renderHistorik()));
   app.get('/forbedringer', (c) => c.html(renderForbedringer()));
+  app.get('/wrapped', (c) => c.html(renderWrappedPage()));
   app.get('/profil', (c) => c.html(renderProfil()));
   app.get('/r/:id', (c) => c.html(renderReport(c.req.param('id'))));
 
