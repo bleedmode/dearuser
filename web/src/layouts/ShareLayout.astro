@@ -8,6 +8,8 @@
 //     boundaries; English reads better for the viral use case).
 //   - Richer OG meta so Slack/Twitter/LinkedIn previews show the score.
 
+import Analytics from '@vercel/analytics/astro';
+
 interface Props {
   title: string;
   description?: string;
@@ -203,6 +205,30 @@ const canonical = ogUrl || Astro.url.toString();
   </header>
 
   <slot />
+
+  <Analytics />
+
+  <script>
+    // Website analytics — dearuser.ai only. MCP/dashboard never tracked.
+    import { initAnalytics, trackShareViewed } from '../lib/analytics';
+    initAnalytics();
+    function fire() {
+      // Token is the last path segment of /r/<token>. We only pass its
+      // length (for anomaly detection) — never the token itself.
+      const parts = (window.location.pathname || '').split('/').filter(Boolean);
+      const token = parts[0] === 'r' && parts[1] ? parts[1] : null;
+      // Report type: read from a non-content signal if the page exposes one.
+      // Falls back to "unknown" rather than modifying page markup.
+      const kindEl = document.querySelector('[data-report-kind]');
+      const reportType = kindEl?.getAttribute('data-report-kind') || 'unknown';
+      trackShareViewed({ reportType, token });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', fire, { once: true });
+    } else {
+      fire();
+    }
+  </script>
 
   <footer class="du-share-footer">
     <div class="du-share-footer-inner">

@@ -4,6 +4,7 @@
 // (mcp/src/dashboard.ts) 1:1 so the public site and the product feel like
 // one continuous surface.
 import FeedbackModal from '../components/FeedbackModal.astro';
+import Analytics from '@vercel/analytics/astro';
 interface Props {
   title: string;
   description?: string;
@@ -237,6 +238,20 @@ const {
   <slot />
 
   {active !== 'feedback' && <FeedbackModal mode="modal" defaultContext="general" />}
+
+  <Analytics />
+
+  <script>
+    // Website analytics — dearuser.ai only. MCP/dashboard never tracked.
+    // See src/lib/analytics.ts for the full privacy contract.
+    import { initAnalytics, trackLandingViewed } from '../lib/analytics';
+    initAnalytics();
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', trackLandingViewed, { once: true });
+    } else {
+      trackLandingViewed();
+    }
+  </script>
 
   <footer class="du-footer">
     <div class="du-container du-footer-inner">
