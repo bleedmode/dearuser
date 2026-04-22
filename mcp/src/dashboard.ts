@@ -1042,6 +1042,8 @@ function renderAnalyzeLetter(run: any, report: any): string {
       <!-- Combined: overall score + per-category bars, one section, one glance -->
       ${renderScoreAndCategories(score, catEntries)}
 
+      ${renderWhatISaw(report)}
+
       ${findingItems.length > 0 ? `
         <section class="mb-12">
           <h2>${t('Her er hvad jeg vil foreslå', "Here's what I'd suggest")}</h2>
@@ -1064,6 +1066,46 @@ function renderAnalyzeLetter(run: any, report: any): string {
   `;
 
   return page(`${toolLabelEn(run.tool_name)}`, body, 'oversigt');
+}
+
+// "What I saw" narrative layer — strengths, patterns, and risks observed in
+// the user's setup. Renders between score+categories and recommendations so
+// the letter reads: "here's your score, here's what I observed, here's what
+// to do about it." Old reports without the findings array render nothing.
+function renderWhatISaw(report: any): string {
+  const findings: Array<{ tag?: string; title?: string; body?: string }> =
+    Array.isArray(report?.findings) ? report.findings : [];
+  if (findings.length === 0) return '';
+
+  const tagLabel: Record<string, { da: string; en: string; cls: string }> = {
+    win:     { da: 'Styrke',  en: 'Strength', cls: 'bg-green-100 text-green-800' },
+    pattern: { da: 'Mønster', en: 'Pattern',  cls: 'bg-blue-100 text-blue-800'   },
+    risk:    { da: 'Risiko',  en: 'Risk',     cls: 'bg-rose-100 text-rose-800'   },
+  };
+
+  const items = findings.slice(0, 6).map((f, i) => {
+    const label = tagLabel[f.tag || ''] || { da: f.tag || '', en: f.tag || '', cls: 'bg-ink-100 text-ink-700' };
+    const num = String(i + 1).padStart(2, '0');
+    return `
+      <div class="flex gap-4 py-4 border-b border-paper-200 last:border-b-0">
+        <div class="font-mono text-xs text-ink-400 pt-1">${num}</div>
+        <div class="flex-1">
+          <h3 class="flex items-center gap-2 text-ink-900 font-medium m-0">
+            <span class="inline-block text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded ${label.cls}">${t(label.da, label.en)}</span>
+            <span>${escapeHtml(f.title || '')}</span>
+          </h3>
+          ${f.body ? `<p class="text-ink-700 text-sm leading-relaxed mt-2 mb-0">${escapeHtml(f.body)}</p>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <section class="mb-12">
+      <h2>${t('Det jeg så', 'What I saw')}</h2>
+      <div class="not-letter">${items}</div>
+    </section>
+  `;
 }
 
 // Map the top-action rec + the 3 small things into the unified finding shape
