@@ -1,0 +1,463 @@
+---
+// /r/[token] — public shareable Dear User report.
+// Server-rendered per-request so we can look up the token in Supabase
+// (tokens are unknown at build time).
+
+export const prerender = false;
+
+import ShareLayout from '../../layouts/ShareLayout.astro';
+import {
+  loadSharedReport,
+  incrementViewCount,
+  type ReportType,
+} from '../../lib/shared-report';
+
+const { token } = Astro.params;
+const tokenStr = (token || '').toString();
+const { row, mock, warning } = await loadSharedReport(tokenStr);
+
+if (!row) {
+  // 404 — friendly page, not a stacktrace. Return a 404 status so search
+  // engines don't index and social previews gracefully degrade.
+  Astro.response.status = 404;
+}
+
+// Fire the view counter without awaiting — keeps the render fast and
+// avoids coupling the page load to DB latency.
+if (row && !mock) incrementViewCount(tokenStr);
+
+const reportType: ReportType = row?.report_type || 'collab';
+const report = (row?.report_json || {}) as Record<string, any>;
+const score = row?.score ?? (typeof report.collaborationScore === 'number' ? report.collaborationScore : null);
+const projectName = row?.project_name || (typeof report.projectName === 'string' ? report.projectName : 'a Claude Code setup');
+const persona = report.persona || null;
+const categories: Array<{ label?: string; key?: string; score?: number }> = Array.isArray(report.categories) ? report.categories : [];
+const findings: Array<{ tag?: string; title?: string; body?: string }> = Array.isArray(report.findings) ? report.findings : [];
+const recommendations: Array<{ title?: string; body?: string }> = Array.isArray(report.recommendations) ? report.recommendations : [];
+
+const REPORT_LABEL: Record<ReportType, string> = {
+  collab: 'Collaboration report',
+  security: 'Security report',
+  health: 'System health report',
+  wrapped: 'Wrapped',
+};
+
+function scoreTone(n: number | null): 'good' | 'warn' | 'bad' | 'muted' {
+  if (n === null || !Number.isFinite(n)) return 'muted';
+  if (n >= 80) return 'good';
+  if (n >= 60) return 'warn';
+  return 'bad';
+}
+
+const tone = scoreTone(score);
+const title = row
+  ? `${projectName} — ${REPORT_LABEL[reportType]}${score !== null ? ` · ${score}/100` : ''}`
+  : 'Report not found — Dear User';
+const description = row
+  ? `A Dear User audit of ${projectName}${score !== null ? ` — score ${score}/100.` : '.'}`
+  : 'The shared report you\'re looking for doesn\'t exist or has expired.';
+
+const ogImage = row
+  ? new URL(`/r/${tokenStr}/opengraph-image.png`, Astro.url).toString()
+  : undefined;
+---
+<ShareLayout
+  title={title}
+  description={description}
+  ogImage={ogImage}
+  ogUrl={Astro.url.toString()}
+  noindex={!row}
+>
+
+{!row && (
+  <section class="not-found">
+    <div class="not-found-inner">
+      <h1>Report not found</h1>
+      <p>
+        The link you followed is either mistyped or has expired. Shared reports
+        can be set to expire — check with whoever sent you the link, or audit
+        your own setup instead.
+      </p>
+      <a href="https://dearuser.ai/" class="not-found-cta">Audit your own setup →</a>
+    </div>
+  </section>
+)}
+
+{row && (
+  <section class="report-wrap">
+    {warning && (
+      <div class="du-warning-banner">{warning}</div>
+    )}
+
+    <div class="report-inner">
+      <div class="report-meta">
+        <span class="report-kind">{REPORT_LABEL[reportType]}</span>
+        <span class="report-sep" aria-hidden="true">·</span>
+        <span class="report-date">
+          {new Date(row.created_at).toLocaleDateString('en-US', {
+            year: 'numeric', month: 'long', day: 'numeric',
+          })}
+        </span>
+      </div>
+
+      <h1 class="report-heading">{projectName}</h1>
+
+      {score !== null && (
+        <div class={`headline-score headline-score-${tone}`}>
+          <div class="headline-score-num">{score}</div>
+          <div class="headline-score-label">
+            <span>out of 100</span>
+            <span class="headline-score-sub">
+              {tone === 'good' && 'Strong collaboration'}
+              {tone === 'warn' && 'Room to improve'}
+              {tone === 'bad' && 'Needs attention'}
+              {tone === 'muted' && 'Audit complete'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {persona && persona.archetypeName && (
+        <div class="persona">
+          <div class="persona-label">Agent archetype</div>
+          <div class="persona-name">{persona.archetypeName}</div>
+          {Array.isArray(persona.traits) && persona.traits.length > 0 && (
+            <div class="persona-traits">
+              {persona.traits.slice(0, 4).map((t: string) => (
+                <span class="trait-pill">{t}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {categories.length > 0 && (
+        <section class="section">
+          <h2>Category scores</h2>
+          <div class="category-grid">
+            {categories.map((c) => {
+              const n = typeof c.score === 'number' ? c.score : null;
+              const t = scoreTone(n);
+              return (
+                <div class="category-tile">
+                  <div class="category-label">
+                    <span class={`category-dot category-dot-${t}`}></span>
+                    <span>{c.label || c.key}</span>
+                  </div>
+                  <div class={`category-num category-num-${t}`}>
+                    {n !== null ? n : '—'}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {findings.length > 0 && (
+        <section class="section">
+          <h2>What we saw</h2>
+          {findings.slice(0, 8).map((f, i) => (
+            <div class="finding">
+              <div class="finding-num">{String(i + 1).padStart(2, '0')}</div>
+              <div>
+                <h3 class="finding-title">
+                  {f.tag && (
+                    <span class={`finding-tag finding-tag-${f.tag}`}>
+                      {f.tag === 'win' && 'Strength'}
+                      {f.tag === 'pattern' && 'Pattern'}
+                      {f.tag === 'risk' && 'Risk'}
+                      {!['win', 'pattern', 'risk'].includes(f.tag) && f.tag}
+                    </span>
+                  )}
+                  <span>{f.title}</span>
+                </h3>
+                {f.body && <p class="finding-body">{f.body}</p>}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {recommendations.length > 0 && (
+        <section class="section">
+          <h2>What we recommend</h2>
+          {recommendations.slice(0, 5).map((r, i) => (
+            <div class="rec">
+              <div class="rec-head">
+                <span class="rec-badge">Recommendation #{i + 1}</span>
+              </div>
+              <h3 class="rec-title">{r.title}</h3>
+              {r.body && <p class="rec-body">{r.body}</p>}
+            </div>
+          ))}
+        </section>
+      )}
+    </div>
+  </section>
+)}
+
+<style>
+  .not-found { padding: 120px 0; }
+  .not-found-inner {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 0 24px;
+    text-align: center;
+  }
+  .not-found h1 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 40px;
+    letter-spacing: -0.01em;
+    margin: 0 0 18px;
+    color: var(--c-ink-900);
+  }
+  .not-found p {
+    color: var(--c-ink-700);
+    font-size: 17px;
+    line-height: 1.55;
+    margin: 0 0 28px;
+  }
+  .not-found-cta {
+    display: inline-block;
+    padding: 12px 20px;
+    background: var(--c-action-600);
+    color: var(--c-paper-50);
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 14px;
+    letter-spacing: 0.02em;
+  }
+  .not-found-cta:hover { background: var(--c-action-700); }
+
+  .report-wrap { padding: 48px 0 24px; }
+  .report-inner {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .report-meta {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--c-ink-400);
+    margin-bottom: 18px;
+  }
+  .report-sep { margin: 0 10px; }
+
+  .report-heading {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: clamp(36px, 5vw, 48px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin: 0 0 36px;
+    color: var(--c-ink-900);
+  }
+
+  .headline-score {
+    display: flex;
+    align-items: baseline;
+    gap: 22px;
+    padding: 32px;
+    background: var(--c-paper-100);
+    border: 1px solid var(--c-paper-200);
+    border-radius: 16px;
+    margin-bottom: 32px;
+  }
+  .headline-score-num {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 96px;
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+  .headline-score-good .headline-score-num { color: var(--c-good); }
+  .headline-score-warn .headline-score-num { color: var(--c-warn); }
+  .headline-score-bad  .headline-score-num { color: var(--c-bad); }
+  .headline-score-muted .headline-score-num { color: var(--c-ink-400); }
+  .headline-score-label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 14px;
+    color: var(--c-ink-500);
+  }
+  .headline-score-sub {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 20px;
+    color: var(--c-ink-900);
+    font-style: italic;
+  }
+
+  .persona {
+    padding: 24px;
+    background: var(--c-accent-100);
+    border-radius: 12px;
+    margin-bottom: 32px;
+  }
+  .persona-label {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--c-accent-600);
+    margin-bottom: 8px;
+  }
+  .persona-name {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 26px;
+    color: var(--c-ink-900);
+    letter-spacing: -0.01em;
+  }
+  .persona-traits {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+  }
+  .trait-pill {
+    font-size: 12px;
+    padding: 4px 10px;
+    background: var(--c-paper-50);
+    border: 1px solid var(--c-paper-200);
+    border-radius: 999px;
+    color: var(--c-ink-700);
+  }
+
+  .section { margin-top: 40px; }
+  .section h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 28px;
+    color: var(--c-ink-900);
+    margin: 0 0 18px;
+    letter-spacing: -0.015em;
+  }
+
+  .category-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  @media (max-width: 640px) {
+    .category-grid { grid-template-columns: 1fr 1fr; }
+  }
+  .category-tile {
+    padding: 16px;
+    border: 1px solid var(--c-paper-200);
+    border-radius: 10px;
+    background: var(--c-paper-50);
+  }
+  .category-label {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--c-ink-500);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .category-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+  .category-dot-good { background: var(--c-good); }
+  .category-dot-warn { background: var(--c-warn); }
+  .category-dot-bad  { background: var(--c-bad); }
+  .category-dot-muted { background: var(--c-ink-400); }
+  .category-num {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 40px;
+    line-height: 1;
+  }
+  .category-num-good { color: var(--c-good); }
+  .category-num-warn { color: var(--c-warn); }
+  .category-num-bad  { color: var(--c-bad); }
+  .category-num-muted { color: var(--c-ink-400); }
+
+  .finding {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    gap: 14px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--c-paper-200);
+  }
+  .finding:last-child { border-bottom: 0; }
+  .finding-num {
+    font-family: 'Geist Mono', monospace;
+    font-size: 13px;
+    color: var(--c-ink-400);
+    padding-top: 4px;
+  }
+  .finding-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 19px;
+    color: var(--c-ink-900);
+    font-weight: 500;
+    margin: 0 0 6px;
+    line-height: 1.4;
+  }
+  .finding-body {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 16px;
+    color: var(--c-ink-700);
+    line-height: 1.55;
+    margin: 0;
+  }
+  .finding-tag {
+    display: inline-block;
+    font-family: 'Geist', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+  .finding-tag-pattern { background: var(--c-action-100); color: var(--c-action-700); }
+  .finding-tag-win { background: color-mix(in srgb, var(--c-good) 14%, transparent); color: var(--c-good); }
+  .finding-tag-risk { background: color-mix(in srgb, var(--c-bad) 14%, transparent); color: var(--c-bad); }
+
+  .rec {
+    padding: 22px 24px;
+    background: var(--c-paper-100);
+    border: 1px solid var(--c-paper-200);
+    border-radius: 12px;
+    margin-bottom: 14px;
+  }
+  .rec-head { margin-bottom: 10px; }
+  .rec-badge {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--c-action-100);
+    color: var(--c-action-700);
+    font-weight: 600;
+  }
+  .rec-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 20px;
+    color: var(--c-ink-900);
+    font-weight: 500;
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+  }
+  .rec-body {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 16px;
+    color: var(--c-ink-700);
+    line-height: 1.55;
+    margin: 0;
+  }
+</style>
+</ShareLayout>
