@@ -132,12 +132,26 @@ const PATTERNS: Pattern[] = [
   {
     category: 'env_secret',
     severity: 'recommended',
-    regex: /\b([A-Z][A-Z0-9_]{2,}(?:SECRET|PASSWORD|TOKEN|APIKEY|API_KEY|PRIVATE|CREDENTIALS))\s*=\s*["']?([A-Za-z0-9+/_\-=.]{12,})["']?/g,
+    // Only the VALUE is captured as group 1 — previously the variable name
+    // was also captured as group 1, which meant the placeholder validator
+    // below was inspecting "API_KEY" instead of "your_key_here". Keeping
+    // the variable-name prefix non-capturing fixes that.
+    regex: /\b(?:[A-Z][A-Z0-9_]{2,}(?:SECRET|PASSWORD|TOKEN|APIKEY|API_KEY|PRIVATE|CREDENTIALS))\s*=\s*["']?([A-Za-z0-9+/_\-=.]{12,})["']?/g,
     description: '.env-style secret assignment',
     owaspCategory: 'ASI-03',
-    validate: (s) => {
-      const placeholders = ['your_key_here', 'xxxxx', 'changeme', 'todo', 'example', 'placeholder', 'secret_here'];
-      return !placeholders.some(p => s.toLowerCase().includes(p));
+    validate: (value) => {
+      const lower = value.toLowerCase();
+      const placeholders = [
+        'your_key_here', 'your-key-here', 'your_secret_here', 'your-secret-here',
+        'your_password_here', 'your-password-here',
+        'xxxxx', 'changeme', 'change-me', 'example', 'example_key',
+        'placeholder', 'secret_here', 'sk_test_', 'pk_test_',
+      ];
+      if (placeholders.some(p => lower.includes(p))) return false;
+      // All-lowercase "todo" is too generic; only reject when it is the
+      // whole value (e.g. VALUE=TODO).
+      if (lower === 'todo' || lower === 'tbd' || lower === 'tbc') return false;
+      return true;
     },
   },
   {
