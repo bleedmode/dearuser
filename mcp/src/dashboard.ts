@@ -23,7 +23,7 @@ import { getFindingByHash } from './engine/findings-ledger.js';
 import { getUserName, getAgentName, getPreferences, updatePreferences } from './engine/user-preferences.js';
 import { friendlyLabel } from './engine/friendly-labels.js';
 import type { LocalizedString } from './engine/friendly-labels.js';
-import { renderWrappedHtml } from './engine/wrapped-html.js';
+import { renderWrappedHtml } from '../../web/src/lib/wrapped-html.ts';
 import { CATEGORY_EXPLANATIONS, overallVerdict, securityVerdict, systemHealthVerdict } from './engine/category-explanations.js';
 import { runOnboard } from './tools/onboard.js';
 import type { OnboardResult } from './tools/onboard.js';
