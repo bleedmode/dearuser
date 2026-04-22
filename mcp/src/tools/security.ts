@@ -35,6 +35,7 @@ import {
   reopenExpiredDismissals,
 } from '../engine/findings-ledger.js';
 import { scoreSecurity } from '../engine/security-scorer.js';
+import { feedbackFooter, firstRunWelcome } from '../engine/feedback-nudge.js';
 import type { ScoreCeiling } from '../types.js';
 import type {
   Scope,
@@ -503,6 +504,9 @@ export function formatSecurityReport(report: SecurityReport): string {
       `*(Absence of findings isn't proof of security. The scanner catches well-known patterns; custom risks still need manual review.)*`,
     );
   }
+
+  lines.push(...firstRunWelcome());
+  lines.push(...feedbackFooter());
 
   return lines.join('\n');
 }

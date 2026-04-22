@@ -20,6 +20,7 @@ import { detectInjection } from '../engine/injection-detector.js';
 import { generateProactiveRecommendations } from '../engine/proactive-recommender.js';
 import { recommendTools } from '../templates/tool-catalog.js';
 import { lintClaudeMd } from '../engine/lint-checks.js';
+import { feedbackFooter, firstRunWelcome } from '../engine/feedback-nudge.js';
 import type { AnalysisReport, AnalysisStats, WrappedData, Scope, GitSummary, LintSummary, LintFinding } from '../types.js';
 
 export type AnalyzeFormat = 'text' | 'detailed' | 'json';
@@ -906,6 +907,9 @@ export function formatAnalyzeReport(report: AnalysisReport, format: AnalyzeForma
   // Tool recommendations and onboarding gaps — in both formats
   lines.push(...formatToolRecs(report, isDetailed));
   lines.push(...formatOnboardingGaps(report));
+
+  lines.push(...firstRunWelcome());
+  lines.push(...feedbackFooter());
 
   return lines.join('\n');
 }
