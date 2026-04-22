@@ -16,7 +16,7 @@
 // surfaced when explicitly present in the report (share.ts handles the
 // anonymization pipeline for the web share card separately).
 
-import type { AnalysisReport } from '../types.js';
+import type { AnalysisReport, WrappedMoment } from '../types.js';
 
 // ---------------------------------------------------------------------------
 // Layout constants
@@ -372,6 +372,41 @@ function renderShareCard(sc: {
   return lines;
 }
 
+/**
+ * Moments — the "Your year in moments" section. Each moment is rendered as:
+ *   big VALUE    LABEL IN CAPS
+ *                narrative sentence (word-wrapped)
+ *                detail line (optional, dimmed via `· `)
+ *
+ * Ordering comes straight from buildMoments (punchiest first). Skipped
+ * cleanly when the moments array is empty.
+ */
+function renderMoments(moments: WrappedMoment[]): string[] {
+  if (!moments || moments.length === 0) return [];
+  const lines = renderSectionHeader('Your year in moments');
+  lines.push(frameBlank());
+  moments.forEach((m, idx) => {
+    // Value + label row — value in a fixed-width left column so they stack.
+    const value = m.value.padEnd(10);
+    const labelCaps = m.label.toUpperCase();
+    lines.push(frameLine(`  ${value}  ${labelCaps}`));
+    // Narrative — word-wrapped, indented under the label.
+    const narrativeWidth = INNER_WIDTH - 4;
+    for (const nl of wrapText(m.narrative, narrativeWidth)) {
+      lines.push(frameLine(`    ${nl}`));
+    }
+    if (m.detail) {
+      for (const dl of wrapText(`· ${m.detail}`, narrativeWidth)) {
+        lines.push(frameLine(`    ${dl}`));
+      }
+    }
+    // Blank between moments, but not after the last (the footer adds one).
+    if (idx < moments.length - 1) lines.push(frameBlank());
+  });
+  lines.push(frameBlank());
+  return lines;
+}
+
 /** Footer — CTA + dearuser.ai. Centered, small. */
 function renderFooter(): string[] {
   return [
@@ -446,6 +481,9 @@ export function formatWrappedText(
   lines.push(...renderAutonomySplit(w.autonomySplit));
   lines.push(...renderSystemGrid(w.systemGrid));
   lines.push(...renderShareCard(w.shareCard));
+  if (w.moments && w.moments.length > 0) {
+    lines.push(...renderMoments(w.moments));
+  }
   if (w.topLesson && w.topLesson.quote) {
     lines.push(...renderTopLesson(w.topLesson));
   }

@@ -168,6 +168,49 @@ export interface AnalysisStats {
   projectsManaged: number;
 }
 
+/**
+ * A single "moment" — a Spotify-Wrapped-style specific stat mined from the
+ * scan. Each moment has:
+ *   - value: the one specific number/string the moment revolves around
+ *   - label: a short headline (2-6 words)
+ *   - narrative: a one-line warm sentence in the agent's voice
+ *
+ * Moments are only added when the data actually supports them — never
+ * fabricated. Max 5 surfaced in the UI.
+ */
+export interface WrappedMoment {
+  id: string;
+  value: string;
+  label: string;
+  narrative: string;
+  /** Optional supporting detail (quote, name, timestamp) — shown smaller. */
+  detail?: string;
+}
+
+/**
+ * Percentile rank vs the 50-file CLAUDE.md corpus (calibration study
+ * 2026-04-22). Only populated when we can read the corpus file and the
+ * user's score differs meaningfully from the baseline.
+ */
+export interface WrappedPercentile {
+  /** User's blended collab score. */
+  score: number;
+  /** 0-100 — % of the corpus the user beats. */
+  percentile: number;
+  /** Top X% rounded sensibly (3, 5, 10, 25, 50). */
+  topPercent: number;
+  corpusSize: number;
+}
+
+/**
+ * Contrast moment — strongest + weakest category. Always present since the
+ * category map is always present, so this one is safe to compute.
+ */
+export interface WrappedContrast {
+  strongest: { key: string; name: string; score: number };
+  weakest: { key: string; name: string; score: number };
+}
+
 export interface WrappedData {
   headlineStat: { value: string; label: string };
   topLesson: { quote: string; context: string } | null;
@@ -180,6 +223,16 @@ export interface WrappedData {
     projects: number;
     prohibitionRatio: string;
   };
+  /**
+   * Specific + personal + shareable stats mined from the scan — the
+   * Spotify-Wrapped "moments" layer. Up to 5 entries. May be empty on
+   * fresh installs where no data supports any moment.
+   */
+  moments: WrappedMoment[];
+  /** Percentile vs corpus — null when corpus data isn't available. */
+  percentile: WrappedPercentile | null;
+  /** Strongest + weakest category — always computable. */
+  contrast: WrappedContrast;
 }
 
 export interface SessionData {
