@@ -191,6 +191,13 @@ const {
   }
   .du-footer a:hover { color: var(--c-ink-900); border-color: var(--c-ink-900); }
   .du-footer-links { display: flex; gap: 24px; flex-wrap: wrap; }
+  .du-privacy-line {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--c-paper-200);
+    font-size: 12px;
+    color: var(--c-ink-400, var(--c-ink-500));
+  }
 
   /* Hide mobile nav labels at narrow widths, keep toggles visible */
   @media (max-width: 640px) {
@@ -264,10 +271,20 @@ const {
         <a href="https://github.com/bleedmode/dearuser/tree/main/docs" target="_blank" rel="noopener">
           <span class="lang-da">Dokumentation</span><span class="lang-en">Docs</span>
         </a>
+        <a href="https://github.com/bleedmode/dearuser/blob/main/docs/privacy.md" target="_blank" rel="noopener">
+          <span class="lang-da">Privatliv</span><span class="lang-en">Privacy</span>
+        </a>
+        <a href="/feedback">
+          <span class="lang-da">Feedback</span><span class="lang-en">Feedback</span>
+        </a>
         <a href="/example">
           <span class="lang-da">Eksempel-brev</span><span class="lang-en">Example letter</span>
         </a>
       </div>
+    </div>
+    <div class="du-container du-privacy-line">
+      <span class="lang-da">Privacy-first analytics — ingen cookies, ingen tracking på tværs af sessioner.</span>
+      <span class="lang-en">Privacy-first analytics — no cookies, no cross-session tracking.</span>
     </div>
   </footer>
 
