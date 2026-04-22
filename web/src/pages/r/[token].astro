@@ -6,6 +6,7 @@
 export const prerender = false;
 
 import ShareLayout from '../../layouts/ShareLayout.astro';
+import WrappedCard from '../../components/WrappedCard.astro';
 import {
   loadSharedReport,
   incrementViewCount,
@@ -83,7 +84,21 @@ const ogImage = row
   </section>
 )}
 
-{row && (
+{row && reportType === 'wrapped' && (
+  <section class="report-wrap">
+    {warning && (
+      <div class="du-warning-banner">{warning}</div>
+    )}
+    <WrappedCard
+      projectName={projectName}
+      score={score}
+      createdAt={row.created_at}
+      wrapped={(report as any).wrapped || {}}
+    />
+  </section>
+)}
+
+{row && reportType !== 'wrapped' && (
   <section class="report-wrap">
     {warning && (
       <div class="du-warning-banner">{warning}</div>
