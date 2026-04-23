@@ -2956,11 +2956,17 @@ function renderProfil(): string {
     ${archetypeBlock}
 
     <section class="mt-16">
-      <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-2">${t('Sådan vil du arbejde', 'How you want to work')}</h2>
+      <div class="flex items-baseline justify-between mb-2">
+        <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500">${t('Sådan vil du arbejde', 'How you want to work')}</h2>
+        <a href="/onboard"
+           class="text-[11px] uppercase tracking-[0.15em] text-action-600 hover:text-action-700 transition">
+          ${t('Rediger svar →', 'Edit answers →')}
+        </a>
+      </div>
       <div>
         ${row({ da: 'Hvad du vil opnå', en: 'What you want to achieve' }, prefs.outcome || prefs.work)}
         ${row({ da: 'Selvstændighed', en: 'Autonomy' }, prefs.autonomy ? autonomyLabel[prefs.autonomy] : null)}
-        ${row({ da: 'Automatisk rytme', en: 'Automatic rhythm' }, prefs.cadence ? cadenceLabel[prefs.cadence] : null)}
+        ${row({ da: 'Rytme', en: 'Rhythm' }, prefs.cadence ? cadenceLabel[prefs.cadence] : null)}
         ${prefs.audience ? row({ da: 'Hvem ser resultaterne (legacy)', en: 'Who sees the results (legacy)' }, audienceLabel[prefs.audience]) : ''}
       </div>
     </section>
