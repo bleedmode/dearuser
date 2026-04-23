@@ -2431,8 +2431,29 @@ function renderOnboardForm(result: OnboardResult, error?: LocalizedString): stri
 // doesn't fire and stepWelcome advances to the name question.
 // ----------------------------------------------------------------------------
 function renderOnboardWelcome(result: OnboardResult): string {
+  // Split the teaching text on the first paragraph break so we can render
+  // the opening sentence in the brand action colour — it's the line the
+  // whole letter hangs off ("this year you'll spend more hours with your
+  // agent than with most people in your life") and deserves to stand out.
+  const splitTeaching = (full: string): { headline: string; rest: string } => {
+    const idx = full.indexOf('\n\n');
+    if (idx === -1) return { headline: full, rest: '' };
+    return { headline: full.slice(0, idx), rest: full.slice(idx + 2) };
+  };
+
   const teaching = result.teaching
-    ? `<div class="font-serif text-xl md:text-2xl text-ink-700 leading-relaxed mb-10 whitespace-pre-wrap">${t(result.teaching.da, result.teaching.en)}</div>`
+    ? (() => {
+        const da = splitTeaching(result.teaching.da);
+        const en = splitTeaching(result.teaching.en);
+        return `
+          <p class="font-serif text-2xl md:text-3xl text-action-600 leading-snug mb-8 whitespace-pre-wrap">
+            ${t(da.headline, en.headline)}
+          </p>
+          ${da.rest || en.rest
+            ? `<div class="font-serif text-xl md:text-2xl text-ink-700 leading-relaxed mb-10 whitespace-pre-wrap">${t(da.rest, en.rest)}</div>`
+            : ''}
+        `;
+      })()
     : '';
 
   const body = `
@@ -2462,8 +2483,17 @@ function renderOnboardWelcome(result: OnboardResult): string {
 }
 
 function stepNumberFromResult(result: OnboardResult): number {
+  // v4 flow: welcome → greet (name, Q1) → outcome (Q2) → autonomy (Q3)
+  // → cadence (Q4) → audience (Q5) → plan. Legacy names (intro/work/data/
+  // stack/pains/substrate) route to the closest v4 step server-side so the
+  // counter still lines up if older clients pass old step names.
   const map: Record<string, number> = {
-    welcome: 1, greet: 1, intro: 2, work: 3, data: 4, cadence: 5, audience: 6, plan: 6,
+    welcome: 1, greet: 1,
+    outcome: 2, intro: 2, work: 2, goals: 2, role: 2,
+    autonomy: 3, data: 3, stack: 3, pains: 3, 'stack-pains': 3,
+    cadence: 4, substrate: 4,
+    audience: 5,
+    plan: 5,
   };
   if (result.nextStep && result.nextStep !== result.step && result.nextStep !== 'plan') {
     return map[result.nextStep] || 1;
