@@ -165,7 +165,7 @@ function renderProfileAvatar(activeNav: string): string {
     </a>`;
 }
 
-function page(title: string, body: string, activeNav: 'oversigt' | 'kørsler' | 'forbedringer' | 'profil' = 'oversigt'): string {
+function page(title: string, body: string, activeNav: 'oversigt' | 'kørsler' | 'forbedringer' | 'profil' | 'wrapped' = 'oversigt'): string {
   return `<!DOCTYPE html>
 <html lang="da">
 <head>

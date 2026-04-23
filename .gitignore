@@ -2,6 +2,8 @@ node_modules/
 dist/
 .DS_Store
 .claude/worktrees/
+.env
+.env.*
 
 # Calibration v2 raw files (60MB, reproducible via fetch.mjs)
 research/calibration/2026-04-22-claude-md-corpus-v2/data/raw/[0-9]*.md

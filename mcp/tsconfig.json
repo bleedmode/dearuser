@@ -4,16 +4,19 @@
     "module": "Node16",
     "moduleResolution": "node16",
     "outDir": "./dist",
-    "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
     "sourceMap": true
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/**/*",
+    "../web/src/lib/archetype-pair.ts",
+    "../web/src/lib/wrapped-slides.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

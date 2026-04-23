@@ -13,7 +13,7 @@
 // Returns a self-contained HTML fragment with scoped <style> + <script>.
 // Outer layout stays with each surface; the slides render inline.
 
-import { renderArchetypePair, ARCHETYPE_PAIR_CSS } from './archetype-pair';
+import { renderArchetypePair, ARCHETYPE_PAIR_CSS } from './archetype-pair.ts';
 
 // ---------------------------------------------------------------------------
 // Types
