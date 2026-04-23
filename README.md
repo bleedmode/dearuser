@@ -170,4 +170,6 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). Bug reports and small fixes welcome vi
 
 ## License
 
-MIT
+Dear User is MIT-licensed. See [`LICENSE`](LICENSE).
+
+**Open-core commitment:** everything in this repo is MIT and stays MIT. If we ever build team or hosted features (agency dashboards, cross-project trend lines, vertical-specific benchmarks), they'll live in separate repos with their own license — never by pulling pieces out of this one.
