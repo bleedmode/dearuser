@@ -2560,7 +2560,10 @@ function renderOnboardDone(result: OnboardResult): string {
     ? `
       <div class="mb-12">
         <h2 class="font-serif text-xl text-ink-900 mb-2">${t('Jeg fandt også disse i dine projekter', 'I also found these in your projects')}</h2>
-        <p class="text-ink-500 text-sm mb-5">${t('Kopiér sætningen og send til din agent — den ordner resten.', 'Copy the sentence and send it to your agent — it takes care of the rest.')}</p>
+        <p class="text-ink-500 text-sm mb-5">${t(
+          'For at analysere dem skal jeg bruge et personligt access-token fra platformens hjemmeside — kun du kan lave det (tager 30 sekunder). Paste prompten ind i Claude Code, så åbner din agent den rigtige side, hjælper dig med at oprette token og gemmer den det rigtige sted.',
+          'To analyse these I need a personal access token from the provider\'s site — only you can create it (takes 30 seconds). Paste the prompt into Claude Code and your agent opens the right page, walks you through creating the token, and saves it in the right place.',
+        )}</p>
         ${connected.length > 0 ? `
           <ul class="space-y-1 text-ink-700 mb-4">
             ${connected.map(p => `<li class="flex items-start"><span class="text-emerald-500 font-bold mr-2" aria-hidden="true">✓</span><span>${escapeHtml(p.label)} — ${t('forbundet', 'connected')}</span></li>`).join('')}
@@ -2607,15 +2610,19 @@ function renderOnboardDone(result: OnboardResult): string {
         <h2 class="font-serif text-xl text-ink-900 mb-3">${t('Næste skridt', 'Next step')}</h2>
         <p class="text-ink-700 text-lg leading-relaxed mb-4">
           ${t(
-            'Åbn Claude Code og skriv <code class="font-mono text-base bg-paper-100 px-1.5 py-0.5 rounded">/dearuser-collab</code>. Så sender jeg mit første brev om hvordan du og din agent arbejder sammen.',
-            'Open Claude Code and type <code class="font-mono text-base bg-paper-100 px-1.5 py-0.5 rounded">/dearuser-collab</code>. Then I\'ll send my first letter about how you and your agent are working together.',
+            'Åbn Claude Code og paste denne kommando. Så sender jeg mit første brev om hvordan du og din agent arbejder sammen.',
+            'Open Claude Code and paste this command. Then I\'ll send my first letter about how you and your agent are working together.',
           )}
         </p>
+        ${copyBlock('/dearuser-collab', '/dearuser-collab', 'Kopiér kommandoen:', 'Copy the command:')}
       </div>
 
       <div class="flex justify-between items-center pt-8 border-t border-paper-200">
-        <a href="/" class="text-ink-500 hover:text-ink-900 transition">${t('← Forsiden', '← Home')}</a>
         <div class="opacity-80">${signature()}</div>
+        <a href="/"
+           class="bg-accent-600 hover:bg-accent-500 text-white font-medium px-6 py-2.5 rounded-lg transition">
+          ${t('Færdig →', 'Done →')}
+        </a>
       </div>
     </section>
   `;

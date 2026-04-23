@@ -40,14 +40,17 @@ export type OnboardStep =
   | 'outcome'
   | 'autonomy'
   | 'cadence'
-  | 'audience'
   | 'plan'
-  // Backwards compat — route old step names onto the closest v4 step:
+  // Backwards compat — route old step names onto the closest v4 step.
+  // v4.1 dropped `audience` as a question; old clients still landing on it
+  // get routed to the plan step (we have no way to ask them for the answer
+  // now that the question is gone).
+  | 'audience'     // → plan (v4.1)
   | 'intro'        // → outcome
   | 'role'         // → outcome
   | 'goals'        // → outcome
-  | 'work'         // → outcome (old step name)
-  | 'data'         // → autonomy (v3 data-substrate question dropped)
+  | 'work'         // → outcome
+  | 'data'         // → autonomy
   | 'stack'        // → autonomy
   | 'pains'        // → autonomy
   | 'stack-pains'  // → autonomy
@@ -335,17 +338,19 @@ function stepAutonomy(state: OnboardState, answer: string): OnboardResult {
 
   return {
     step: 'autonomy',
-    teaching: null,
+    teaching: {
+      da: `Jeg kan køre ting for dig på en fast rytme — fx et brief hver morgen, en ugentlig opsummering, eller en hook der reagerer når noget specifikt sker. Dit svar bestemmer kun hvad jeg **foreslår** efter onboarding. Intet installeres uden du siger ja.`,
+      en: `I can run things for you on a set rhythm — a morning brief, a weekly summary, or a hook that fires when something specific happens. Your answer only shapes what I **suggest** after onboarding. Nothing installs without you saying yes.`,
+    },
     question: {
-      da: 'Hvor tit skal jeg arbejde for dig?',
-      en: 'How often should I work for you?',
+      da: 'Skal jeg køre noget automatisk for dig?',
+      en: 'Should I run anything automatically for you?',
     },
     options: [
-      { da: 'Hver morgen', en: 'Every morning' },
-      { da: 'Hver uge', en: 'Every week' },
-      { da: 'Flere gange om dagen', en: 'Several times a day' },
-      { da: 'Kun når jeg spørger', en: 'Only when I ask' },
-      { da: 'Hver gang der sker noget', en: 'Every time something happens' },
+      { da: 'Et dagligt brief', en: 'A daily briefing' },
+      { da: 'En ugentlig opsummering', en: 'A weekly summary' },
+      { da: 'Når noget bestemt sker', en: 'When something specific happens' },
+      { da: 'Ikke noget automatisk — jeg spørger selv', en: 'Nothing automatic — I\'ll ask when I need you' },
     ],
     nextStep: 'cadence',
     state: encodeState(state),
@@ -355,7 +360,10 @@ function stepAutonomy(state: OnboardState, answer: string): OnboardResult {
 }
 
 /**
- * Step 3 (cadence): Save cadence, ask Q4 (audience).
+ * Step 3 (cadence): Save cadence, advance straight to plan. Audience was
+ * dropped from v4.1 — it was the weakest signal in onboarding (mostly
+ * redundant with outcome-text) and the only unique value (team/customers
+ * mismatch warning) can be recovered from scan heuristics later.
  */
 function stepCadence(state: OnboardState, answer: string): OnboardResult {
   if (/skip|just.*template|spring over/i.test(answer)) {
@@ -365,40 +373,6 @@ function stepCadence(state: OnboardState, answer: string): OnboardResult {
 
   state.cadence = parseCadence(answer);
   state.answers.cadence = answer;
-
-  return {
-    step: 'cadence',
-    teaching: null,
-    question: {
-      da: 'Hvem skal se resultaterne?',
-      en: 'Who will see the results?',
-    },
-    options: [
-      { da: 'Kun mig', en: 'Just me' },
-      { da: 'Mit team', en: 'My team' },
-      { da: 'Mig og mit team', en: 'Me and my team' },
-      { da: 'Min chef', en: 'My boss' },
-      { da: 'Mine kunder', en: 'My customers' },
-      { da: 'Offentligt tilgængeligt', en: 'Publicly available' },
-    ],
-    nextStep: 'audience',
-    state: encodeState(state),
-    done: false,
-    plan: null,
-  };
-}
-
-/**
- * Step 4 (audience): Save audience, advance to plan.
- */
-function stepAudience(state: OnboardState, answer: string): OnboardResult {
-  if (/skip|just.*template|spring over/i.test(answer)) {
-    state.answers.audience = '(skipped)';
-    return stepPlan(state, 'skip');
-  }
-
-  state.audience = parseAudience(answer);
-  state.answers.audience = answer;
 
   return stepPlan(state, answer);
 }
@@ -613,9 +587,11 @@ export function runOnboard(input: OnboardInput): OnboardResult {
     case 'outcome':     return stepOutcome(state, answer);
     case 'autonomy':    return stepAutonomy(state, answer);
     case 'cadence':     return stepCadence(state, answer);
-    case 'audience':    return stepAudience(state, answer);
     case 'plan':        return stepPlan(state, answer);
-    // Backwards compat — route v3 step names onto the closest v4 step:
+    // Backwards compat — route legacy step names onto the closest v4 step.
+    // `audience` was a v4.0 question dropped in v4.1; old clients still
+    // posting to it skip to plan.
+    case 'audience':    return stepPlan(state, answer);
     case 'intro':       return stepOutcome(state, answer);
     case 'role':        return stepOutcome(state, answer);
     case 'goals':       return stepOutcome(state, answer);
@@ -637,9 +613,10 @@ function stepNumber(step: OnboardStep): number {
     outcome: 2,
     autonomy: 3,
     cadence: 4,
-    audience: 5,
-    plan: 6,
-    // Legacy aliases
+    plan: 5,
+    // Legacy aliases — all route to their replacement step's number so
+    // older clients see a consistent counter.
+    audience: 4, // dropped in v4.1
     intro: 2, role: 2, goals: 2, work: 2,
     data: 3, stack: 3, pains: 3, 'stack-pains': 3, substrate: 4,
   };
@@ -647,18 +624,18 @@ function stepNumber(step: OnboardStep): number {
 }
 
 /**
- * Label-number for "trin X af 5 spørgsmål". We ask 5 cold-start questions
- * (greet/outcome/autonomy/cadence/audience). Prefer nextStep's number when
- * the handler has advanced — the question being shown belongs to the next
- * step, not the one that generated it.
+ * Label-number for "trin X af 4 spørgsmål". v4.1 asks 4 cold-start
+ * questions (greet/outcome/autonomy/cadence). audience was dropped.
+ * Prefer nextStep's number when the handler has advanced — the question
+ * being shown belongs to the next step, not the one that generated it.
  */
 function labelNumber(result: OnboardResult): number {
-  if (result.done) return 5;
+  if (result.done) return 4;
   if (result.nextStep && result.nextStep !== result.step && result.nextStep !== 'plan') {
     return stepNumber(result.nextStep);
   }
   const n = stepNumber(result.step);
-  return Math.min(n, 5);
+  return Math.min(n, 4);
 }
 
 /**
