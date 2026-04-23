@@ -2959,9 +2959,9 @@ function renderProfil(): string {
       <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-2">${t('Sådan vil du arbejde', 'How you want to work')}</h2>
       <div>
         ${row({ da: 'Hvad du vil opnå', en: 'What you want to achieve' }, prefs.outcome || prefs.work)}
-        ${row({ da: 'Hvor selv skal jeg arbejde', en: 'How independent should I be' }, prefs.autonomy ? autonomyLabel[prefs.autonomy] : null)}
-        ${row({ da: 'Hvor ofte skal jeg arbejde', en: 'How often should I work' }, prefs.cadence ? cadenceLabel[prefs.cadence] : null)}
-        ${row({ da: 'Hvem ser resultaterne', en: 'Who sees the results' }, prefs.audience ? audienceLabel[prefs.audience] : null)}
+        ${row({ da: 'Selvstændighed', en: 'Autonomy' }, prefs.autonomy ? autonomyLabel[prefs.autonomy] : null)}
+        ${row({ da: 'Automatisk rytme', en: 'Automatic rhythm' }, prefs.cadence ? cadenceLabel[prefs.cadence] : null)}
+        ${prefs.audience ? row({ da: 'Hvem ser resultaterne (legacy)', en: 'Who sees the results (legacy)' }, audienceLabel[prefs.audience]) : ''}
       </div>
     </section>
 
