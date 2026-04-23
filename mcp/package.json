@@ -37,6 +37,15 @@
   ],
   "author": "Poised ApS",
   "license": "MIT",
+  "homepage": "https://dearuser.ai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bleedmode/dearuser.git",
+    "directory": "mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/bleedmode/dearuser/issues"
+  },
   "dependencies": {
     "@hono/node-server": "^1.13.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
