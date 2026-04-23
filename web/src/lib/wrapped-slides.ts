@@ -13,6 +13,8 @@
 // Returns a self-contained HTML fragment with scoped <style> + <script>.
 // Outer layout stays with each surface; the slides render inline.
 
+import { renderArchetypePair, ARCHETYPE_PAIR_CSS } from './archetype-pair';
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -29,7 +31,13 @@ export interface WrappedDataInput {
   headlineStat?: { value?: string; label?: string };
   topLesson?: { quote?: string; context?: string } | null;
   autonomySplit?: { doSelf?: number; askFirst?: number; suggest?: number };
+  /** Agent archetype display (Creative Executor, System Architect, ...).
+   *  Derived from the MCP's persona-detector via mapPersonaToAgentArchetype
+   *  and passed through here so slides don't have to know the mapping. */
   archetype?: { name?: string; traits?: string[]; description?: string };
+  /** User archetype from onboarding (Venture Builder, Vibe Coder, ...).
+   *  Rendered alongside the agent archetype in the "You and me" slide. */
+  userArchetype?: { name?: string; description?: string } | null;
   systemGrid?: { hooks?: number; skills?: number; scheduled?: number; rules?: number };
   shareCard?: {
     corrections?: number;
@@ -111,6 +119,7 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
   ).filter((m): m is WrappedMomentInput => Boolean(m && (m.value || m.narrative)));
 
   const archetype = w.archetype || {};
+  const userArchetype = w.userArchetype || null;
   const split = w.autonomySplit || {};
   const grid = w.systemGrid || {};
   const lesson = w.topLesson || null;
@@ -177,21 +186,30 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
     `);
   }
 
-  // Slide 3 — Archetype
-  if (archetype.name) {
-    const traits = Array.isArray(archetype.traits) ? archetype.traits.slice(0, 5) : [];
+  // Slide 3 — "You and me" archetype pair. Uses the shared renderer so all
+  // four surfaces (profile / letter / share / wrapped) render identical
+  // markup; Wrapped just requests the 'slide' variant for larger type.
+  if (userArchetype?.name || archetype.name) {
+    const pairHtml = renderArchetypePair({
+      showHeading: false,
+      variant: 'slide',
+      you: {
+        name: userArchetype?.name || null,
+        description: userArchetype?.description || null,
+        emptyState: { da: 'Ikke placeret endnu.', en: 'Not placed yet.' },
+      },
+      me: {
+        name: archetype.name || null,
+        description: archetype.description || null,
+        emptyState: { da: 'Stadig lærende.', en: 'Still learning.' },
+      },
+    }).html;
     slides.push(`
       <section class="du-slide" data-du-slide>
         <div class="du-slide-eyebrow">
-          <span class="lang-da">Din agent-arketype</span><span class="lang-en">Your agent archetype</span>
+          <span class="lang-da">Dig og mig</span><span class="lang-en">You and me</span>
         </div>
-        <div class="du-slide-archetype-name">${h(archetype.name)}</div>
-        ${archetype.description ? `<p class="du-slide-archetype-desc">${h(archetype.description)}</p>` : ''}
-        ${traits.length > 0 ? `
-          <div class="du-slide-traits">
-            ${traits.map(tr => `<span class="du-slide-trait-pill">${h(tr)}</span>`).join('')}
-          </div>
-        ` : ''}
+        ${pairHtml}
         ${setupArchetypeName ? `<div class="du-slide-setup-style"><span class="lang-da">Setup-stil</span><span class="lang-en">Setup style</span> · ${h(setupArchetypeName)}</div>` : ''}
       </section>
     `);
@@ -356,7 +374,7 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
   const slidesHtml = slides.join('\n');
 
   return `
-<style>${WRAPPED_SLIDES_CSS}</style>
+<style>${WRAPPED_SLIDES_CSS}${ARCHETYPE_PAIR_CSS}</style>
 <div class="du-slides-stage">
 ${slidesHtml}
 </div>
@@ -534,6 +552,11 @@ const WRAPPED_SLIDES_CSS = `
   .du-slide-bar-fill.terracotta { background: var(--c-action-600, #ec5329); }
   .du-slide-bar-fill.warm { background: var(--c-accent-500, #d77356); }
   .du-slide-bar-fill.ink { background: var(--c-ink-500, #72655b); }
+
+  /* Archetype pair styles now come from the shared renderer (injected
+   * into the same <style> block below). The legacy .du-slide-archetype-*
+   * classes are kept only for backwards compatibility with any cached
+   * share pages still rendering old wrapped markup. */
 
   .du-slide-archetype-name {
     font-family: 'Fraunces', Georgia, serif;

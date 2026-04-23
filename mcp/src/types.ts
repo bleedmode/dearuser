@@ -248,6 +248,8 @@ export interface WrappedData {
   topLesson: { quote: string; context: string } | null;
   autonomySplit: { doSelf: number; askFirst: number; suggest: number };
   archetype: { name: string; traits: string[]; description: string };
+  /** User archetype — paired with `archetype` on the "You and me" wrapped slide. */
+  userArchetype?: { name: string; description: string } | null;
   systemGrid: { hooks: number; skills: number; scheduled: number; rules: number };
   shareCard: {
     corrections: number;
@@ -582,7 +584,19 @@ export interface AnalysisReport {
   installedServers: string[];
   /** Skill names discovered in ~/.claude/skills/ — used for dedup in recommendations. */
   installedSkills: string[];
+  /** The agent's archetype — derived from scan of CLAUDE.md, hooks, skills,
+   *  memory, rules. Reflects how the agent is CONFIGURED, not who the user
+   *  is. Field name kept as `persona` for backwards compatibility with
+   *  existing report_json rows. */
   persona: PersonaResult;
+  /** The user's archetype — derived from onboarding answers (outcome,
+   *  autonomy, cadence, audience). Uses a different taxonomy than the
+   *  agent's `persona` so "You and me" feels like complementary roles
+   *  rather than overlapping boxes. Null if the user hasn't answered
+   *  enough of onboarding yet. Available from day 1 (no scan needed).
+   *  Typed as `any` here to avoid importing the engine type into
+   *  types.ts — the runtime shape is `UserArchetypeResult`. */
+  userArchetype: any | null;
   /**
    * Archetype of the setup itself (orthogonal to persona). Shown in the
    * collab report header, Wrapped output, and share card.

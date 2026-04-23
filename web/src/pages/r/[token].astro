@@ -12,6 +12,8 @@ import {
   incrementViewCount,
   type ReportType,
 } from '../../lib/shared-report';
+import { mapPersonaToAgentArchetype } from '../../lib/archetype-display';
+import { renderArchetypePair, ARCHETYPE_PAIR_CSS } from '../../lib/archetype-pair';
 
 const { token } = Astro.params;
 const tokenStr = (token || '').toString();
@@ -40,6 +42,13 @@ const scoreFromReport = (() => {
 const score = row?.score ?? scoreFromReport;
 const projectName = row?.project_name || (typeof report.projectName === 'string' ? report.projectName : 'a Claude Code setup');
 const persona = report.persona || null;
+// "You and me" — user archetype from onboarding answers; agent archetype
+// mapped from persona-detector onto the agent-side taxonomy so the share
+// page reads the same as the local profile page.
+const userArchetype = (report as any).userArchetype || null;
+const agentArchetype = persona?.detected
+  ? mapPersonaToAgentArchetype(persona.detected)
+  : null;
 
 // English-only category labels for the share page — mirrors
 // CATEGORY_EXPLANATIONS in mcp/src/engine/category-explanations.ts so the
@@ -263,18 +272,21 @@ const ogImage = row
         </div>
       )}
 
-      {persona && persona.archetypeName && (
-        <div class="persona">
-          <div class="persona-label">Agent archetype</div>
-          <div class="persona-name">{persona.archetypeName}</div>
-          {Array.isArray(persona.traits) && persona.traits.length > 0 && (
-            <div class="persona-traits">
-              {persona.traits.slice(0, 4).map((t: string) => (
-                <span class="trait-pill">{t}</span>
-              ))}
-            </div>
-          )}
-        </div>
+      {(userArchetype || agentArchetype) && (
+        <Fragment set:html={renderArchetypePair({
+          showHeading: false,
+          lang: 'en',
+          you: {
+            name: userArchetype?.archetypeName || null,
+            description: userArchetype?.archetypeDescription || null,
+            emptyState: { da: '', en: 'Not placed yet.' },
+          },
+          me: {
+            name: agentArchetype?.name || null,
+            description: agentArchetype?.shortDescription || null,
+            emptyState: { da: '', en: 'Still learning.' },
+          },
+        }).html} />
       )}
 
       {categories.length > 0 && (
@@ -438,43 +450,7 @@ const ogImage = row
     font-style: italic;
   }
 
-  /* Persona card — matches example.astro exactly so the two pages share one voice. */
-  .persona {
-    margin: 28px 0;
-    padding: 24px;
-    background: var(--c-accent-100);
-    border: 1px solid var(--c-accent-100);
-    border-radius: 12px;
-  }
-  .persona-label {
-    font-size: 10px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--c-accent-600);
-    margin-bottom: 8px;
-  }
-  .persona-name {
-    font-family: 'Fraunces', Georgia, serif;
-    font-weight: 500;
-    font-size: 24px;
-    color: var(--c-ink-900);
-    margin-bottom: 10px;
-    letter-spacing: -0.01em;
-  }
-  .persona-traits {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-top: 14px;
-  }
-  .trait-pill {
-    font-size: 12px;
-    padding: 4px 10px;
-    background: var(--c-paper-50);
-    border: 1px solid var(--c-paper-200);
-    border-radius: 999px;
-    color: var(--c-ink-700);
-  }
+  /* Archetype pair styles injected from shared renderer below. */
 
   .section { margin-top: 40px; }
   .section h2 {
@@ -575,4 +551,5 @@ const ogImage = row
   .finding-tag-risk { background: color-mix(in srgb, var(--c-bad) 14%, transparent); color: var(--c-bad); }
 
 </style>
+<style is:inline set:html={ARCHETYPE_PAIR_CSS} />
 </ShareLayout>

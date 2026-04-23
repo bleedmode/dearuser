@@ -20,7 +20,10 @@ import { marked } from 'marked';
 import { getRecentRuns, getRunById, getScoreHistory, getRecommendations, updateRecommendationStatus, getLatestScoresByTool } from './engine/db.js';
 import { reconcilePendingRecommendations } from './engine/reconcile-recommendations.js';
 import { getFindingByHash } from './engine/findings-ledger.js';
-import { getUserName, getAgentName, getPreferences, updatePreferences } from './engine/user-preferences.js';
+import { getUserName, getPreferences, updatePreferences } from './engine/user-preferences.js';
+import { detectUserArchetype, getUserArchetypeDefinition } from './engine/user-archetype-detector.js';
+import { mapPersonaToAgentArchetype } from './engine/agent-archetype-map.js';
+import { renderArchetypePair, ARCHETYPE_PAIR_CSS } from '../../web/src/lib/archetype-pair.ts';
 import { friendlyLabel } from './engine/friendly-labels.js';
 import type { LocalizedString } from './engine/friendly-labels.js';
 import { renderWrappedSlides } from '../../web/src/lib/wrapped-slides.ts';
@@ -291,6 +294,7 @@ function page(title: string, body: string, activeNav: 'oversigt' | 'kørsler' | 
   .letter-prose blockquote { border-left: 3px solid var(--c-accent-600); padding-left: 1rem; color: var(--c-ink-500); margin: 1rem 0; font-style: italic; }
   .letter-prose a { color: var(--c-action-600); text-decoration: underline; text-underline-offset: 2px; }
   .smile-path { stroke: var(--c-smile-fill); }
+  ${ARCHETYPE_PAIR_CSS}
 </style>
 </head>
 <body class="bg-paper-50 text-ink-900 antialiased min-h-screen">
@@ -1105,8 +1109,50 @@ function renderMarkdownFallback(run: any): string {
 
 function renderAnalyzeLetter(run: any, report: any): string {
   const score = typeof report.collaborationScore === 'number' ? report.collaborationScore : run.score;
-  const persona = report.persona?.archetypeName || report.persona?.detected || 'bruger';
-  const personaBlurb = report.persona?.archetypeDescription || '';
+
+  // Two archetypes — profile-style pair card, same layout everywhere.
+  // User archetype from onboarding answers; agent archetype mapped from
+  // persona-detector onto the agent-side taxonomy.
+  //
+  // Fallback: if the stored report predates userArchetype (old report_json),
+  // run the detector live against current preferences. Profile page does the
+  // same — keeps old letters consistent with new profile without a backfill.
+  const userArch: any = report.userArchetype || detectUserArchetype(getPreferences());
+  const agentPersona: any = report.persona || null;
+  const mappedAgent = agentPersona?.detected
+    ? mapPersonaToAgentArchetype(agentPersona.detected)
+    : null;
+  const agentRunnerUpName = agentPersona?.runnerUp && mappedAgent
+    ? (() => {
+        const ru = mapPersonaToAgentArchetype(agentPersona.runnerUp);
+        return ru.id !== mappedAgent.id ? ru.name : null;
+      })()
+    : null;
+  const userRunnerUpName = userArch?.runnerUp
+    ? getUserArchetypeDefinition(userArch.runnerUp).name
+    : null;
+  const archetypeBlock = renderArchetypePair({
+    you: {
+      name: userArch?.archetypeName || null,
+      description: userArch?.archetypeDescription || null,
+      runnerUpName: userRunnerUpName,
+      sourceLabel: { da: 'Fra dine svar', en: 'From your answers' },
+      emptyState: {
+        da: 'Vi har ikke nok fra onboarding endnu.',
+        en: "I don't have enough from onboarding yet.",
+      },
+    },
+    me: {
+      name: mappedAgent?.name || null,
+      description: mappedAgent?.description || null,
+      runnerUpName: agentRunnerUpName,
+      sourceLabel: { da: 'Fra denne rapport', en: 'From this report' },
+      emptyState: {
+        da: 'Jeg er stadig lærende.',
+        en: 'I am still learning.',
+      },
+    },
+  }).html;
 
   // ---- Pick THE top action from the recommendations list ----
   const allRecs: any[] = Array.isArray(report.recommendations) ? report.recommendations : [];
@@ -1138,20 +1184,13 @@ function renderAnalyzeLetter(run: any, report: any): string {
         ${renderLetterShareControls()}
       </header>
 
-      <!-- Greeting — brev-style, leads into the rest of the letter -->
+      <!-- Greeting — short addressee, then the You+Me archetype pair -->
       <section class="mb-10">
         <p class="font-serif text-2xl text-ink-900 mb-3" style="margin-bottom: 0.75rem">${t(greeting(), greetingEn())},</p>
-        <p class="text-ink-700 leading-relaxed" style="margin: 0">
-          ${t(
-            personaBlurb
-              ? `Jeg har kigget dit setup igennem. Du arbejder som "${persona}" — ${lowerFirst(personaBlurb.split('.')[0])}. Her er hvad jeg fandt.`
-              : `Jeg har kigget dit setup igennem. Her er hvad jeg fandt.`,
-            personaBlurb
-              ? `I've looked through your setup. You work as a "${persona}" — ${lowerFirst(personaBlurb.split('.')[0])}. Here is what I found.`
-              : `I've looked through your setup. Here is what I found.`,
-          )}
-        </p>
       </section>
+
+      <!-- "You and me" archetype pair — same component as profile/share/wrapped -->
+      ${archetypeBlock}
 
       <!-- Combined: overall score + per-category bars, one section, one glance -->
       ${renderScoreAndCategories(score, catEntries, report)}
@@ -2556,10 +2595,25 @@ function renderWrappedPage(): string {
   const score = typeof report?.collaborationScore === 'number' ? report.collaborationScore : null;
   const year = new Date(latest.started_at || Date.now()).getFullYear();
 
+  // userArchetype fallback — if the stored wrapped data predates the
+  // userArchetype field (old report_json), run the detector live against
+  // current preferences. Mirrors the letter/profile fallback so all three
+  // surfaces render identically even for older runs.
+  const wrappedData = report?.wrapped || {};
+  if (!wrappedData.userArchetype) {
+    const live = detectUserArchetype(getPreferences());
+    if (live) {
+      wrappedData.userArchetype = {
+        name: live.archetypeName,
+        description: live.archetypeDescription,
+      };
+    }
+  }
+
   const wrappedHtml = renderWrappedSlides({
     score,
     year,
-    wrapped: report?.wrapped || {},
+    wrapped: wrappedData,
     moments: Array.isArray(report?.wrapped?.moments) ? report.wrapped.moments : undefined,
     setupArchetypeName: report?.archetype?.nameEn || null,
     userName: getUserName() || undefined,
@@ -2695,26 +2749,69 @@ function renderWrappedPage(): string {
 function renderProfil(): string {
   const prefs = getPreferences();
   const userName = getUserName();
-  const agentName = getAgentName();
   const latest = getLatestScoresByTool();
   const analyze: any = latest.analyze;
+  // Parse the stored report JSON — the row's `report_json` column holds the
+  // full AnalysisReport (persona, archetype, categories). Without parsing,
+  // `report.persona` is undefined and the archetype tile says "I don't know
+  // you yet" even after 30+ collab runs.
   let report: any = null;
   if (analyze?.id) {
-    try { report = getRunById(analyze.id); } catch { /* ignore */ }
+    try {
+      const row: any = getRunById(analyze.id);
+      if (row?.report_json) {
+        report = JSON.parse(row.report_json);
+      }
+    } catch { /* ignore */ }
   }
-  const persona = report?.persona?.archetypeName || report?.persona?.detected || null;
-  const personaBlurb = report?.persona?.archetypeDescription || null;
+
+  // Two archetypes — different taxonomies for You and Me so they read as
+  // complementary roles rather than overlapping boxes.
+  //
+  //   You  — UserArchetypeResult (Venture Builder / Vibe Coder / Indie
+  //          Hacker / Craftsman / Team Lead / Explorer). Derived from
+  //          onboarding answers. Cached in each report; live-detected as
+  //          fallback for users who haven't run collab yet.
+  //   Me   — Agent archetype (System Architect / Creative Executor /
+  //          Precision Partner / Orchestrator / Research Companion /
+  //          Apprentice). Derived from the latest report's persona
+  //          detection + mapped onto the agent-side taxonomy.
+  const userArch: any = report?.userArchetype || detectUserArchetype(prefs);
+  const agentPersona: any = report?.persona || null;
+  const agentArch = agentPersona
+    ? (() => {
+        const mapped = mapPersonaToAgentArchetype(agentPersona.detected);
+        const runnerUpMapped = agentPersona.runnerUp
+          ? mapPersonaToAgentArchetype(agentPersona.runnerUp)
+          : null;
+        return {
+          archetypeName: mapped.name,
+          archetypeDescription: mapped.description,
+          // Suppress runner-up when it maps to the same display archetype
+          // (e.g. vibe_coder + indie_hacker both map to Creative Executor —
+          // don't tell the user "with traits of yourself").
+          runnerUpName: runnerUpMapped && runnerUpMapped.id !== mapped.id
+            ? runnerUpMapped.name
+            : null,
+        };
+      })()
+    : null;
 
   const cadenceLabel: Record<string, LocalizedString> = {
-    daily: { da: 'Dagligt', en: 'Daily' },
-    weekly: { da: 'Ugentligt', en: 'Weekly' },
-    'on-demand': { da: 'Når der er behov', en: 'On demand' },
-    event: { da: 'Ved bestemte begivenheder', en: 'At specific events' },
+    daily: { da: 'Hver dag', en: 'Every day' },
+    weekly: { da: 'Hver uge', en: 'Every week' },
+    'on-demand': { da: 'Når jeg beder om det', en: 'When I ask' },
+    event: { da: 'Når der sker noget', en: 'When something happens' },
   };
   const audienceLabel: Record<string, LocalizedString> = {
-    self: { da: 'Mig selv', en: 'Myself' },
+    self: { da: 'Kun mig selv', en: 'Just me' },
     team: { da: 'Mit team', en: 'My team' },
     customers: { da: 'Mine kunder', en: 'My customers' },
+  };
+  const autonomyLabel: Record<string, LocalizedString> = {
+    auto: { da: 'Arbejd selv', en: 'Work on your own' },
+    'ask-risky': { da: 'Spørg ved store eller risikable ting', en: 'Ask on big or risky things' },
+    'ask-all': { da: 'Spørg før hver handling', en: 'Ask before every action' },
   };
 
   const row = (
@@ -2733,29 +2830,32 @@ function renderProfil(): string {
   `;
   };
 
-  const archetypeBlock = persona ? `
-    <section class="mt-16">
-      <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-4">${t('Din arketype', 'Your archetype')}</h2>
-      <div class="bg-paper-100 rounded-xl p-6">
-        <div class="flex items-center gap-2 mb-3">
-          <span class="w-1.5 h-1.5 rounded-full bg-action-600"></span>
-          <span class="text-[11px] uppercase tracking-[0.15em] text-action-600">${t('Baseret på seneste rapport', 'Based on the latest report')}</span>
-        </div>
-        <h3 class="font-serif italic text-3xl text-ink-900 mb-3">${escapeHtml(persona)}</h3>
-        ${personaBlurb ? `<p class="text-ink-700 leading-relaxed max-w-xl">${escapeHtml(personaBlurb)}</p>` : ''}
-      </div>
-    </section>
-  ` : `
-    <section class="mt-16">
-      <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-4">${t('Din arketype', 'Your archetype')}</h2>
-      <div class="bg-paper-100 rounded-xl p-6">
-        <p class="text-ink-500 leading-relaxed">${t(
-          'Jeg har ikke nok til at kende dig endnu. Bed mig om en samarbejds-rapport, så finder jeg din arketype.',
-          "I don't have enough to know you yet. Ask me for a collaboration report and I'll figure out your archetype.",
-        )}</p>
-      </div>
-    </section>
-  `;
+  const userRunnerUpName = userArch?.runnerUp
+    ? getUserArchetypeDefinition(userArch.runnerUp).name
+    : null;
+
+  const archetypeBlock = renderArchetypePair({
+    you: {
+      name: userArch?.archetypeName || null,
+      description: userArch?.archetypeDescription || null,
+      runnerUpName: userRunnerUpName,
+      sourceLabel: { da: 'Fra dine svar', en: 'From your answers' },
+      emptyState: {
+        da: 'Jeg har ikke nok svar endnu. Kør onboarding og fortæl mig hvad du vil opnå, så kan jeg placere dig.',
+        en: "I don't have enough answers yet. Run onboarding and tell me what you want to achieve — then I can place you.",
+      },
+    },
+    me: {
+      name: agentArch?.archetypeName || null,
+      description: agentArch?.archetypeDescription || null,
+      runnerUpName: agentArch?.runnerUpName || null,
+      sourceLabel: { da: 'Fra seneste rapport', en: 'From the latest report' },
+      emptyState: {
+        da: 'Jeg kender ikke min egen arketype endnu. Bed mig om en samarbejds-rapport — så kan jeg se mønstre i hvordan jeg er sat op.',
+        en: "I don't know my own archetype yet. Ask me for a collaboration report — then I can see patterns in how I'm set up.",
+      },
+    },
+  }).html;
 
   return page('Profile', `
     ${pageDateStrip()}
@@ -2771,20 +2871,18 @@ function renderProfil(): string {
       <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-2">${t('Hvem vi er', 'Who we are')}</h2>
       <div>
         ${row({ da: 'Dit navn', en: 'Your name' }, userName)}
-        ${row({ da: 'Mit navn', en: 'My name' }, agentName)}
       </div>
     </section>
 
     ${archetypeBlock}
 
     <section class="mt-16">
-      <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-2">${t('Hvad du fortalte mig', 'What you told me')}</h2>
+      <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-2">${t('Sådan vil du arbejde', 'How you want to work')}</h2>
       <div>
-        ${row({ da: 'Hvad du arbejder med', en: 'What you work with' }, prefs.work)}
-        ${row({ da: 'Hvad der føles som spildt tid', en: "What feels like wasted time" }, prefs.pains)}
-        ${row({ da: 'Hvor dine ting ligger', en: 'Where your things live' }, prefs.dataDescription)}
-        ${row({ da: 'Kadence', en: 'Cadence' }, prefs.cadence ? cadenceLabel[prefs.cadence] : null)}
-        ${row({ da: 'Arbejder for', en: 'Working for' }, prefs.audience ? audienceLabel[prefs.audience] : null)}
+        ${row({ da: 'Hvad du vil opnå', en: 'What you want to achieve' }, prefs.outcome || prefs.work)}
+        ${row({ da: 'Hvor selv skal jeg arbejde', en: 'How independent should I be' }, prefs.autonomy ? autonomyLabel[prefs.autonomy] : null)}
+        ${row({ da: 'Hvor ofte skal jeg arbejde', en: 'How often should I work' }, prefs.cadence ? cadenceLabel[prefs.cadence] : null)}
+        ${row({ da: 'Hvem ser resultaterne', en: 'Who sees the results' }, prefs.audience ? audienceLabel[prefs.audience] : null)}
       </div>
     </section>
 

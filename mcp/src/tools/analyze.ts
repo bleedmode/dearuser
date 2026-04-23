@@ -31,6 +31,10 @@ import { recommendTools } from '../templates/tool-catalog.js';
 import { lintClaudeMd } from '../engine/lint-checks.js';
 import { buildMoments } from '../engine/wrapped-moments.js';
 import { feedbackFooter, firstRunWelcome } from '../engine/feedback-nudge.js';
+import { getPreferences } from '../engine/user-preferences.js';
+import { detectPreferenceMismatches } from '../engine/preference-mismatch.js';
+import { detectUserArchetype, getUserArchetypeDefinition } from '../engine/user-archetype-detector.js';
+import { mapPersonaToAgentArchetype } from '../engine/agent-archetype-map.js';
 import { gradeBlendedScore, gradePureSubScore } from '../engine/grade.js';
 import { followAgentsMdRedirect } from '../engine/agents-md-redirect.js';
 import type { AnalysisReport, AnalysisStats, WrappedData, Scope, GitSummary, LintSummary, LintFinding } from '../types.js';
@@ -68,6 +72,7 @@ function buildWrapped(
   persona: ReturnType<typeof detectPersona>,
   friction: ReturnType<typeof analyzeFriction>,
   momentsInput: Parameters<typeof buildMoments>[0],
+  userArchetype: ReturnType<typeof detectUserArchetype> | null,
 ): WrappedData {
   const total = stats.doRules + stats.askRules + stats.suggestRules;
   const doSelf = total > 0 ? Math.round((stats.doRules / total) * 100) : 0;
@@ -75,6 +80,11 @@ function buildWrapped(
   const suggest = total > 0 ? Math.round((stats.suggestRules / total) * 100) : 0;
 
   const { moments, percentile, contrast } = buildMoments(momentsInput);
+
+  // Wrapped's archetype slide uses the AGENT-side taxonomy (System Architect,
+  // Creative Executor, ...) rather than the internal PersonaResult name, so
+  // share pages and Wrapped all speak the same language.
+  const mappedAgent = mapPersonaToAgentArchetype(persona.detected);
 
   return {
     headlineStat: {
@@ -86,10 +96,14 @@ function buildWrapped(
       : null,
     autonomySplit: { doSelf, askFirst, suggest },
     archetype: {
-      name: persona.archetypeName,
+      name: mappedAgent.name,
       traits: persona.traits,
-      description: persona.archetypeDescription,
+      description: mappedAgent.description,
     },
+    userArchetype: userArchetype ? {
+      name: userArchetype.archetypeName,
+      description: userArchetype.archetypeDescription,
+    } : null,
     systemGrid: {
       hooks: stats.hooksCount,
       skills: stats.skillsCount,
@@ -163,6 +177,11 @@ export function runAnalysis(
   //    property of the human↔agent pair, not a single project.
   const scanResult = scan(projectRoot, scope);
 
+  // 1a. Load user preferences (from onboarding). Used to personalise persona
+  //     detection + flag preference/setup mismatches (e.g. "you asked for
+  //     daily cadence but have no scheduled tasks").
+  const prefs = getPreferences();
+
   // 1b. R2 (calibration study): if CLAUDE.md is a trivial AGENTS.md redirect
   //     (small file + mentions AGENTS.md), follow the pointer and score the
   //     AGENTS.md content instead. Users on the Linux Foundation cross-tool
@@ -176,9 +195,13 @@ export function runAnalysis(
   // 3. Session analysis (before scoring so it can inform scores)
   const sessionData = analyzeSession(projectRoot);
 
-  // 4. Detect persona + archetype (orthogonal axes)
-  const persona = detectPersona(parsed, scanResult);
+  // 4. Detect the agent's persona + setup archetype (both from scan).
+  //    These describe how the AGENT is configured. The user's own
+  //    archetype comes from onboarding answers below — they are different
+  //    sides of the same "You and me" collaboration.
+  const persona = detectPersona(parsed, scanResult, prefs);
   const archetype = detectArchetype(parsed, scanResult);
+  const userArchetype = detectUserArchetype(prefs);
 
   // 5. Analyze friction — pass session data so correction examples contribute
   const frictionPatterns = analyzeFriction(parsed, scanResult, sessionData);
@@ -224,7 +247,8 @@ export function runAnalysis(
     git,
     intentionalAutonomy,
   });
-  const recommendations = [...agentRecs, ...userRecs, ...proactiveRecs];
+  const mismatchRecs = detectPreferenceMismatches(prefs, parsed, scanResult);
+  const recommendations = [...agentRecs, ...userRecs, ...proactiveRecs, ...mismatchRecs];
 
   // 12. Build stats
   const stats = buildStats(parsed, scanResult);
@@ -244,7 +268,7 @@ export function runAnalysis(
     scanResult,
     session: sessionData,
     categories: categories as unknown as Record<string, import('../types.js').CategoryScore>,
-  });
+  }, userArchetype);
 
   // 14. Feedback loop — check previous recommendations + track new ones
   const claudeMdContent = [scanResult.globalClaudeMd?.content, scanResult.projectClaudeMd?.content]
@@ -330,6 +354,7 @@ export function runAnalysis(
     installedServers: scanResult.installedServers,
     installedSkills: artifacts.filter(a => a.type === 'skill').map(a => a.name),
     persona,
+    userArchetype,
     archetype,
     collaborationScore,
     claudeMdSubScore,
@@ -387,27 +412,49 @@ function formatHeader(report: AnalysisReport): string[] {
     ? `*Scope: global — aggregated across ${report.projectsObserved} project${report.projectsObserved === 1 ? '' : 's'} in ~/.claude/projects/*`
     : `*Scope: project — ${report.scanRoot}*`;
 
-  return [
+  // "You and me" framing — two different taxonomies for user vs agent.
+  const userArch: any = report.userArchetype;
+  const agentArch = mapPersonaToAgentArchetype(report.persona.detected);
+
+  const lines: string[] = [
     `# Dear User — Collaboration Analysis`,
     ``,
     scopeBanner,
     ``,
-    `## Your Persona: ${report.persona.archetypeName}`,
-    `**${report.persona.detected.replace('_', ' ')}** (${report.persona.confidence}% confidence)`,
-    report.persona.archetypeDescription,
+    `## You and me`,
+  ];
+  if (userArch) {
+    const runnerUp = userArch.runnerUp
+      ? ` *(with traits of ${getUserArchetypeDefinition(userArch.runnerUp).name})*`
+      : '';
+    lines.push(
+      ``,
+      `**You — ${userArch.archetypeName}**${runnerUp}`,
+      userArch.archetypeDescription,
+    );
+  } else {
+    lines.push(
+      ``,
+      `**You** — *Not placed yet. Run \`mcp__dearuser__onboard\` so I can tell you what kind of builder you are.*`,
+    );
+  }
+  lines.push(
     ``,
-    `**Traits:** ${report.persona.traits.join(', ')}`,
+    `**Me — ${agentArch.name}**`,
+    agentArch.description,
     ``,
     `## Your Setup Archetype: ${report.archetype.nameEn} · ${report.archetype.nameDa}`,
     report.archetype.description,
     ``,
     `## Collaboration Score: ${report.collaborationScore}/100 — Grade ${report.grade.letter} (${report.grade.percentileLabel})`,
+  );
+  return lines.concat([
     `*${report.grade.summary} · Style: ${report.archetype.nameEn}*`,
     ``,
     ...formatSubScore(report),
     ...formatRedirectNote(report),
     ...formatCeiling(report),
-  ];
+  ]);
 }
 
 /**
@@ -998,6 +1045,78 @@ function formatLintFindings(report: AnalysisReport, plain: boolean): string[] {
   return lines;
 }
 
+/**
+ * JIT "What to do next" block — archetype-filtered top 3 recommendations.
+ *
+ * Research (onboarding UX): upfront checklists lose 60% of users; the first
+ * report IS the aha moment, and that's where tailored recommendations land.
+ * This block re-ranks the report's existing recommendations (not new ones)
+ * through the user archetype's priorities and surfaces the top 3 with a
+ * one-line "why this for you" context.
+ *
+ * Intentionally short: max 3 items, each with one evidence line + one
+ * action line. Dismiss mechanic already exists on each rec so the user
+ * can prune without losing rank.
+ */
+const ARCHETYPE_KEYWORD_BOOST: Record<string, RegExp> = {
+  venture_builder: /automat|schedule|portfolio|hook|cron|multi|recur|pipeline|agent/i,
+  vibe_coder: /plain|clear|delegat|role|ask.?first|scope|rule|business/i,
+  indie_hacker: /ship|speed|revenue|build|launch|fast|commit|deploy/i,
+  craftsman: /test|quality|review|lint|architect|pattern|type|refactor/i,
+  team_lead: /shared|standard|memory|coordinat|team|review|consist/i,
+  explorer: /research|mcp|search|read|docs|knowledge|context/i,
+};
+
+function formatJitNextSteps(report: AnalysisReport): string[] {
+  const recs: any[] = Array.isArray(report.recommendations) ? [...report.recommendations] : [];
+  if (recs.length === 0) return [];
+
+  // Primary sort: priority (critical first). Secondary: archetype keyword
+  // match (only applies when ties on priority).
+  const userArchetypeId: string | null = (report.userArchetype as any)?.detected || null;
+  const boostRegex = userArchetypeId ? ARCHETYPE_KEYWORD_BOOST[userArchetypeId] : null;
+  const matchesBoost = (rec: any): boolean => {
+    if (!boostRegex) return false;
+    const haystack = `${rec.title || ''} ${rec.description || ''}`;
+    return boostRegex.test(haystack);
+  };
+
+  recs.sort((a, b) => {
+    const p = priorityOrder(a.priority) - priorityOrder(b.priority);
+    if (p !== 0) return p;
+    // Same priority → archetype-relevant wins
+    const am = matchesBoost(a) ? 1 : 0;
+    const bm = matchesBoost(b) ? 1 : 0;
+    return bm - am;
+  });
+
+  const top3 = recs.slice(0, 3);
+  if (top3.length === 0) return [];
+
+  const userArchName: string | null = (report.userArchetype as any)?.archetypeName || null;
+  const intro = userArchName
+    ? `Of everything above, these three matter most right now for a ${userArchName} like you:`
+    : `Of everything above, these three matter most right now:`;
+
+  const lines: string[] = ['', '## What to do next', '', intro, ''];
+
+  top3.forEach((rec, i) => {
+    const priority = rec.priority === 'critical' ? '🔴' : rec.priority === 'recommended' ? '🟡' : '🟢';
+    lines.push(`**${i + 1}. ${priority} ${rec.title}**`);
+    if (rec.description) lines.push(rec.description);
+
+    const firstEvidence = Array.isArray(rec.evidence) && rec.evidence.length > 0 ? rec.evidence[0] : null;
+    if (firstEvidence?.excerpt) {
+      lines.push('', `*From your setup:* ${firstEvidence.excerpt}`);
+    }
+    if (rec.placementHint) lines.push('', `*Next step:* ${rec.placementHint}`);
+    lines.push('');
+  });
+
+  lines.push('*Dismiss any you\'ve decided against — I\'ll rank something else instead next time.*', '');
+  return lines;
+}
+
 // -- Public formatter --------------------------------------------------------
 
 /**
@@ -1033,6 +1152,10 @@ export function formatAnalyzeReport(report: AnalysisReport, format: AnalyzeForma
   // Tool recommendations and onboarding gaps — in both formats
   lines.push(...formatToolRecs(report, isDetailed));
   lines.push(...formatOnboardingGaps(report));
+
+  // JIT "What to do next" — archetype-filtered top 3 distilled from all
+  // the preceding sections. Closes the report with one clear action list.
+  lines.push(...formatJitNextSteps(report));
 
   lines.push(...firstRunWelcome());
   lines.push(...feedbackFooter());

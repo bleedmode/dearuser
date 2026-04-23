@@ -22,23 +22,39 @@ if [[ ! -f "$DIST_ENTRY" ]]; then
   exit 1
 fi
 
-# Kill any process listening on the dashboard's port range (7700..7710). We
-# don't rely on `pgrep -f dearuser-dashboard` because it misses processes
-# started via `npx` or absolute paths.
+# Kill ALL processes listening on the dashboard's port range (7700..7710).
+# Uses SIGKILL because SIGTERM-trapping processes (or stdio MCP instances
+# that also bound the port) can linger and keep serving stale code — we've
+# been burned multiple times by ghost processes serving old bundles.
+#
+# `lsof -ti :PORT` can return multiple PIDs per port (race conditions,
+# SO_REUSEPORT, or smoke-test leftovers). `kill -9` handles any count.
 KILLED=0
 for PORT in 7700 7701 7702 7703 7704 7705 7706 7707 7708 7709 7710; do
-  PID="$(lsof -ti :"$PORT" 2>/dev/null || true)"
-  if [[ -n "$PID" ]]; then
-    kill "$PID" 2>/dev/null || true
-    KILLED=$((KILLED + 1))
+  PIDS="$(lsof -ti :"$PORT" 2>/dev/null || true)"
+  if [[ -n "$PIDS" ]]; then
+    # shellcheck disable=SC2086  # intentional word-splitting for multi-PID kill
+    kill -9 $PIDS 2>/dev/null || true
+    COUNT=$(echo "$PIDS" | wc -w | tr -d ' ')
+    KILLED=$((KILLED + COUNT))
   fi
 done
 
-# Give the OS a moment to release the port before we try to bind again.
 if [[ "$KILLED" -gt 0 ]]; then
   echo "[reload-dashboard] killed $KILLED stale process(es)"
   sleep 1
 fi
+
+# Double-check — no one should be listening anywhere in the range. If the
+# kill didn't take (rare, but happens with weird process states), surface
+# the problem loud instead of silently binding a new process next to an
+# old one that keeps serving stale bundles.
+for PORT in 7700 7701 7702 7703 7704 7705 7706 7707 7708 7709 7710; do
+  if lsof -ti :"$PORT" >/dev/null 2>&1; then
+    echo "[reload-dashboard] port $PORT still occupied after kill -9 — investigate with: lsof -i :$PORT" >&2
+    exit 1
+  fi
+done
 
 # Start fresh. nohup detaches so exiting the terminal doesn't kill it.
 LOG_DIR="$HOME/.dearuser"

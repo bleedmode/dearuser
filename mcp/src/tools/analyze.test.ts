@@ -15,7 +15,7 @@ describe('formatAnalyzeReport', () => {
     });
 
     it('includes persona and score', () => {
-      expect(output).toContain('## Your Persona:');
+      expect(output).toContain('## You and me');
       expect(output).toContain('## Collaboration Score:');
     });
 
@@ -129,11 +129,11 @@ describe('formatAnalyzeReport', () => {
       expect(textScore).toBe(detailedScore);
     });
 
-    it('both text and detailed have the same persona', () => {
-      const personaRegex = /## Your Persona: (.+)/;
-      const textPersona = text.match(personaRegex)?.[1];
-      const detailedPersona = detailed.match(personaRegex)?.[1];
-      expect(textPersona).toBe(detailedPersona);
+    it('both text and detailed have the same agent archetype', () => {
+      const agentRegex = /\*\*Me — (.+)\*\*/;
+      const textAgent = text.match(agentRegex)?.[1];
+      const detailedAgent = detailed.match(agentRegex)?.[1];
+      expect(textAgent).toBe(detailedAgent);
     });
 
     it('text is shorter than detailed', () => {

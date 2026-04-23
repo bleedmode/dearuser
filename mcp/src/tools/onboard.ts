@@ -5,26 +5,24 @@
 // the user, collects the answer, and calls this tool again with the step name,
 // the answer, and the same state blob.
 //
-// Flow (v3 — Lovable-friendly, not developer-jargon):
-//   intro → work → data → cadence → plan
+// Flow (v4 — cold-start intent questions only):
+//   welcome → greet → outcome → autonomy → cadence → audience → plan
 //
-// Audience: people who work with data (Excel, Sheets, Notion, Airtable) and
-// want AI to do their repetitive tasks smarter — NOT developers configuring
-// CLAUDE.md by hand. We parse role/stack/substrate in the background; the
-// user never sees those words.
+// What we ask vs. what we infer:
+//   Ask: name, outcome, autonomy preference, cadence, audience.
+//   Infer from scan: role (archetype-detector), tech stack, substrate.
+//   Drop: pains and data-description were v3 cold-start questions that nothing
+//   in the collab pipeline consumed — moved to the first collab report where
+//   they are data, not interview.
 //
 // Backwards compat: old step names (role, goals, stack, pains, stack-pains,
-// substrate) are still accepted and routed to the closest v3 step so older
-// clients and saved state blobs keep working.
+// substrate, intro, work, data) are still accepted and routed to the closest
+// v4 step so older clients and saved state blobs keep working.
 
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { classifySubstrate, substrateLabel } from '../engine/substrate-advisor.js';
-import type { Substrate } from '../engine/substrate-advisor.js';
 import { scan } from '../engine/scanner.js';
-import { getSetupTemplate, renderPlan } from '../templates/setup-templates.js';
-import type { Role } from '../templates/setup-templates.js';
 import type { LocalizedString } from '../engine/friendly-labels.js';
 import {
   installDearUserSkills,
@@ -39,38 +37,33 @@ import type { InstallStep, PlatformStatus } from '../engine/onboard-install.js';
 export type OnboardStep =
   | 'welcome'
   | 'greet'
-  | 'intro'
-  | 'work'
-  | 'data'
+  | 'outcome'
+  | 'autonomy'
   | 'cadence'
   | 'audience'
   | 'plan'
-  // Backwards compat — map onto the closest v3 step:
-  | 'role'         // → intro
-  | 'goals'        // → work
-  | 'stack'        // → data
-  | 'pains'        // → data
-  | 'stack-pains'  // → data
+  // Backwards compat — route old step names onto the closest v4 step:
+  | 'intro'        // → outcome
+  | 'role'         // → outcome
+  | 'goals'        // → outcome
+  | 'work'         // → outcome (old step name)
+  | 'data'         // → autonomy (v3 data-substrate question dropped)
+  | 'stack'        // → autonomy
+  | 'pains'        // → autonomy
+  | 'stack-pains'  // → autonomy
   | 'substrate';   // → cadence
 
 export interface OnboardState {
   version: 1;
   /** Q0 answer — what the user wants us to call them. Used in report letter openings. */
   name: string | null;
-  /** Parsed from the Q1 free-text answer — hidden from the user. */
-  role: Role | null;
-  /** Q1 raw answer — what the user does day-to-day. */
-  work: string | null;
-  /** Q2 raw answer — what repeats and wastes time. */
-  pains: string | null;
-  /** AI tools detected from Q2/Q3 text (chatgpt, claude, cursor, ...). */
-  stack: string[];
-  /** Q3 raw answer — where their data lives today. */
-  dataDescription: string | null;
-  /** Substrate we chose FOR them based on Q3 — hidden from the user. */
-  decidedSubstrate: Substrate | null;
-  /** question 4 parts — cadence ('daily'/'weekly'/'on-demand'/'event') + audience. */
+  /** Q1 raw answer — what the user wants to achieve. */
+  outcome: string | null;
+  /** Q2 — how autonomous they want the agent. */
+  autonomy: 'auto' | 'ask-risky' | 'ask-all' | null;
+  /** Q3 — how often the agent should work. */
   cadence: 'daily' | 'weekly' | 'on-demand' | 'event' | null;
+  /** Q4 — who will see the output. */
   audience: 'self' | 'team' | 'customers' | null;
   /** Raw history for auditability. */
   answers: Record<string, string>;
@@ -120,12 +113,8 @@ function freshState(): OnboardState {
   return {
     version: 1,
     name: null,
-    role: null,
-    work: null,
-    pains: null,
-    stack: [],
-    dataDescription: null,
-    decidedSubstrate: null,
+    outcome: null,
+    autonomy: null,
     cadence: null,
     audience: null,
     answers: {},
@@ -141,12 +130,14 @@ function decodeState(blob: string | undefined): OnboardState {
   try {
     const parsed = JSON.parse(Buffer.from(blob, 'base64').toString('utf-8'));
     if (parsed && parsed.version === 1) {
-      // Migrate older state shapes (v2 had `goals` + `substrateDescription`)
+      // Migrate v2/v3 state shapes — old fields like `work`, `goals`,
+      // `dataDescription` fold into outcome if we don't have one yet.
+      const outcome = parsed.outcome ?? parsed.work ?? parsed.goals ?? null;
       return {
         ...freshState(),
         ...parsed,
-        work: parsed.work ?? parsed.goals ?? null,
-        dataDescription: parsed.dataDescription ?? parsed.substrateDescription ?? null,
+        outcome,
+        autonomy: parsed.autonomy ?? null,
         cadence: parsed.cadence ?? null,
         audience: parsed.audience ?? null,
       };
@@ -156,64 +147,44 @@ function decodeState(blob: string | undefined): OnboardState {
 }
 
 // ============================================================================
-// Answer parsing — role, stack, cadence, audience
+// Answer parsing
 // ============================================================================
 
-/**
- * Parse a role answer from Q1 free text. We don't ask the user to pick a
- * role — we infer it from what they describe doing. Order matters: check
- * non-coder signals before "manage" (a non-coder CEO often says "I manage
- * people/projects"; that shouldn't override the explicit non-coder claim).
- */
-function parseRole(answer: string): Role {
-  const a = answer.toLowerCase();
-
-  // Strong non-coder signals first — English and Danish
-  if (/don'?t code|do not code|non.?coder|never code|no code|not a (?:coder|developer|programmer|engineer)/.test(a)) return 'non_coder';
-  if (/koder ikke|kan ikke kode|programmerer ikke|ikke.*(?:udvikler|programm\u00f8r|coder)|jeg er ikke.*tekn/.test(a)) return 'non_coder';
-  if (/\b(lawyer|ceo|cfo|coo|executive|founder|investor|doctor|accountant|designer|consultant|marketer|sales|hr|recruiter|teacher|advokat|direkt\u00f8r|stifter|konsulent|markedsf\u00f8ring|s\u00e6lger|l\u00e6rer|l\u00e6ge|revisor|iv\u00e6rks\u00e6tter|venture studio)\b/.test(a) && !/i\s+(?:also\s+)?(?:write|code|develop)|jeg.*(?:skriver|bygger|koder)\s+kode/.test(a)) return 'non_coder';
-
-  // Strong coder signals
-  if (/i\s+(?:write|ship|build|deploy)\s+code|coder|developer|engineer|programm/.test(a)) return 'coder';
-
-  // Occasional — explicitly sometimes-code / mixed
-  if (/occasional|sometimes code|manage (?:people|engineers|devs)|product manager|tech lead|cto|staff/.test(a)) return 'occasional';
-
-  // Data-centric work without code mention → non_coder (Lovable segment default)
-  if (/excel|sheets?|notion|airtable|spreadsheet|report|data|crm|email|document|customer|client|sales|marketing/.test(a) && !/\bcode\b/.test(a)) return 'non_coder';
-
-  // Fall-back
-  if (/\bcode\b/.test(a)) return 'occasional';
-  if (/help me|assist me|work with|my work/.test(a)) return 'non_coder';
-  return 'occasional';
+/** Parse a name answer — first word, capitalised. */
+function parseName(answer: string): string | null {
+  const cleaned = answer.trim().replace(/^(jeg hedder|mit navn er|i['']m|my name is|kald mig|call me)\s+/i, '');
+  const first = cleaned.split(/\s+/)[0]?.replace(/[^\p{L}\p{N}-]/gu, '');
+  if (!first || first.length > 40) return null;
+  return first.charAt(0).toUpperCase() + first.slice(1);
 }
 
-/** Parse AI tool inventory from free text — runs across Q2+Q3 answers. */
-function parseStack(answer: string): string[] {
+/** Parse an autonomy answer. Accepts free text or the 3 canonical options. */
+function parseAutonomy(answer: string): OnboardState['autonomy'] {
   const a = answer.toLowerCase();
-  const known = [
-    'chatgpt', 'claude', 'claude code', 'cursor', 'windsurf', 'aider',
-    'copilot', 'gemini', 'mcp', 'openclaw', 'continue', 'zed',
-    'lovable', 'bolt', 'v0', 'replit',
-  ];
-  return known.filter(tool => a.includes(tool));
+  // "Ask at every step" / "spørg ved alt" — most conservative
+  if (/ask.*(?:all|every|hver|alt|altid)|spørg.*(?:om|ved).*(?:alt|alting|hver)|always.*ask|altid.*spørg/.test(a)) return 'ask-all';
+  // "Work on your own" / "arbejd selv" / "auto" — most autonomous
+  if (/(?:work|arbejd).*(?:on.*own|self|alene|selv)|auto|autonom|uden.*at.*spørge|without.*asking|do.*yourself|gør.*selv/.test(a)) return 'auto';
+  // "Ask at risky things" / "spørg ved store ting" — middle tier
+  if (/risky|store.*ting|risiko|vigtige|important|kritisk|critical|big.*decision|store.*beslutning/.test(a)) return 'ask-risky';
+  // Fall back: middle tier is safest default.
+  return 'ask-risky';
 }
 
-/** Parse question 4 cadence answer. */
+/** Parse cadence answer. */
 function parseCadence(answer: string): OnboardState['cadence'] {
   const a = answer.toLowerCase();
-  if (/daily|hver morgen|hver dag|every morning|each day|om morgenen/.test(a)) return 'daily';
-  if (/weekly|hver uge|every week|om ugen|sunday|monday/.test(a)) return 'weekly';
-  if (/when (?:something|it) happens|hver gang|event|trigger|n\u00e5r der sker/.test(a)) return 'event';
-  if (/on.?demand|kun n\u00e5r|only when|when i ask|n\u00e5r jeg (?:beder|sp\u00f8rger)/.test(a)) return 'on-demand';
-  // Default: on-demand is the safest (no autonomous side effects).
+  if (/daily|hver morgen|hver dag|every morning|each day|om morgenen|flere gange/.test(a)) return 'daily';
+  if (/weekly|hver uge|every week|om ugen|sunday|monday|fredag/.test(a)) return 'weekly';
+  if (/when (?:something|it) happens|hver gang|event|trigger|når der sker/.test(a)) return 'event';
+  if (/on.?demand|kun når|only when|when i ask|når jeg (?:beder|spørger)|en gang om/.test(a)) return 'on-demand';
   return 'on-demand';
 }
 
-/** Parse question 4 audience answer. */
+/** Parse audience answer. */
 function parseAudience(answer: string): OnboardState['audience'] {
   const a = answer.toLowerCase();
-  if (/customer|kunde|client|user/.test(a)) return 'customers';
+  if (/customer|kunde|client|user|offentlig|public/.test(a)) return 'customers';
   if (/team|colleague|kollega|coworker|boss|chef|manager|department|afdeling/.test(a)) return 'team';
   return 'self';
 }
@@ -223,24 +194,11 @@ function parseAudience(answer: string): OnboardState['audience'] {
 // ============================================================================
 
 /**
- * Parse a name answer. We want the first-name for greetings ("Kære &lt;name&gt;").
- * Strip punctuation, take the first word. Empty/whitespace → null.
- */
-function parseName(answer: string): string | null {
-  const cleaned = answer.trim().replace(/^(jeg hedder|mit navn er|i['']m|my name is|kald mig|call me)\s+/i, '');
-  const first = cleaned.split(/\s+/)[0]?.replace(/[^\p{L}\p{N}-]/gu, '');
-  if (!first || first.length > 40) return null;
-  // Capitalise if the user typed lowercase
-  return first.charAt(0).toUpperCase() + first.slice(1);
-}
-
-/**
  * Step -1 (welcome): pure letter screen — no question, no input. User
  * clicks "Ready" to advance to the first real question. We also run the
  * project scan here silently (earliest we have the user's attention).
  */
 function stepWelcome(state: OnboardState, answer: string): OnboardResult {
-  // First view: populate scan + show the letter.
   if (!answer) {
     try {
       const scanResult = scan(process.cwd(), 'global');
@@ -260,7 +218,7 @@ function stepWelcome(state: OnboardState, answer: string): OnboardResult {
         da: `I år kommer du til at bruge flere timer med din agent, end med de fleste mennesker i dit liv.\n\nDear User er bygget til at få mest muligt ud af de timer. Jeg vurderer løbende samarbejdet mellem dig og din agent, på samme måde som HR gør for mennesker.\n\nJeg kommer med anbefalinger til forbedringer i forholdet og holder samtidigt øje med at dit setup ikke går i stykker.\n\nJeg håber du får glæde af Dear User.`,
         en: `This year, you'll spend more hours with your agent than with most people in your life.\n\nDear User is built to make the most of those hours. I look after the collaboration between you and your agent, the same way HR does for people.\n\nI bring recommendations for improvements to the relationship, and quietly check that your setup doesn't break.\n\nI hope you enjoy using Dear User.`,
       },
-      question: null, // pure letter — UI renders "Ready" button instead of input
+      question: null,
       options: [],
       nextStep: 'greet',
       state: encodeState(state),
@@ -268,25 +226,19 @@ function stepWelcome(state: OnboardState, answer: string): OnboardResult {
       plan: null,
     };
   }
-  // Any submission (the "Ready" button) advances to the first real question.
   return stepGreet(state, '');
 }
 
 /**
- * Step 0 (greet): Ask the user's name so we can open every report with
- * "Kære [name]," instead of "Kære bruger,". The welcome letter is its own
- * screen now, so this step goes straight to the name question.
- *
- * The name is optional: skip / "spring over" / blank → fallback to
- * generic letter openings.
+ * Step 0 (greet): Ask the user's first name so every report opens
+ * with "Kære [name]," instead of "Kære bruger,".
  */
 function stepGreet(state: OnboardState, answer: string): OnboardResult {
-  // First call — no answer, show Q0
   if (!answer) {
     return {
       step: 'greet',
       teaching: null,
-      question: { da: 'Hvad er dit fornavn?', en: 'What\'s your first name?' },
+      question: { da: 'Hvad er dit fornavn?', en: "What's your first name?" },
       options: [],
       nextStep: 'greet',
       state: encodeState(state),
@@ -295,7 +247,6 @@ function stepGreet(state: OnboardState, answer: string): OnboardResult {
     };
   }
 
-  // Second call — parse name (may be null if user skipped), advance to intro
   if (/^(skip|spring over|ingen|nej tak|intet)/i.test(answer.trim())) {
     state.name = null;
   } else {
@@ -313,21 +264,18 @@ function stepGreet(state: OnboardState, answer: string): OnboardResult {
       en: `${addressingEn}. Let's begin.`,
     },
     question: {
-      da: 'Hvad arbejder du med til daglig?',
-      en: 'What do you work with day to day?',
+      da: 'Hvad skal jeg hjælpe dig med at opnå?',
+      en: 'What should I help you achieve?',
     },
     options: [
-      { da: 'Udvikler', en: 'Developer' },
-      { da: 'Designer', en: 'Designer' },
-      { da: 'Iværksætter', en: 'Founder' },
-      { da: 'Produktchef', en: 'Product manager' },
-      { da: 'Marketing', en: 'Marketing' },
-      { da: 'Salg', en: 'Sales' },
-      { da: 'Konsulent', en: 'Consultant' },
-      { da: 'Skribent', en: 'Writer' },
-      { da: 'Studerende', en: 'Student' },
+      { da: 'Bygge og shippe produkter hurtigere', en: 'Build and ship products faster' },
+      { da: 'Drive flere projekter samtidig', en: 'Run more projects in parallel' },
+      { da: 'Automatisere gentaget arbejde', en: 'Automate repetitive work' },
+      { da: 'Lære nyt hurtigere', en: 'Learn new things faster' },
+      { da: 'Holde styr på et team', en: 'Keep a team on track' },
+      { da: 'Hjælpe mig med research og analyse', en: 'Help with research and analysis' },
     ],
-    nextStep: 'intro',
+    nextStep: 'outcome',
     state: encodeState(state),
     done: false,
     plan: null,
@@ -335,34 +283,36 @@ function stepGreet(state: OnboardState, answer: string): OnboardResult {
 }
 
 /**
- * Step 1 (intro): User has answered Q1 about their work. Parse role silently,
- * advance to Q2 (pains).
+ * Step 1 (outcome): Record the user's goal. This replaces v3's Q1 "what do
+ * you work with" — outcome is active (future-facing), work is passive
+ * (status-quo). Feeds personalisation in the first paragraph of every collab
+ * report.
  */
-function stepIntro(state: OnboardState, answer: string): OnboardResult {
-  const role = parseRole(answer);
-  state.role = role;
-  state.work = answer.trim();
-  state.answers.intro = answer;
+function stepOutcome(state: OnboardState, answer: string): OnboardResult {
+  if (/skip|just.*template|spring over/i.test(answer)) {
+    state.answers.outcome = '(skipped)';
+    return stepPlan(state, 'skip');
+  }
+
+  state.outcome = answer.trim();
+  state.answers.outcome = answer;
 
   return {
-    step: 'intro',
+    step: 'outcome',
     teaching: {
-      da: `Tak. Nu er det lettere at gætte hvad der frustrerer dig.`,
-      en: `Thanks. Now it's easier to guess what's frustrating you.`,
+      da: `Tak. Det hjælper mig med at vurdere hvad der er vigtigst.`,
+      en: `Thanks. That helps me judge what matters most.`,
     },
     question: {
-      da: 'Hvad laver du igen og igen som føles som spildt tid? Små ting tæller — nævn 1-3.',
-      en: 'What do you do over and over that feels like wasted time? Small things count — name 1-3.',
+      da: 'Skal jeg arbejde på egen hånd, eller spørge dig først?',
+      en: 'Should I work on my own, or ask you first?',
     },
     options: [
-      { da: 'Kopiere data mellem systemer', en: 'Copy data between systems' },
-      { da: 'Skrive samme slags email igen og igen', en: 'Write the same kind of email over and over' },
-      { da: 'Opdatere rapporter og oversigter', en: 'Update reports and dashboards' },
-      { da: 'Søge efter information jeg har før', en: 'Search for information I\'ve had before' },
-      { da: 'Indtaste data fra dokumenter', en: 'Enter data from documents' },
-      { da: 'Tage noter fra møder', en: 'Take notes from meetings' },
+      { da: 'Arbejd selv — jeg stoler på dig', en: 'Work on your own — I trust you' },
+      { da: 'Spørg ved store eller risikable ting', en: 'Ask on big or risky things' },
+      { da: 'Spørg mig før hver handling', en: 'Ask me before every action' },
     ],
-    nextStep: 'work',
+    nextStep: 'autonomy',
     state: encodeState(state),
     done: false,
     plan: null,
@@ -370,86 +320,25 @@ function stepIntro(state: OnboardState, answer: string): OnboardResult {
 }
 
 /**
- * Step 2 (work → pains): Record Q2, ask Q3 about where data lives.
- *
- * We collect AI-stack mentions in the background from this answer (many
- * users mention "I already use ChatGPT for..." here).
+ * Step 2 (autonomy): Record the user's autonomy preference. This is the
+ * signal that most strongly predicts friction — auto + no hooks = risk,
+ * ask-all + many do-rules = contract mismatch.
  */
-function stepWork(state: OnboardState, answer: string): OnboardResult {
-  // Allow explicit skip
+function stepAutonomy(state: OnboardState, answer: string): OnboardResult {
   if (/skip|just.*template|spring over/i.test(answer)) {
-    state.answers.work = '(skipped)';
+    state.answers.autonomy = '(skipped)';
     return stepPlan(state, 'skip');
   }
 
-  state.pains = answer.trim();
-  state.answers.work = answer;
-  // Collect stack mentions opportunistically
-  const detected = parseStack(answer);
-  if (detected.length > 0) {
-    state.stack = Array.from(new Set([...state.stack, ...detected]));
-  }
+  state.autonomy = parseAutonomy(answer);
+  state.answers.autonomy = answer;
 
   return {
-    step: 'work',
+    step: 'autonomy',
     teaching: null,
     question: {
-      da: 'Hvor har du dine vigtigste ting liggende i dag?',
-      en: 'Where do your most important things live today?',
-    },
-    options: [
-      { da: 'Excel', en: 'Excel' },
-      { da: 'Google Sheets', en: 'Google Sheets' },
-      { da: 'Notion', en: 'Notion' },
-      { da: 'Airtable', en: 'Airtable' },
-      { da: 'Email / Gmail', en: 'Email / Gmail' },
-      { da: 'Dokumenter (Word, Drive)', en: 'Documents (Word, Drive)' },
-      { da: 'En database', en: 'A database' },
-      { da: 'Mest i hovedet', en: 'Mostly in my head' },
-    ],
-    nextStep: 'data',
-    state: encodeState(state),
-    done: false,
-    plan: null,
-  };
-}
-
-/**
- * Step 3 (data): Record Q3, classify substrate SILENTLY, ask question 4.
- *
- * The old flow had a teaching block here explaining "rules vs memory vs
- * documents vs database". That is developer jargon and doesn't belong in
- * the user-facing copy. We run classifySubstrate() in the background and
- * use the result in the plan step.
- */
-function stepData(state: OnboardState, answer: string): OnboardResult {
-  if (/skip|just.*template|spring over/i.test(answer)) {
-    state.answers.data = '(skipped)';
-    return stepPlan(state, 'skip');
-  }
-
-  state.dataDescription = answer.trim();
-  state.answers.data = answer;
-  // More stack mentions may appear here too
-  const detected = parseStack(answer);
-  if (detected.length > 0) {
-    state.stack = Array.from(new Set([...state.stack, ...detected]));
-  }
-
-  // Classify substrate silently — user never sees the word "substrate"
-  try {
-    const recommendation = classifySubstrate(state.dataDescription);
-    state.decidedSubstrate = recommendation.primary;
-  } catch {
-    state.decidedSubstrate = null;
-  }
-
-  return {
-    step: 'data',
-    teaching: null,
-    question: {
-      da: 'Hvor tit skal din assistent arbejde for dig?',
-      en: 'How often should your assistant work for you?',
+      da: 'Hvor tit skal jeg arbejde for dig?',
+      en: 'How often should I work for you?',
     },
     options: [
       { da: 'Hver morgen', en: 'Every morning' },
@@ -457,7 +346,6 @@ function stepData(state: OnboardState, answer: string): OnboardResult {
       { da: 'Flere gange om dagen', en: 'Several times a day' },
       { da: 'Kun når jeg spørger', en: 'Only when I ask' },
       { da: 'Hver gang der sker noget', en: 'Every time something happens' },
-      { da: 'En gang om måneden', en: 'Once a month' },
     ],
     nextStep: 'cadence',
     state: encodeState(state),
@@ -467,7 +355,7 @@ function stepData(state: OnboardState, answer: string): OnboardResult {
 }
 
 /**
- * Step 5 (cadence): Save cadence, ask Q6 (audience).
+ * Step 3 (cadence): Save cadence, ask Q4 (audience).
  */
 function stepCadence(state: OnboardState, answer: string): OnboardResult {
   if (/skip|just.*template|spring over/i.test(answer)) {
@@ -501,7 +389,7 @@ function stepCadence(state: OnboardState, answer: string): OnboardResult {
 }
 
 /**
- * Step 6 (audience): Save audience, advance to plan.
+ * Step 4 (audience): Save audience, advance to plan.
  */
 function stepAudience(state: OnboardState, answer: string): OnboardResult {
   if (/skip|just.*template|spring over/i.test(answer)) {
@@ -516,18 +404,12 @@ function stepAudience(state: OnboardState, answer: string): OnboardResult {
 }
 
 /**
- * Step 7 (plan): auto-install everything a Lovable-audience user shouldn't
- * have to paste themselves (skills, CLAUDE.md registration, protected-files
- * hook, MCP tool-search env), check which platforms still need a token, and
- * return a short "done" letter. No fake autonomy-rules markdown — we've
- * only asked six shallow questions, so we stay honest about that.
+ * Step 5 (plan): auto-install everything the user shouldn't have to paste,
+ * check platform connections, return a short "done" letter.
  */
 function stepPlan(state: OnboardState, _answer: string): OnboardResult {
-  // 1. Persist config.json (already tracks name, role, cadence, audience,
-  //    substrate, stack) so downstream tools personalise off real data.
   writeConfigTemplate(state);
 
-  // 2. Auto-install — run each step; individual failures don't block the rest.
   const installSteps: InstallStep[] = [
     installDearUserSkills(),
     registerDearUserInClaudeMd(state),
@@ -535,17 +417,8 @@ function stepPlan(state: OnboardState, _answer: string): OnboardResult {
     ensureToolSearchAuto(),
   ];
 
-  // 3. Platform status — which integrations are connected? which need a
-  //    one-message paste to the agent? Only shows platforms we detected.
   const platformStatus = detectPlatformStatus();
-
-  // 4. Scheduled task — we can't write it ourselves (different MCP),
-  //    so we give the user a ready-to-paste prompt.
   const scheduledPrompt = buildScheduledTaskPrompt(state);
-
-  // 5. Chat/markdown fallback for the MCP transport. The dashboard uses
-  //    the structured fields (installSteps / platformStatus / scheduledPrompt)
-  //    directly and doesn't parse this.
   const plan = renderCompletionMarkdown(state, installSteps, platformStatus, scheduledPrompt);
 
   return {
@@ -601,66 +474,10 @@ function renderCompletionMarkdown(
 }
 
 /**
- * Turn the user's cadence + audience answer into a concrete next-step hint.
- * For Lovable-segment users, "scheduled task" needs to be explained in
- * plain language — not as a cron spec.
- */
-function renderCadenceHint(state: OnboardState): string | null {
-  if (!state.cadence) return null;
-
-  const lines: string[] = ['## Hvordan din assistent arbejder for dig'];
-
-  switch (state.cadence) {
-    case 'daily':
-      lines.push(
-        '',
-        'Du vil have et dagligt overblik. Det gøres bedst med en **scheduled task** — en opgave der kører automatisk hver morgen.',
-        '',
-        'Næste skridt: bed Claude om at oprette en "morning brief" scheduled task. Fx: *"Opret en scheduled task der hver morgen kl 8 opsummerer [dine projekter/tasks/data]"*.',
-      );
-      break;
-    case 'weekly':
-      lines.push(
-        '',
-        'Du vil have en ugentlig opsummering. Det gøres bedst med en **scheduled task** der kører én gang om ugen.',
-        '',
-        'Næste skridt: bed Claude om at oprette en "weekly wrap" scheduled task. Fx: *"Opret en scheduled task der hver fredag kl 16 opsummerer ugens [data/fremskridt]"*.',
-      );
-      break;
-    case 'event':
-      lines.push(
-        '',
-        'Du vil have at assistenten reagerer når noget sker. Det gøres bedst med **hooks** — handlinger der trigges automatisk ved bestemte events.',
-        '',
-        'Næste skridt: bed Claude om at konfigurere hooks. Fx: *"Sæt en hook op så jeg får en notifikation hver gang der kommer en ny række i [dit ark/system]"*.',
-      );
-      break;
-    case 'on-demand':
-      lines.push(
-        '',
-        'Du vil have kontrollen — assistenten arbejder kun når du beder om det. Ingen automation behøves.',
-        '',
-        'Næste skridt: brug chat direkte når du har et spørgsmål. Din setup er klar nu.',
-      );
-      break;
-  }
-
-  if (state.audience === 'team' || state.audience === 'customers') {
-    lines.push(
-      '',
-      state.audience === 'team'
-        ? '**Dit team skal kunne se resultatet:** vi sender outputs til en delt markdown-fil eller Notion-side — bed Claude om at sætte det op som del af din scheduled task.'
-        : '**Dine kunder skal kunne se resultatet:** det kræver en lille web-side eller PDF-export. Bed Claude om at foreslå den simpleste løsning baseret på hvad du har i forvejen.',
-    );
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Write a starter ~/.dearuser/config.json if one doesn't already exist.
- * v3 adds cadence + audience + role so downstream tools (scorer, recommender,
- * security) can personalise — the "onboarding as pipeline-input" principle.
+ * Write / merge ~/.dearuser/config.json with the v4 preferences shape.
+ * Non-destructive: preserves unrelated top-level fields (searchRoots,
+ * tokens) and preserves legacy preferences fields so older readers still
+ * work during rollout.
  */
 function writeConfigTemplate(state: OnboardState): string | null {
   const configDir = path.join(os.homedir(), '.dearuser');
@@ -668,18 +485,12 @@ function writeConfigTemplate(state: OnboardState): string | null {
 
   const preferences = {
     name: state.name,
-    role: state.role,
+    outcome: state.outcome || undefined,
+    autonomy: state.autonomy,
     cadence: state.cadence,
     audience: state.audience,
-    substrate: state.decidedSubstrate,
-    stack: state.stack,
-    // Raw answers — the user's own words, shown on the profile page.
-    work: state.work || undefined,
-    pains: state.pains || undefined,
-    dataDescription: state.dataDescription || undefined,
   };
 
-  // If config exists, merge preferences (non-destructive on other fields)
   if (fs.existsSync(configPath)) {
     try {
       const existing = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
@@ -688,13 +499,12 @@ function writeConfigTemplate(state: OnboardState): string | null {
         preferences: { ...(existing.preferences || {}), ...preferences },
       };
       fs.writeFileSync(configPath, JSON.stringify(merged, null, 2) + '\n', 'utf-8');
-      return `## Indstillinger gemt\n\nDine svar er tilføjet til \`~/.dearuser/config.json\` — andre tools (diagnose, security) bruger dem til at give mere relevante anbefalinger.`;
+      return `## Indstillinger gemt\n\nDine svar er tilføjet til \`~/.dearuser/config.json\` — andre tools (collab, security) bruger dem til at give mere relevante anbefalinger.`;
     } catch {
       return `## Indstillinger\n\nEksisterende config fundet i \`~/.dearuser/config.json\` — kunne ikke læse den, så dine svar er ikke gemt. Det påvirker ikke planen ovenfor.`;
     }
   }
 
-  // New config — include search roots and token placeholders for detected platforms
   const candidates = ['code', 'projects', 'work', 'src', 'dev'];
   const searchRoots: string[] = [];
   for (const name of candidates) {
@@ -725,7 +535,7 @@ function writeConfigTemplate(state: OnboardState): string | null {
   const lines = [
     `## Indstillinger gemt`,
     ``,
-    `Dine svar er gemt i \`~/.dearuser/config.json\`. Andre tools (diagnose, security) bruger dem til at give mere relevante anbefalinger.`,
+    `Dine svar er gemt i \`~/.dearuser/config.json\`. Andre tools (collab, security) bruger dem til at give mere relevante anbefalinger.`,
   ];
 
   if (detected.has('supabase')) {
@@ -793,7 +603,6 @@ export interface OnboardInput {
 }
 
 export function runOnboard(input: OnboardInput): OnboardResult {
-  // Default first step is 'welcome' — the letter screen before any questions.
   const currentStep = (input.step || 'welcome') as OnboardStep;
   const state = decodeState(input.state);
   const answer = input.answer || '';
@@ -801,18 +610,20 @@ export function runOnboard(input: OnboardInput): OnboardResult {
   switch (currentStep) {
     case 'welcome':     return stepWelcome(state, answer);
     case 'greet':       return stepGreet(state, answer);
-    case 'intro':       return stepIntro(state, answer);
-    case 'work':        return stepWork(state, answer);
-    case 'data':        return stepData(state, answer);
+    case 'outcome':     return stepOutcome(state, answer);
+    case 'autonomy':    return stepAutonomy(state, answer);
     case 'cadence':     return stepCadence(state, answer);
     case 'audience':    return stepAudience(state, answer);
     case 'plan':        return stepPlan(state, answer);
-    // Backwards compat — route old step names to the closest v3 step:
-    case 'role':        return stepIntro(state, answer);
-    case 'goals':       return stepWork(state, answer);
-    case 'stack':       return stepWork(state, answer);
-    case 'pains':       return stepWork(state, answer);
-    case 'stack-pains': return stepWork(state, answer);
+    // Backwards compat — route v3 step names onto the closest v4 step:
+    case 'intro':       return stepOutcome(state, answer);
+    case 'role':        return stepOutcome(state, answer);
+    case 'goals':       return stepOutcome(state, answer);
+    case 'work':        return stepOutcome(state, answer);
+    case 'data':        return stepAutonomy(state, answer);
+    case 'stack':       return stepAutonomy(state, answer);
+    case 'pains':       return stepAutonomy(state, answer);
+    case 'stack-pains': return stepAutonomy(state, answer);
     case 'substrate':   return stepCadence(state, answer);
     default:
       return stepWelcome(freshState(), '');
@@ -821,42 +632,37 @@ export function runOnboard(input: OnboardInput): OnboardResult {
 
 function stepNumber(step: OnboardStep): number {
   const map: Record<string, number> = {
-    welcome: 0, // letter screen — no counter shown
+    welcome: 0,
     greet: 1,
-    intro: 2, role: 2,
-    work: 3, goals: 3,
-    data: 4, stack: 4, pains: 4, 'stack-pains': 4,
-    cadence: 5, substrate: 5,
-    audience: 6,
-    plan: 7,
+    outcome: 2,
+    autonomy: 3,
+    cadence: 4,
+    audience: 5,
+    plan: 6,
+    // Legacy aliases
+    intro: 2, role: 2, goals: 2, work: 2,
+    data: 3, stack: 3, pains: 3, 'stack-pains': 3, substrate: 4,
   };
   return map[step] || 1;
 }
 
 /**
- * Label-number for "trin X af 5 spørgsmål". In the intro step we ask TWO questions
- * back-to-back (Q1 then Q2 after role parse), so the label should reflect
- * the question being asked — use nextStep when available.
+ * Label-number for "trin X af 5 spørgsmål". We ask 5 cold-start questions
+ * (greet/outcome/autonomy/cadence/audience). Prefer nextStep's number when
+ * the handler has advanced — the question being shown belongs to the next
+ * step, not the one that generated it.
  */
 function labelNumber(result: OnboardResult): number {
-  if (result.done) return 6;
-  // Prefer nextStep's number when the handler has advanced — the question
-  // being shown belongs to the next step, not the one that generated it.
+  if (result.done) return 5;
   if (result.nextStep && result.nextStep !== result.step && result.nextStep !== 'plan') {
     return stepNumber(result.nextStep);
   }
   const n = stepNumber(result.step);
-  // We have 6 questions (greet..audience) and a plan. Cap at 6 for labels.
-  return Math.min(n, 6);
+  return Math.min(n, 5);
 }
 
 /**
  * Format an OnboardResult as markdown for the MCP client.
- *
- * The chat surface can't do CSS-based language toggling, so we pick one
- * language. Default is English (universal for Claude Code); pass lang='da'
- * to force Danish. The agent is responsible for matching the user's locale —
- * both strings are present in OnboardResult, so it can switch on its own.
  */
 export function formatOnboardResult(result: OnboardResult, lang: 'da' | 'en' = 'en'): string {
   const lines: string[] = [];
@@ -867,8 +673,6 @@ export function formatOnboardResult(result: OnboardResult, lang: 'da' | 'en' = '
 
   const L = (s: LocalizedString): string => s[lang];
 
-  // Welcome step has no question — render the letter only, then instruct the
-  // agent to advance with a "ready" answer.
   if (result.step === 'welcome' && result.teaching) {
     lines.push(L(result.teaching));
     lines.push('');
@@ -882,8 +686,8 @@ export function formatOnboardResult(result: OnboardResult, lang: 'da' | 'en' = '
   }
 
   lines.push(lang === 'da'
-    ? `*Onboard — trin ${labelNumber(result)} af 6 spørgsmål*`
-    : `*Onboard — step ${labelNumber(result)} of 6 questions*`);
+    ? `*Onboard — trin ${labelNumber(result)} af 5 spørgsmål*`
+    : `*Onboard — step ${labelNumber(result)} of 5 questions*`);
   lines.push('');
 
   if (result.teaching) {

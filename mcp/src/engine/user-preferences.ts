@@ -24,23 +24,39 @@ export function isFirstTime(): boolean {
   const cfg = readConfig();
   if (!cfg) return true;
   const p = cfg.preferences || {};
+  // v4 signal: outcome + cadence are the two always-asked v4 fields.
+  // v3 fallback: name + role + cadence (old onboarding).
+  if (p.outcome || p.autonomy) return false;
   return !p.name && !p.role && !p.cadence;
 }
 
 export interface UserPreferences {
   name?: string;
   agentName?: string;
-  role?: 'coder' | 'occasional' | 'non_coder' | null;
+
+  // --- v4 onboarding (current) ----------------------------------------------
+  /** Q1 — "What should I help you achieve?" — raw free text. Feeds
+   *  personalisation in the first paragraph of every collab report and
+   *  biases persona-detection when scan is still thin. */
+  outcome?: string;
+  /** Q2 — how autonomous the user wants their agent. Feeds scorer mismatch
+   *  checks (auto without hooks = risk; ask-all with many do-rules = friction). */
+  autonomy?: 'auto' | 'ask-risky' | 'ask-all' | null;
+  /** Q3 — how often the agent should work. Compared against scheduledTasksCount
+   *  to flag cadence-mismatch. */
   cadence?: 'daily' | 'weekly' | 'on-demand' | 'event' | null;
+  /** Q4 — who sees the output. Team/customers require memory + documentation
+   *  that self-use doesn't; surfaces as recommendations when missing. */
   audience?: 'self' | 'team' | 'customers' | null;
+
+  // --- Legacy (v3 onboarding, still readable but no longer asked) -----------
+  // Kept so older config.json files don't lose data on upgrade.
+  role?: 'coder' | 'occasional' | 'non_coder' | null;
   substrate?: string | null;
   stack?: string[];
-  /** Raw free-text answers from onboarding — what the user actually wrote.
-   *  Shown on the profile page instead of the parsed bucket labels so the
-   *  user sees their own words, not our internal categorisation. */
-  work?: string;           // Q2 — "Hvad arbejder du med til daglig?"
-  pains?: string;          // Q3 — "Hvad laver du igen og igen som føles som spildt tid?"
-  dataDescription?: string; // Q4 — "Hvor har du dine vigtigste ting liggende?"
+  work?: string;
+  pains?: string;
+  dataDescription?: string;
 }
 
 interface FullConfig {

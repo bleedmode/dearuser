@@ -278,6 +278,33 @@ Phase 3: Analyze ONLY from saved sources, two-source minimum for findings`,
     personas: ['venture_studio', 'team_lead'],
     lastVerified: '2026-04-13',
   },
+
+  // === Added 2026-04-23 (missing-tool audit) — these live in our own setup
+  // and appear in our nightly-mcp-scan research but were never in the catalog.
+  {
+    name: 'Scheduled Tasks',
+    type: 'skill',
+    description: 'Run prompts on a cron schedule. Daily briefings, weekly syncs, hourly health checks — without a server.',
+    userFriendlyDescription: 'Lets your agent do things on a schedule — every morning, every Friday, once an hour — without you reminding it.',
+    whoActs: 'You install this yourself in Claude Code (skill marketplace or config). Quick.',
+    install: 'Add the scheduled-tasks MCP server: claude mcp add scheduled-tasks',
+    url: 'https://github.com/anthropics/claude-code-scheduled-tasks',
+    solves: ['daily_overview', 'recurring_work', 'process_friction', 'automation'],
+    personas: ['venture_studio', 'team_lead', 'indie_hacker', 'senior_dev'],
+    lastVerified: '2026-04-23',
+  },
+  {
+    name: 'Claude in Chrome',
+    type: 'mcp_server',
+    description: 'Browser automation MCP — navigate, click, fill forms, read pages, take screenshots. Real Chrome, not headless.',
+    userFriendlyDescription: 'Lets your agent open websites for you — fill a form, check a dashboard, grab a screenshot — without you copy-pasting.',
+    whoActs: 'You install the Chrome extension + MCP server. Takes 3 minutes.',
+    install: 'Install the Claude in Chrome extension + follow the connection prompt',
+    url: 'https://claude.ai/chrome',
+    solves: ['browser_automation', 'web_research', 'ui_testing', 'missing_context'],
+    personas: ['vibe_coder', 'indie_hacker', 'senior_dev', 'venture_studio'],
+    lastVerified: '2026-04-23',
+  },
 ];
 
 /**

@@ -1,6 +1,7 @@
 // Persona Detector — weighted signal scoring for persona classification
 
 import type { PersonaId, PersonaResult, ParseResult, ScanResult } from '../types.js';
+import type { UserPreferences } from './user-preferences.js';
 
 interface PersonaDefinition {
   id: PersonaId;
@@ -162,7 +163,7 @@ const SIGNALS: Signal[] = [
   },
 ];
 
-export function detectPersona(parsed: ParseResult, scan: ScanResult): PersonaResult {
+export function detectPersona(parsed: ParseResult, scan: ScanResult, prefs?: UserPreferences): PersonaResult {
   const scores: Record<PersonaId, number> = {
     vibe_coder: 0,
     senior_dev: 0,
@@ -178,6 +179,47 @@ export function detectPersona(parsed: ParseResult, scan: ScanResult): PersonaRes
       personaOrder.forEach((id, i) => {
         scores[id] += signal.weights[i];
       });
+    }
+  }
+
+  // Preference-based signals — only fire when the user has actually completed
+  // onboarding. Weights are lower than scan-derived signals so CLAUDE.md still
+  // dominates when it exists; preferences bias the result when scan is thin.
+  if (prefs) {
+    const outcomeText = (prefs.outcome || '').toLowerCase();
+
+    if (/revenue|mrr|profit|pricing|monetiz|ship.*fast|launch.*fast/.test(outcomeText)) {
+      scores.indie_hacker += 15;
+      scores.vibe_coder += 5;
+    }
+    if (/automate|automation|pipeline|portfolio|multi.*project|scale/.test(outcomeText)) {
+      scores.venture_studio += 15;
+    }
+    if (/team|coordinat|standard|review/.test(outcomeText)) {
+      scores.team_lead += 15;
+    }
+    if (/build|product|ship|launch/.test(outcomeText) && !/team/.test(outcomeText)) {
+      scores.vibe_coder += 5;
+      scores.indie_hacker += 5;
+    }
+
+    if (prefs.audience === 'team') {
+      scores.team_lead += 15;
+    }
+    if (prefs.audience === 'customers') {
+      scores.indie_hacker += 10;
+      scores.vibe_coder += 5;
+    }
+
+    if (prefs.autonomy === 'auto') {
+      scores.venture_studio += 10;
+      scores.indie_hacker += 5;
+    }
+    if (prefs.autonomy === 'ask-all') {
+      // Users who want to be asked at every step lean away from autonomous
+      // personas — nudge toward senior_dev (hands-on) and team_lead (gatekeeper).
+      scores.senior_dev += 5;
+      scores.team_lead += 5;
     }
   }
 
