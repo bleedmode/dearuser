@@ -2262,32 +2262,36 @@ function renderOnboardForm(result: OnboardResult, error?: LocalizedString): stri
       </div>
       <script>
         (function() {
-          var chips = document.querySelectorAll('#du-chips .du-chip');
-          var el = document.getElementById('answer');
-          if (!chips.length || !el) return;
+          // Event-delegated: works regardless of whether the textarea (#answer)
+          // and the chips are parsed at script-execution time. The earlier
+          // version queried #answer eagerly and bailed silently when the
+          // form rendered after the chip script — clicks did nothing.
           var currentLang = function() { return document.documentElement.getAttribute('data-lang') || 'da'; };
-          var fireInput = function() { el.dispatchEvent(new Event('input', { bubbles: true })); };
+          var getTextarea = function() { return document.getElementById('answer'); };
           var syncValue = function() {
+            var el = getTextarea();
+            if (!el) return;
             var lang = currentLang();
             var selected = [];
-            chips.forEach(function(chip) {
+            document.querySelectorAll('#du-chips .du-chip').forEach(function(chip) {
               if (chip.dataset.selected === 'true') {
                 selected.push(chip.getAttribute('data-opt-' + lang) || '');
               }
             });
             el.value = selected.join(', ');
-            fireInput();
+            el.dispatchEvent(new Event('input', { bubbles: true }));
           };
-          chips.forEach(function(chip) {
-            chip.addEventListener('click', function() {
-              var isOn = chip.dataset.selected === 'true';
-              chip.dataset.selected = isOn ? 'false' : 'true';
-              chip.classList.toggle('bg-accent-100', !isOn);
-              chip.classList.toggle('border-accent-600', !isOn);
-              chip.classList.toggle('text-ink-900', !isOn);
-              syncValue();
-              el.focus();
-            });
+          document.addEventListener('click', function(e) {
+            var chip = e.target && e.target.closest ? e.target.closest('#du-chips .du-chip') : null;
+            if (!chip) return;
+            var isOn = chip.dataset.selected === 'true';
+            chip.dataset.selected = isOn ? 'false' : 'true';
+            chip.classList.toggle('bg-accent-100', !isOn);
+            chip.classList.toggle('border-accent-600', !isOn);
+            chip.classList.toggle('text-ink-900', !isOn);
+            syncValue();
+            var el = getTextarea();
+            if (el) el.focus();
           });
           // Language toggle should re-sync labels in the textarea.
           new MutationObserver(syncValue).observe(document.documentElement, {
