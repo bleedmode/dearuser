@@ -2445,21 +2445,19 @@ function renderOnboardWelcome(result: OnboardResult): string {
     ? (() => {
         const da = splitTeaching(result.teaching.da);
         const en = splitTeaching(result.teaching.en);
-        return `
-          <p class="font-serif text-2xl md:text-3xl text-action-600 leading-snug mb-8 whitespace-pre-wrap">
-            ${t(da.headline, en.headline)}
-          </p>
-          ${da.rest || en.rest
-            ? `<div class="font-serif text-xl md:text-2xl text-ink-700 leading-relaxed mb-10 whitespace-pre-wrap">${t(da.rest, en.rest)}</div>`
-            : ''}
-        `;
+        // No whitespace-pre-wrap on the headline — single sentence, the
+        // leading newlines/indentation from the template would become
+        // visible text otherwise. Rest keeps pre-wrap for paragraph breaks.
+        return `<p class="font-serif text-2xl md:text-3xl text-action-600 leading-snug mb-8 text-left">${t(da.headline.trim(), en.headline.trim())}</p>${da.rest || en.rest
+          ? `<div class="font-serif text-xl md:text-2xl text-ink-700 leading-relaxed mb-10 whitespace-pre-wrap text-left">${t(da.rest, en.rest)}</div>`
+          : ''}`;
       })()
     : '';
 
   const body = `
     <section class="max-w-2xl mx-auto">
-      <p class="font-serif italic text-5xl md:text-6xl text-ink-900 leading-tight mb-10">
-        ${t('Hej', 'Hi')}
+      <p class="font-serif italic text-5xl md:text-6xl text-ink-900 leading-tight mb-10 text-left">
+        ${t('Dear User', 'Dear User')}
       </p>
 
       ${teaching}
