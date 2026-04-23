@@ -1,6 +1,14 @@
 // Tool Catalog — curated MCP servers, skills, and repos mapped to specific problems
 // Updated: 2026-04-13
 // Source: verified GitHub stars + manual review
+//
+// At runtime the catalog is loaded via `engine/catalog-loader` which prefers
+// the fetched-from-GitHub JSON (so users get new tools within 24h of sync
+// without `npm update`). TOOL_CATALOG below is the bundled fallback that
+// ships with the npm package — kept in sync with `/catalog.json` at repo
+// root, which is also what the sync agent writes to.
+
+import { getCatalogTools } from '../engine/catalog-loader.js';
 
 export interface ToolRecommendation {
   name: string;
@@ -309,6 +317,13 @@ Phase 3: Analyze ONLY from saved sources, two-source minimum for findings`,
 
 /**
  * Match problems to tools. Returns tools sorted by relevance.
+ *
+ * Reads the catalog via `getCatalogTools()` instead of the baked-in
+ * TOOL_CATALOG constant — this gives us the fetched-from-GitHub catalog
+ * when available (fresher) and falls back to the bundled array below when
+ * not. Keeping TOOL_CATALOG as the bundled fallback + catalog-loader
+ * importing it through the JSON copy at repo root means the same data
+ * flows both paths.
  */
 export function recommendTools(
   problems: string[],
@@ -318,7 +333,12 @@ export function recommendTools(
 ): ToolRecommendation[] {
   const { installedSkills = [] } = options;
 
-  const scored = TOOL_CATALOG.map(tool => {
+  // Prefer the runtime catalog (fetched/cached from GitHub), fall back to
+  // the bundled TOOL_CATALOG if the loader returned empty.
+  const tools = getCatalogTools();
+  const catalog = tools.length > 0 ? tools : TOOL_CATALOG;
+
+  const scored = catalog.map(tool => {
     let score = 0;
 
     // Problem match

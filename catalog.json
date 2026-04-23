@@ -1,0 +1,390 @@
+{
+  "version": "1",
+  "lastSynced": "2026-04-23",
+  "source": "github.com/bleedmode/dearuser",
+  "tools": [
+    {
+      "name": "Context7",
+      "type": "mcp_server",
+      "description": "Fresh, version-specific library documentation. Stops hallucinated API calls.",
+      "userFriendlyDescription": "Gives your agent access to up-to-date documentation so it stops guessing at APIs and making up function names.",
+      "whoActs": "I can add this with one command — want me to?",
+      "install": "claude mcp add context7 -- npx -y @upstash/context7-mcp@latest",
+      "stars": 52480,
+      "url": "https://github.com/upstash/context7",
+      "solves": [
+        "hallucination",
+        "outdated_docs",
+        "wrong_api"
+      ],
+      "personas": [
+        "senior_dev",
+        "indie_hacker",
+        "venture_studio",
+        "vibe_coder",
+        "team_lead"
+      ],
+      "lastVerified": "2026-04-13"
+    },
+    {
+      "name": "Exa Search",
+      "type": "mcp_server",
+      "description": "Semantic web search optimized for AI. Sub-200ms. Best accuracy.",
+      "install": "claude mcp add exa -- npx -y exa-mcp",
+      "stars": 4230,
+      "url": "https://github.com/exa-labs/exa-mcp-server",
+      "solves": [
+        "missing_context",
+        "research"
+      ],
+      "personas": [
+        "senior_dev",
+        "indie_hacker",
+        "venture_studio"
+      ],
+      "lastVerified": "2026-04-13"
+    },
+    {
+      "name": "Firecrawl",
+      "type": "mcp_server",
+      "description": "Web scraping that returns clean, LLM-ready markdown.",
+      "install": "claude mcp add firecrawl -- npx -y firecrawl-mcp",
+      "stars": 6028,
+      "url": "https://github.com/firecrawl/firecrawl-mcp-server",
+      "solves": [
+        "missing_context",
+        "research",
+        "documentation"
+      ],
+      "personas": [
+        "senior_dev",
+        "venture_studio"
+      ],
+      "lastVerified": "2026-04-13"
+    },
+    {
+      "name": "Chrome DevTools MCP",
+      "type": "mcp_server",
+      "description": "Agent can see browser output — screenshots, console, network, DOM.",
+      "install": "claude mcp add chrome-devtools -- npx chrome-devtools-mcp@latest",
+      "stars": 34604,
+      "url": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+      "solves": [
+        "ui_blind",
+        "cant_verify_output",
+        "visual_bugs"
+      ],
+      "personas": [
+        "vibe_coder",
+        "senior_dev",
+        "indie_hacker"
+      ],
+      "lastVerified": "2026-04-13"
+    },
+    {
+      "name": "Playwright MCP",
+      "type": "mcp_server",
+      "description": "Cross-browser testing and automation via accessibility tree.",
+      "install": "claude mcp add playwright -- npx @playwright/mcp@latest",
+      "stars": 30729,
+      "url": "https://github.com/microsoft/playwright-mcp",
+      "solves": [
+        "no_testing",
+        "cant_verify_output",
+        "browser_automation"
+      ],
+      "personas": [
+        "senior_dev",
+        "team_lead"
+      ],
+      "lastVerified": "2026-04-13"
+    },
+    {
+      "name": "Figma Context MCP (Framelink)",
+      "type": "mcp_server",
+      "description": "Design-to-code from Figma frames. Sends structured layout data to agent.",
+      "install": "claude mcp add figma -- npx -y figma-developer-mcp --figma-api-key=YOUR_KEY --stdio",
+      "stars": 14294,
+      "url": "https://github.com/GLips/Figma-Context-MCP",
+      "solves": [
+        "design_to_code",
+        "ui_mismatch"
+      ],
+      "personas": [
+        "vibe_coder",
+        "indie_hacker",
+        "team_lead"
+      ],
+      "lastVerified": "2026-04-13"
+    },
+    {
+      "name": "21st.dev Magic",
+      "type": "mcp_server",
+      "description": "Generate UI components from natural language. Multiple style variations.",
+      "install": "claude mcp add 21st -- npx -y @21st-dev/magic@latest API_KEY=YOUR_KEY",
+      "stars": 4709,
+      "url": "https://github.com/21st-dev/magic-mcp",
+      "solves": [
+        "ui_components",
+        "design_to_code"
+      ],
+      "personas": [
+        "vibe_coder",
+        "indie_hacker"
+      ],
+      "lastVerified": "2026-04-13"
+    },
+    {
+      "name": "Supabase MCP",
+      "type": "mcp_server",
+      "description": "Full backend access — tables, queries, auth, storage.",
+      "install": "Remote OAuth: https://mcp.supabase.com/mcp",
+      "solves": [
+        "database_access",
+        "backend_setup"
+      ],
+      "personas": [
+        "vibe_coder",
+        "indie_hacker"
+      ],
+      "lastVerified": "2026-04-13"
+    },
+    {
+      "name": "Sentry MCP",
+      "type": "mcp_server",
+      "description": "Production error data, stack traces, breadcrumbs in agent context.",
+      "install": "Remote OAuth: https://mcp.sentry.dev/mcp",
+      "solves": [
+        "production_debugging",
+        "error_tracking"
+      ],
+      "personas": [
+        "senior_dev",
+        "team_lead"
+      ],
+      "lastVerified": "2026-04-13"
+    },
+    {
+      "name": "Vercel MCP",
+      "type": "mcp_server",
+      "description": "Manage projects, deployments, and domains from Claude Code.",
+      "install": "Remote OAuth via Vercel",
+      "solves": [
+        "deploy_friction",
+        "dashboard_dependency"
+      ],
+      "personas": [
+        "vibe_coder",
+        "indie_hacker",
+        "venture_studio"
+      ],
+      "lastVerified": "2026-04-13"
+    },
+    {
+      "name": "GitHub MCP",
+      "type": "mcp_server",
+      "description": "Issues, PRs, CI workflows from the terminal.",
+      "install": "claude mcp add github -- npx -y @anthropic/mcp-server-github",
+      "solves": [
+        "github_context_switch",
+        "pr_management"
+      ],
+      "personas": [
+        "senior_dev",
+        "team_lead"
+      ],
+      "lastVerified": "2026-04-13"
+    },
+    {
+      "name": "claude-code-prompt-improver",
+      "type": "github_repo",
+      "description": "UserPromptSubmit hook that intercepts vague prompts and asks clarifying questions.",
+      "userFriendlyDescription": "Catches vague instructions before the agent starts working — asks you to be more specific so you get better results.",
+      "whoActs": "You need to follow the setup guide on GitHub — takes about 2 minutes.",
+      "install": "See github.com/severity1/claude-code-prompt-improver for hook setup",
+      "stars": 1351,
+      "url": "https://github.com/severity1/claude-code-prompt-improver",
+      "solves": [
+        "vague_prompts",
+        "prompt_quality"
+      ],
+      "personas": [
+        "vibe_coder",
+        "team_lead"
+      ],
+      "lastVerified": "2026-04-13"
+    },
+    {
+      "name": "Destructive command blocker",
+      "type": "hook",
+      "description": "PreToolUse hook that blocks rm -rf, git push --force, terraform destroy, DROP TABLE.",
+      "userFriendlyDescription": "Automatically blocks dangerous commands (delete everything, force push, drop database) before they can execute.",
+      "whoActs": "I can add this to your settings now — want me to?",
+      "install": "Add to .claude/settings.json:\n{\n  \"hooks\": {\n    \"PreToolUse\": [{\n      \"matcher\": \"Bash\",\n      \"hooks\": [{\n        \"type\": \"command\",\n        \"command\": \"if echo \\\"$CLAUDE_COMMAND\\\" | grep -qiE 'rm -rf|push --force|terraform destroy|DROP TABLE'; then echo 'BLOCKED: Destructive command' >&2; exit 2; fi\"\n      }]\n    }]\n  }\n}",
+      "solves": [
+        "destructive_commands",
+        "safety"
+      ],
+      "personas": [
+        "vibe_coder",
+        "indie_hacker",
+        "venture_studio",
+        "senior_dev",
+        "team_lead"
+      ],
+      "lastVerified": "2026-04-13"
+    },
+    {
+      "name": "Auto-build after edit",
+      "type": "hook",
+      "description": "PostToolUse hook that runs build after every code change.",
+      "userFriendlyDescription": "Automatically builds your project after every code change — catches errors immediately instead of at deploy time.",
+      "whoActs": "I can add this to your settings now — want me to?",
+      "install": "Add to .claude/settings.json:\n{\n  \"hooks\": {\n    \"PostToolUse\": [{\n      \"matcher\": \"Edit|Write\",\n      \"hooks\": [{\n        \"type\": \"command\",\n        \"command\": \"npm run build 2>&1 || echo 'BUILD FAILED'\"\n      }]\n    }]\n  }\n}",
+      "solves": [
+        "no_build_verification",
+        "quality_gaps"
+      ],
+      "personas": [
+        "vibe_coder",
+        "indie_hacker",
+        "venture_studio"
+      ],
+      "lastVerified": "2026-04-13"
+    },
+    {
+      "name": "Protected files guard",
+      "type": "hook",
+      "description": "PreToolUse hook that blocks edits to .env, credentials, package-lock.",
+      "install": "Add to .claude/settings.json:\n{\n  \"hooks\": {\n    \"PreToolUse\": [{\n      \"matcher\": \"Edit|Write\",\n      \"hooks\": [{\n        \"type\": \"command\",\n        \"command\": \"if echo \\\"$CLAUDE_FILE_PATH\\\" | grep -qiE '\\\\.env|credentials|secrets|package-lock'; then echo 'BLOCKED: Protected file' >&2; exit 2; fi\"\n      }]\n    }]\n  }\n}",
+      "solves": [
+        "accidental_secret_exposure",
+        "protected_files"
+      ],
+      "personas": [
+        "vibe_coder",
+        "indie_hacker",
+        "venture_studio",
+        "senior_dev",
+        "team_lead"
+      ],
+      "lastVerified": "2026-04-13"
+    },
+    {
+      "name": "/learn skill",
+      "type": "skill",
+      "description": "End-of-session learning capture. Reviews corrections, confirmations, and insights. Saves to memory so the agent remembers next time.",
+      "install": "Create ~/.claude/skills/learn/SKILL.md with instructions to:\n1. Review session for corrections and confirmations\n2. Present learnings to user for approval\n3. Save as feedback/project memory files\n4. Update MEMORY.md index",
+      "solves": [
+        "no_learning_loop",
+        "corrections_lost",
+        "no_memory",
+        "session_amnesia"
+      ],
+      "personas": [
+        "vibe_coder",
+        "indie_hacker",
+        "venture_studio",
+        "senior_dev",
+        "team_lead"
+      ],
+      "lastVerified": "2026-04-13"
+    },
+    {
+      "name": "/ship skill",
+      "type": "skill",
+      "description": "Safe shipping workflow. Builds, tests, commits, and pushes in one flow with quality checks at each step.",
+      "install": "Create ~/.claude/skills/ship/SKILL.md with instructions to:\n1. Run build and verify success\n2. Run tests if they exist\n3. Git add relevant files (not .env, not node_modules)\n4. Commit with conventional commit message\n5. Push to remote",
+      "solves": [
+        "manual_deploy",
+        "no_build_verification",
+        "quality_gaps",
+        "process_friction"
+      ],
+      "personas": [
+        "vibe_coder",
+        "indie_hacker",
+        "venture_studio"
+      ],
+      "lastVerified": "2026-04-13"
+    },
+    {
+      "name": "/research skill",
+      "type": "skill",
+      "description": "Quality-controlled research in 3 phases: Collect sources → Rate + find counter-evidence → Analyze only from verified data. Prevents presenting unverified claims as findings.",
+      "install": "Create ~/.claude/skills/research/SKILL.md with 3-phase process:\nPhase 1: Find sources, save each with evidence rating (A-F)\nPhase 2: Rate sources, search for counter-evidence\nPhase 3: Analyze ONLY from saved sources, two-source minimum for findings",
+      "solves": [
+        "bad_research",
+        "unverified_claims",
+        "hallucination",
+        "no_sources"
+      ],
+      "personas": [
+        "venture_studio",
+        "senior_dev",
+        "team_lead"
+      ],
+      "lastVerified": "2026-04-13"
+    },
+    {
+      "name": "/standup skill",
+      "type": "skill",
+      "description": "Daily standup briefing. Checks all projects, git status, open tasks, and recommends what to work on today.",
+      "install": "Create ~/.claude/skills/standup/SKILL.md with instructions to:\n1. Check git status across all projects\n2. List open/in-progress tasks\n3. Recommend top priorities based on goals\n4. Flag blocked items",
+      "solves": [
+        "no_daily_overview",
+        "missing_priorities",
+        "context_loss_between_sessions"
+      ],
+      "personas": [
+        "venture_studio",
+        "team_lead"
+      ],
+      "lastVerified": "2026-04-13"
+    },
+    {
+      "name": "Scheduled Tasks",
+      "type": "skill",
+      "description": "Run prompts on a cron schedule. Daily briefings, weekly syncs, hourly health checks — without a server.",
+      "userFriendlyDescription": "Lets your agent do things on a schedule — every morning, every Friday, once an hour — without you reminding it.",
+      "whoActs": "You install this yourself in Claude Code (skill marketplace or config). Quick.",
+      "install": "Add the scheduled-tasks MCP server: claude mcp add scheduled-tasks",
+      "url": "https://github.com/anthropics/claude-code-scheduled-tasks",
+      "solves": [
+        "daily_overview",
+        "recurring_work",
+        "process_friction",
+        "automation"
+      ],
+      "personas": [
+        "venture_studio",
+        "team_lead",
+        "indie_hacker",
+        "senior_dev"
+      ],
+      "lastVerified": "2026-04-23"
+    },
+    {
+      "name": "Claude in Chrome",
+      "type": "mcp_server",
+      "description": "Browser automation MCP — navigate, click, fill forms, read pages, take screenshots. Real Chrome, not headless.",
+      "userFriendlyDescription": "Lets your agent open websites for you — fill a form, check a dashboard, grab a screenshot — without you copy-pasting.",
+      "whoActs": "You install the Chrome extension + MCP server. Takes 3 minutes.",
+      "install": "Install the Claude in Chrome extension + follow the connection prompt",
+      "url": "https://claude.ai/chrome",
+      "solves": [
+        "browser_automation",
+        "web_research",
+        "ui_testing",
+        "missing_context"
+      ],
+      "personas": [
+        "vibe_coder",
+        "indie_hacker",
+        "senior_dev",
+        "venture_studio"
+      ],
+      "lastVerified": "2026-04-23"
+    }
+  ]
+}
