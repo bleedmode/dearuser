@@ -2228,7 +2228,7 @@ function renderForbedringer(): string {
 // ============================================================================
 
 function renderOnboardForm(result: OnboardResult, error?: LocalizedString): string {
-  const totalSteps = 6;
+  const totalSteps = 5; // v4: name, outcome, autonomy, cadence, audience
   const isWelcome = result.step === 'welcome';
   const stepNo = result.done ? totalSteps : Math.max(1, Math.min(stepNumberFromResult(result), totalSteps));
   const progress = Math.round((stepNo / totalSteps) * 100);
@@ -2243,19 +2243,58 @@ function renderOnboardForm(result: OnboardResult, error?: LocalizedString): stri
     ? `<div class="font-serif text-xl md:text-2xl text-ink-700 leading-snug mb-10 max-w-xl whitespace-pre-wrap">${t(result.teaching.da, result.teaching.en)}</div>`
     : '';
 
+  // Chips are multi-select by default — toggle on click, append value to
+  // textarea (comma-separated). Handles multiple "I want X and Y" goals,
+  // multiple audiences, etc. Single-choice parsers (autonomy, cadence)
+  // still match fine because they regex-scan the combined string.
   const optionsChips = result.options.length > 0
     ? `
-      <div class="mb-8 flex flex-wrap gap-2">
+      <div id="du-chips" class="mb-8 flex flex-wrap gap-2">
         ${result.options.map(opt => `
           <button type="button"
             data-opt-da="${escapeHtml(opt.da)}"
             data-opt-en="${escapeHtml(opt.en)}"
-            onclick="(function(btn){ var lang = document.documentElement.getAttribute('data-lang') || 'da'; var v = btn.getAttribute('data-opt-' + lang) || ''; var el = document.getElementById('answer'); el.value = v; el.focus(); })(this);"
-            class="text-sm bg-paper-100 hover:bg-accent-100 border border-paper-300 hover:border-accent-600 rounded-full px-3 py-1 text-ink-700 transition">
+            data-selected="false"
+            class="du-chip text-sm bg-paper-100 border border-paper-300 rounded-full px-3 py-1 text-ink-700 transition hover:bg-accent-100 hover:border-accent-600">
             ${t(opt.da, opt.en)}
           </button>
         `).join('')}
       </div>
+      <script>
+        (function() {
+          var chips = document.querySelectorAll('#du-chips .du-chip');
+          var el = document.getElementById('answer');
+          if (!chips.length || !el) return;
+          var currentLang = function() { return document.documentElement.getAttribute('data-lang') || 'da'; };
+          var fireInput = function() { el.dispatchEvent(new Event('input', { bubbles: true })); };
+          var syncValue = function() {
+            var lang = currentLang();
+            var selected = [];
+            chips.forEach(function(chip) {
+              if (chip.dataset.selected === 'true') {
+                selected.push(chip.getAttribute('data-opt-' + lang) || '');
+              }
+            });
+            el.value = selected.join(', ');
+            fireInput();
+          };
+          chips.forEach(function(chip) {
+            chip.addEventListener('click', function() {
+              var isOn = chip.dataset.selected === 'true';
+              chip.dataset.selected = isOn ? 'false' : 'true';
+              chip.classList.toggle('bg-accent-100', !isOn);
+              chip.classList.toggle('border-accent-600', !isOn);
+              chip.classList.toggle('text-ink-900', !isOn);
+              syncValue();
+              el.focus();
+            });
+          });
+          // Language toggle should re-sync labels in the textarea.
+          new MutationObserver(syncValue).observe(document.documentElement, {
+            attributes: true, attributeFilter: ['data-lang']
+          });
+        })();
+      </script>
     `
     : '';
 
