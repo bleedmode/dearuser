@@ -2228,7 +2228,7 @@ function renderForbedringer(): string {
 // ============================================================================
 
 function renderOnboardForm(result: OnboardResult, error?: LocalizedString): string {
-  const totalSteps = 5; // v4: name, outcome, autonomy, cadence, audience
+  const totalSteps = 4; // v4.1: name, outcome, autonomy, cadence (audience dropped)
   const isWelcome = result.step === 'welcome';
   const stepNo = result.done ? totalSteps : Math.max(1, Math.min(stepNumberFromResult(result), totalSteps));
   const progress = Math.round((stepNo / totalSteps) * 100);
@@ -2875,11 +2875,12 @@ function renderProfil(): string {
       })()
     : null;
 
+  // Labels match the onboarding v4.1 question/option wording. Keep in sync.
   const cadenceLabel: Record<string, LocalizedString> = {
-    daily: { da: 'Hver dag', en: 'Every day' },
-    weekly: { da: 'Hver uge', en: 'Every week' },
-    'on-demand': { da: 'Når jeg beder om det', en: 'When I ask' },
-    event: { da: 'Når der sker noget', en: 'When something happens' },
+    daily: { da: 'Et dagligt brief', en: 'A daily briefing' },
+    weekly: { da: 'En ugentlig opsummering', en: 'A weekly summary' },
+    event: { da: 'Når noget bestemt sker', en: 'When something specific happens' },
+    'on-demand': { da: 'Ikke noget automatisk', en: 'Nothing automatic' },
   };
   const audienceLabel: Record<string, LocalizedString> = {
     self: { da: 'Kun mig selv', en: 'Just me' },

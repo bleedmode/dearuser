@@ -339,8 +339,8 @@ function stepAutonomy(state: OnboardState, answer: string): OnboardResult {
   return {
     step: 'autonomy',
     teaching: {
-      da: `Jeg kan køre ting for dig på en fast rytme — fx et brief hver morgen, en ugentlig opsummering, eller en hook der reagerer når noget specifikt sker. Dit svar bestemmer kun hvad jeg **foreslår** efter onboarding. Intet installeres uden du siger ja.`,
-      en: `I can run things for you on a set rhythm — a morning brief, a weekly summary, or a hook that fires when something specific happens. Your answer only shapes what I **suggest** after onboarding. Nothing installs without you saying yes.`,
+      da: `Jeg kan foreslå en fast rytme — fx et dagligt brief, en ugentlig opsummering, eller en hook der reagerer når noget specifikt sker. Dit svar former hvilken scheduled task jeg foreslår efter onboarding. Du beslutter selv om du vil oprette den — jeg laver ingen automation uden dit klik.`,
+      en: `I can suggest a rhythm — a daily brief, a weekly summary, or a hook that fires when something specific happens. Your answer shapes which scheduled task I'll suggest after onboarding. You decide whether to create it — I don't set up any automation without your click.`,
     },
     question: {
       da: 'Skal jeg køre noget automatisk for dig?',
