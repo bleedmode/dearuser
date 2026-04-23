@@ -8,7 +8,7 @@ import Analytics from '@vercel/analytics/astro';
 interface Props {
   title: string;
   description?: string;
-  active?: 'home' | 'example' | 'demo' | 'feedback';
+  active?: 'home' | 'example' | 'demo' | 'feedback' | 'contact';
 }
 const {
   title,
@@ -185,32 +185,107 @@ const {
 
   .du-footer {
     border-top: 1px solid var(--c-paper-200);
-    padding: 40px 0 64px;
+    margin-top: 80px;
+    padding: 56px 0 40px;
     color: var(--c-ink-500);
     font-size: 13px;
+    background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--c-paper-100) 40%, transparent) 100%);
   }
-  .du-footer-inner {
+  .du-footer-top {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr 1fr;
+    gap: 48px;
+    padding-bottom: 40px;
+  }
+  .du-footer-brand { max-width: 320px; }
+  .du-footer-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--c-ink-900);
+    margin-bottom: 14px;
+  }
+  .du-footer-logo-mark { width: 22px; height: 22px; flex-shrink: 0; }
+  .du-footer-logo-name {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-size: 18px;
+    letter-spacing: -0.01em;
+    font-weight: 500;
+  }
+  .du-footer-tagline {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--c-ink-500);
+    margin: 0;
+  }
+  .du-footer-col-title {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--c-ink-400);
+    margin: 0 0 16px;
+    font-weight: 500;
+  }
+  .du-footer-col ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .du-footer-col a {
+    color: var(--c-ink-700);
+    text-decoration: none;
+    font-size: 13px;
+    transition: color 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .du-footer-col a:hover { color: var(--c-action-600); }
+  .du-footer-col a .du-ext {
+    width: 10px; height: 10px;
+    opacity: 0.5;
+    transition: opacity 0.15s;
+  }
+  .du-footer-col a:hover .du-ext { opacity: 1; }
+  .du-footer-bottom {
+    border-top: 1px solid var(--c-paper-200);
+    padding-top: 24px;
+    display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 16px;
-  }
-  .du-footer a {
-    color: var(--c-ink-500);
-    text-decoration: none;
-    border-bottom: 1px solid var(--c-paper-200);
-    padding-bottom: 1px;
-    transition: color 0.15s, border-color 0.15s;
-  }
-  .du-footer a:hover { color: var(--c-ink-900); border-color: var(--c-ink-900); }
-  .du-footer-links { display: flex; gap: 24px; flex-wrap: wrap; }
-  .du-privacy-line {
-    margin-top: 20px;
-    padding-top: 16px;
-    border-top: 1px dashed var(--c-paper-200);
+    gap: 10px;
     font-size: 12px;
-    color: var(--c-ink-400, var(--c-ink-500));
+    color: var(--c-ink-400);
+  }
+  .du-footer-sep {
+    color: var(--c-ink-300);
+    user-select: none;
+  }
+  .du-footer-made {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    color: var(--c-ink-500);
+  }
+
+  @media (max-width: 820px) {
+    .du-footer-top {
+      grid-template-columns: 1fr 1fr;
+      gap: 36px 24px;
+    }
+    .du-footer-brand { grid-column: 1 / -1; }
+  }
+  @media (max-width: 480px) {
+    .du-footer { padding: 40px 0 32px; margin-top: 56px; }
+    .du-footer-top { grid-template-columns: 1fr; gap: 28px; padding-bottom: 28px; }
+    .du-footer-bottom { flex-direction: column; align-items: flex-start; gap: 12px; }
   }
 
   /* Hide mobile nav labels at narrow widths, keep toggles visible */
@@ -259,7 +334,7 @@ const {
 
   <slot />
 
-  {active !== 'feedback' && <FeedbackModal mode="modal" defaultContext="general" />}
+  {active !== 'feedback' && active !== 'contact' && <FeedbackModal mode="modal" defaultContext="general" />}
 
   <Analytics />
 
@@ -276,29 +351,69 @@ const {
   </script>
 
   <footer class="du-footer">
-    <div class="du-container du-footer-inner">
-      <div>
-        <span>© 2026 Dear User</span>
+    <div class="du-container">
+      <div class="du-footer-top">
+        <div class="du-footer-brand">
+          <a href="/" class="du-footer-logo" aria-label="Dear User home">
+            <svg class="du-footer-logo-mark" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <circle cx="20" cy="20" r="20" fill="#EC5329" />
+              <path d="M 11 22 Q 20 32 29 22" stroke="var(--c-smile-fill)" stroke-width="2.5" stroke-linecap="round" fill="none" />
+            </svg>
+            <span class="du-footer-logo-name">Dear User</span>
+          </a>
+          <p class="du-footer-tagline">
+            <span class="lang-da">Forstå hvordan du og din AI-agent faktisk arbejder sammen — i et brev du kan læse på to minutter.</span>
+            <span class="lang-en">Understand how you and your AI agent actually work together — in a letter you can read in two minutes.</span>
+          </p>
+        </div>
+
+        <div class="du-footer-col">
+          <h4 class="du-footer-col-title">
+            <span class="lang-da">Produkt</span><span class="lang-en">Product</span>
+          </h4>
+          <ul>
+            <li><a href="/#install">
+              <span class="lang-da">Kom i gang</span><span class="lang-en">Get started</span>
+            </a></li>
+            <li><a href="/#features">
+              <span class="lang-da">Funktioner</span><span class="lang-en">Features</span>
+            </a></li>
+            <li><a href="/example">
+              <span class="lang-da">Eksempel-brev</span><span class="lang-en">Example letter</span>
+            </a></li>
+            <li><a href="/demo">
+              <span class="lang-da">Samarbejdet i tal</span><span class="lang-en">Wrapped</span>
+            </a></li>
+          </ul>
+        </div>
+
+        <div class="du-footer-col">
+          <h4 class="du-footer-col-title">
+            <span class="lang-da">Kontakt</span><span class="lang-en">Contact</span>
+          </h4>
+          <ul>
+            <li><a href="/contact">
+              <span class="lang-da">Skriv til os</span><span class="lang-en">Write to us</span>
+            </a></li>
+            <li><a href="/feedback">
+              <span class="lang-da">Feedback</span><span class="lang-en">Feedback</span>
+            </a></li>
+          </ul>
+        </div>
       </div>
-      <div class="du-footer-links">
-        <a href="https://github.com/bleedmode/dearuser" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://github.com/bleedmode/dearuser/tree/main/docs" target="_blank" rel="noopener">
-          <span class="lang-da">Dokumentation</span><span class="lang-en">Docs</span>
-        </a>
-        <a href="https://github.com/bleedmode/dearuser/blob/main/docs/privacy.md" target="_blank" rel="noopener">
+
+      <div class="du-footer-bottom">
+        <span>© 2026 Dear User</span>
+        <span class="du-footer-sep" aria-hidden="true">·</span>
+        <a href="/privacy" style="color: var(--c-ink-500); text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='var(--c-action-600)'" onmouseout="this.style.color='var(--c-ink-500)'">
           <span class="lang-da">Privatliv</span><span class="lang-en">Privacy</span>
         </a>
-        <a href="/feedback">
-          <span class="lang-da">Feedback</span><span class="lang-en">Feedback</span>
-        </a>
-        <a href="/example">
-          <span class="lang-da">Eksempel-brev</span><span class="lang-en">Example letter</span>
-        </a>
+        <span class="du-footer-sep" aria-hidden="true">·</span>
+        <span class="du-footer-made">
+          <span class="lang-da">Privacy-first — ingen cookies, ingen cross-session tracking.</span>
+          <span class="lang-en">Privacy-first — no cookies, no cross-session tracking.</span>
+        </span>
       </div>
-    </div>
-    <div class="du-container du-privacy-line">
-      <span class="lang-da">Privacy-first analytics — ingen cookies, ingen tracking på tværs af sessioner.</span>
-      <span class="lang-en">Privacy-first analytics — no cookies, no cross-session tracking.</span>
     </div>
   </footer>
 

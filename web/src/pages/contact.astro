@@ -1,0 +1,34 @@
+---
+// /contact — general inbound for everything that isn't product feedback:
+// privacy/GDPR, business, press, partnership, legal, anything else.
+// Same backend as /feedback (Supabase du_feedback table), different framing.
+import Layout from '../layouts/Layout.astro';
+import FeedbackModal from '../components/FeedbackModal.astro';
+
+const url = new URL(Astro.request.url);
+const ctx = url.searchParams.get('context') || 'general';
+const allowed = ['general', 'bug', 'feature', 'privacy', 'business', 'press'];
+const defaultContext = allowed.includes(ctx) ? ctx : 'general';
+---
+<Layout
+  title="Contact — Dear User"
+  description="Privacy, business, press, partnerships, or anything else. Drop us a line — a human reads every message."
+  active="contact"
+>
+<main class="du-narrow" style="padding: 64px 0 96px;">
+  <header style="margin-bottom: 32px;">
+    <p style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--c-action-600); margin: 0 0 12px;">
+      <span class="lang-da">Kontakt</span><span class="lang-en">Contact</span>
+    </p>
+    <h1 style="font-family: 'Fraunces', Georgia, serif; font-style: italic; font-weight: 500; font-size: 40px; margin: 0 0 14px; color: var(--c-ink-900); line-height: 1.15;">
+      <span class="lang-da">Skriv til os</span><span class="lang-en">Write to us</span>
+    </h1>
+    <p style="color: var(--c-ink-500); font-size: 16px; margin: 0; line-height: 1.6;">
+      <span class="lang-da">Privacy-anmodninger, GDPR, business, presse, partnerskaber — eller noget helt andet. Vælg en kategori og skriv. Et menneske læser hver eneste besked.</span>
+      <span class="lang-en">Privacy requests, GDPR, business, press, partnerships — or anything else. Pick a category and write. A human reads every single message.</span>
+    </p>
+  </header>
+
+  <FeedbackModal mode="inline" defaultContext={defaultContext} />
+</main>
+</Layout>

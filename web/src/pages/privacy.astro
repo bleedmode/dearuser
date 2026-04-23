@@ -1,0 +1,217 @@
+---
+// /privacy — local-first privacy policy, hosted on dearuser.ai (not GitHub).
+// Source: docs/privacy.md. Update both when policy changes.
+import Layout from '../layouts/Layout.astro';
+---
+<Layout
+  title="Privacy — Dear User"
+  description="Dear User is local-first by design. What it reads, writes, and the exact conditions under which anything leaves your machine."
+>
+<main class="du-narrow" style="padding: 64px 0 96px;">
+  <header style="margin-bottom: 40px;">
+    <p style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--c-ink-400); margin: 0 0 12px;">
+      <span class="lang-da">Privatliv</span><span class="lang-en">Privacy</span>
+    </p>
+    <h1 style="font-family: 'Fraunces', Georgia, serif; font-style: italic; font-weight: 500; font-size: 40px; margin: 0 0 16px; color: var(--c-ink-900); line-height: 1.15;">
+      <span class="lang-da">Lokal som standard.</span><span class="lang-en">Local by default.</span>
+    </h1>
+    <p style="color: var(--c-ink-500); font-size: 17px; margin: 0; line-height: 1.6;">
+      <span class="lang-da">Dear User læser dine Claude Code-filer på din maskine. Intet forlader din computer — undtagen når du selv beder om det. Her er hvad det betyder, helt konkret.</span>
+      <span class="lang-en">Dear User reads your Claude Code files on your machine. Nothing leaves your computer — unless you explicitly ask it to. Here's what that means, concretely.</span>
+    </p>
+  </header>
+
+  <section class="du-prose">
+    <h2><span class="lang-da">Den korte version</span><span class="lang-en">Short version</span></h2>
+    <ul>
+      <li><strong><span class="lang-da">Læser:</span><span class="lang-en">Reads:</span></strong> <span class="lang-da">dine Claude Code config-filer (CLAUDE.md, memory, skills, hooks) og session-metadata.</span><span class="lang-en">your Claude Code config files (CLAUDE.md, memory, skills, hooks) and session metadata.</span></li>
+      <li><strong><span class="lang-da">Skriver:</span><span class="lang-en">Writes:</span></strong> <span class="lang-da">én SQLite-fil på </span><span class="lang-en">one SQLite file at </span><code>~/.dearuser/dearuser.db</code></li>
+      <li><strong><span class="lang-da">Sender:</span><span class="lang-en">Transmits:</span></strong> <span class="lang-da">intet — medmindre du eksplicit kalder </span><span class="lang-en">nothing, unless you explicitly call </span><code>share_report</code> <span class="lang-da">eller</span><span class="lang-en">or</span> <code>feedback</code></li>
+      <li><span class="lang-da">Ingen tilmelding, ingen API-keys, ingen telemetri.</span><span class="lang-en">No sign-up, no API keys, no telemetry.</span></li>
+    </ul>
+
+    <h2><span class="lang-da">Hvad Dear User læser</span><span class="lang-en">What Dear User reads</span></h2>
+    <p><span class="lang-da">Scanneren læser disse steder:</span><span class="lang-en">The scanner reads these locations:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th><span class="lang-da">Hvad</span><span class="lang-en">What</span></th>
+          <th><span class="lang-da">Hvor</span><span class="lang-en">Where</span></th>
+          <th><span class="lang-da">Hvorfor</span><span class="lang-en">Why</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="lang-da">Projekt-instruktioner</span><span class="lang-en">Project instructions</span></td>
+          <td><code>CLAUDE.md</code></td>
+          <td><span class="lang-da">Score samarbejdsregler, find konflikter</span><span class="lang-en">Score collaboration rules, check for conflicts</span></td>
+        </tr>
+        <tr>
+          <td><span class="lang-da">Globale instruktioner</span><span class="lang-en">Global instructions</span></td>
+          <td><code>~/.claude/CLAUDE.md</code>, <code>~/.claude/memory/**</code></td>
+          <td><span class="lang-da">Samme</span><span class="lang-en">Same</span></td>
+        </tr>
+        <tr>
+          <td><span class="lang-da">Skills</span><span class="lang-en">Skills</span></td>
+          <td><code>~/.claude/skills/**</code></td>
+          <td><span class="lang-da">Overlap-detektion, orphan-tjek</span><span class="lang-en">Overlap detection, orphan check</span></td>
+        </tr>
+        <tr>
+          <td><span class="lang-da">Hooks</span><span class="lang-en">Hooks</span></td>
+          <td><code>~/.claude/hooks/**</code></td>
+          <td><span class="lang-da">Strukturelle helbredstjek</span><span class="lang-en">Structural health checks</span></td>
+        </tr>
+        <tr>
+          <td><span class="lang-da">MCP config</span><span class="lang-en">MCP config</span></td>
+          <td><code>~/.claude.json</code>, <code>~/.claude/mcp.json</code></td>
+          <td><span class="lang-da">Verificér påstande i CLAUDE.md mod den faktiske config</span><span class="lang-en">Verify CLAUDE.md claims against actual config</span></td>
+        </tr>
+        <tr>
+          <td><span class="lang-da">Session-metadata</span><span class="lang-en">Session metadata</span></td>
+          <td><code>~/.claude/projects/**/sessions/*.jsonl</code></td>
+          <td><span class="lang-da">Antal, tidsstempler, prompt-længder — ikke indhold</span><span class="lang-en">Counts, timestamps, prompt lengths — not content</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="du-callout">
+      <span class="lang-da"><strong>Dear User læser aldrig session-besked-indhold.</strong> Det parser <code>.jsonl</code>-session-logs for længde og strukturelle signaler — ikke ordene du skrev eller agentens svar.</span>
+      <span class="lang-en"><strong>Dear User never reads session message content.</strong> It parses <code>.jsonl</code> session logs for length and structural signals only — not the words you typed or the words the agent said back.</span>
+    </p>
+
+    <h2><span class="lang-da">Hvad Dear User skriver</span><span class="lang-en">What Dear User writes</span></h2>
+    <p><span class="lang-da">Én fil:</span><span class="lang-en">One file:</span> <code>~/.dearuser/dearuser.db</code> (SQLite, WAL mode).</p>
+    <p><span class="lang-da">Fire tabeller:</span><span class="lang-en">Four tables:</span></p>
+    <ul>
+      <li><code>du_agent_runs</code> — <span class="lang-da">tidsstempel, tool-navn, summary (ingen fil-indhold)</span><span class="lang-en">timestamp, tool name, summary (no file contents)</span></li>
+      <li><code>du_recommendations</code> — <span class="lang-da">hver anbefaling vi har givet + om du implementerede den</span><span class="lang-en">each recommendation we've surfaced + whether you implemented it</span></li>
+      <li><code>du_score_history</code> — <span class="lang-da">din score over tid</span><span class="lang-en">your score over time</span></li>
+      <li><code>du_findings</code> — <span class="lang-da">scan-fund med stabile hashes for lifecycle-tracking</span><span class="lang-en">scan-driven findings with stable hashes for lifecycle tracking</span></li>
+    </ul>
+    <p>
+      <span class="lang-da">Dear User <strong>ændrer ikke</strong> din CLAUDE.md, memory, skills, hooks eller andre filer — medmindre du eksplicit kalder <code>implement_recommendation</code>, som har et preview-trin og fortæller dig præcis hvad der ændres før det sker.</span>
+      <span class="lang-en">Dear User does <strong>not</strong> modify your CLAUDE.md, memory, skills, hooks, or any other file — unless you explicitly call <code>implement_recommendation</code>, which has a preview step and tells you exactly what will change before it does.</span>
+    </p>
+
+    <h2><span class="lang-da">Hvad forlader din maskine</span><span class="lang-en">What leaves your machine</span></h2>
+    <p><span class="lang-da">To tools, og kun når du kalder dem.</span><span class="lang-en">Two tools, and only when you call them.</span></p>
+
+    <h3><code>share_report</code></h3>
+    <p>
+      <span class="lang-da">Uploader en anonymiseret kopi af en rapport til <code>dearuser.ai</code> og returnerer en URL som <code>dearuser.ai/r/&lt;token&gt;</code>.</span>
+      <span class="lang-en">Uploads an anonymized copy of a report to <code>dearuser.ai</code> and returns a URL like <code>dearuser.ai/r/&lt;token&gt;</code>.</span>
+    </p>
+    <p><span class="lang-da">Før upload kører rapporten gennem en sanitizer der:</span><span class="lang-en">Before upload, the report is passed through a sanitizer that:</span></p>
+    <ul>
+      <li><span class="lang-da">Kollapser absolutte filsti'er til basenames (<code>/Users/jane/secret-project</code> → <code>secret-project</code>)</span><span class="lang-en">Collapses absolute filesystem paths to basenames (<code>/Users/jane/secret-project</code> → <code>secret-project</code>)</span></li>
+      <li><span class="lang-da">Fjerner email-adresser</span><span class="lang-en">Strips email addresses</span></li>
+      <li><span class="lang-da">Redacter alt der matcher vores secret-scanner-mønstre: OpenAI, Anthropic, GitHub, AWS, Stripe, Slack, Google, Supabase, Vercel-tokens, private keys, generiske env-secrets, bearer tokens</span><span class="lang-en">Redacts anything matching our secret-scanner patterns: OpenAI, Anthropic, GitHub, AWS, Stripe, Slack, Google, Supabase, Vercel tokens, private keys, generic env secrets, bearer tokens</span></li>
+    </ul>
+
+    <h3><code>feedback</code></h3>
+    <p><span class="lang-da">Sender en besked til vores Supabase-inbox. Det er hele formålet med tool'et.</span><span class="lang-en">Sends a message to our Supabase inbox. That's the whole point of the tool.</span></p>
+    <p><span class="lang-da">Hvad der vedhæftes:</span><span class="lang-en">What's attached:</span></p>
+    <ul>
+      <li><span class="lang-da">Den tekst du skrev</span><span class="lang-en">The text you wrote</span></li>
+      <li><span class="lang-da">Dear User versionsnummer</span><span class="lang-en">Dear User version number</span></li>
+      <li><span class="lang-da">Intet andet — ikke dine scans, ikke dine filer, ikke din identitet</span><span class="lang-en">Nothing else — not your scans, not your files, not your identity</span></li>
+    </ul>
+
+    <h2><span class="lang-da">Hvad Dear User ikke gør</span><span class="lang-en">What Dear User does not do</span></h2>
+    <ul>
+      <li><strong><span class="lang-da">Ingen keychain-adgang</span><span class="lang-en">No keychain access</span></strong> — <span class="lang-da">vi scanner config-filer for lækkede tokens. Vi rører aldrig din keychain eller credential helper.</span><span class="lang-en">we scan config files for leaked tokens. We never touch your system keychain or credential helper.</span></li>
+      <li><strong><span class="lang-da">Ingen netværkskald under scans</span><span class="lang-en">No network calls during scans</span></strong> — <code>collab</code>, <code>health</code>, <code>security</code>, <code>onboard</code>, <code>wrapped</code>, <code>history</code> <span class="lang-da">er rene filsystem-operationer. Verificér med</span><span class="lang-en">are pure filesystem operations. You can verify with</span> <code>lsof</code> <span class="lang-da">eller Little Snitch.</span><span class="lang-en">or Little Snitch.</span></li>
+      <li><strong><span class="lang-da">Ingen samtale-indhold</span><span class="lang-en">No conversation content</span></strong> — <span class="lang-da">kun session-metadata (antal, længder), aldrig besked-tekst.</span><span class="lang-en">session metadata only (counts, lengths). Not message bodies.</span></li>
+      <li><strong><span class="lang-da">Ingen telemetri fra MCP-tool eller dashboard</span><span class="lang-en">No telemetry from the MCP tool or dashboard</span></strong> — <span class="lang-da">terminal-tool og localhost-dashboard ringer aldrig hjem.</span><span class="lang-en">the terminal tool and the localhost dashboard never phone home.</span></li>
+      <li><strong><span class="lang-da">Website-analytics er cookieless</span><span class="lang-en">Website analytics are cookieless</span></strong> — <code>dearuser.ai</code> <span class="lang-da">bruger Vercel Analytics (aggregeret, ingen cookies) plus PostHog EU konfigureret uden cookies eller localStorage. Ingen identitet, ingen session replay, ingen heatmaps, ingen IP-adresser.</span><span class="lang-en">uses Vercel Analytics (aggregated, no cookies) plus PostHog EU configured without cookies or localStorage. No identity, no session replay, no heatmaps, no IP addresses.</span></li>
+      <li><strong><span class="lang-da">Ingen baggrund-scans</span><span class="lang-en">No background scans</span></strong> — <span class="lang-da">Dear User kører kun når agenten kalder et tool.</span><span class="lang-en">Dear User runs only when the agent calls a tool.</span></li>
+    </ul>
+
+    <h2><span class="lang-da">Kontakt og privacy-anmodninger</span><span class="lang-en">Contact and privacy requests</span></h2>
+    <p>
+      <span class="lang-da">For privacy-bekymringer, GDPR-anmodninger (indsigt, sletning, klage) eller anden formel henvendelse: brug <a href="/contact?context=privacy">kontaktformularen med kategori "Privacy / GDPR"</a>. Et menneske læser hver eneste besked.</span>
+      <span class="lang-en">For privacy concerns, GDPR requests (access, deletion, complaints), or any other formal inquiry: use the <a href="/contact?context=privacy">contact form with the "Privacy / GDPR" category</a>. A human reads every message.</span>
+    </p>
+    <p>
+      <span class="lang-da">For produkt-feedback, bugs og forslag: brug <a href="/feedback">feedback-formularen</a> eller <code>feedback</code>-tool'et inde fra Claude.</span>
+      <span class="lang-en">For product feedback, bugs and suggestions: use the <a href="/feedback">feedback form</a> or the <code>feedback</code> tool from inside Claude.</span>
+    </p>
+    <p>
+      <span class="lang-da">Vi tager det seriøst — Dear User handler om tillid, og en lækage ville opløse hele produktet.</span>
+      <span class="lang-en">We take this seriously — Dear User is a tool about trust, and a leak would undo the whole thing.</span>
+    </p>
+  </section>
+</main>
+
+<style>
+  .du-prose {
+    color: var(--c-ink-700);
+    font-size: 16px;
+    line-height: 1.7;
+  }
+  .du-prose h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 26px;
+    margin: 48px 0 16px;
+    color: var(--c-ink-900);
+    letter-spacing: -0.005em;
+  }
+  .du-prose h3 {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 14px;
+    font-weight: 500;
+    margin: 28px 0 10px;
+    color: var(--c-ink-900);
+  }
+  .du-prose p { margin: 0 0 16px; }
+  .du-prose ul { margin: 0 0 20px; padding-left: 22px; }
+  .du-prose li { margin-bottom: 8px; }
+  .du-prose code {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 13px;
+    background: var(--c-paper-100);
+    border: 1px solid var(--c-paper-200);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--c-ink-900);
+  }
+  .du-prose a {
+    color: var(--c-action-600);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: var(--c-action-100);
+    transition: text-decoration-color 0.15s;
+  }
+  .du-prose a:hover { text-decoration-color: var(--c-action-600); }
+  .du-prose table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 24px;
+    font-size: 14px;
+  }
+  .du-prose th, .du-prose td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--c-paper-200);
+    vertical-align: top;
+  }
+  .du-prose th {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--c-ink-400);
+    font-weight: 500;
+    border-bottom: 1px solid var(--c-paper-300);
+  }
+  .du-prose .du-callout {
+    border-left: 3px solid var(--c-action-600);
+    background: var(--c-paper-100);
+    padding: 14px 18px;
+    margin: 20px 0 24px;
+    border-radius: 0 6px 6px 0;
+    font-size: 15px;
+  }
+</style>
+</Layout>

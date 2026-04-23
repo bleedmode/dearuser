@@ -1,31 +1,35 @@
 ---
 // /feedback — standalone destination for the share-render footer and for
 // anyone who just wants to send the founder a note without the modal chrome.
-// Context auto-populate is intentionally OFF here: visitors arriving via a
-// shared link haven't necessarily run a tool, so we default to "general".
+// Reads ?context= from the URL so footer links like /feedback?context=privacy
+// land users on the right pre-selected category.
 import Layout from '../layouts/Layout.astro';
 import FeedbackModal from '../components/FeedbackModal.astro';
+
+const url = new URL(Astro.request.url);
+const ctx = url.searchParams.get('context') || 'general';
+const allowed = ['general', 'bug', 'feature', 'privacy', 'business', 'press'];
+const defaultContext = allowed.includes(ctx) ? ctx : 'general';
 ---
 <Layout
-  title="Send feedback — Dear User"
-  description="Fortæl os hvad du synes om Dear User. Vi læser hver eneste besked."
+  title="Feedback — Dear User"
+  description="What's working, what isn't? Bugs, feature requests, love, frustration — anything you think about Dear User shapes what we build next."
   active="feedback"
 >
 <main class="du-narrow" style="padding: 64px 0 96px;">
   <header style="margin-bottom: 32px;">
-    <h1 style="font-family: 'Fraunces', Georgia, serif; font-style: italic; font-weight: 500; font-size: 36px; margin: 0 0 12px; color: var(--c-ink-900);">
-      <span class="lang-da">Kære team</span><span class="lang-en">Dear team</span>
+    <p style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--c-action-600); margin: 0 0 12px;">
+      <span class="lang-da">Feedback</span><span class="lang-en">Feedback</span>
+    </p>
+    <h1 style="font-family: 'Fraunces', Georgia, serif; font-style: italic; font-weight: 500; font-size: 40px; margin: 0 0 14px; color: var(--c-ink-900); line-height: 1.15;">
+      <span class="lang-da">Hvad virker — og hvad gør ikke?</span><span class="lang-en">What's working — and what isn't?</span>
     </h1>
-    <p style="color: var(--c-ink-500); font-size: 16px; margin: 0;">
-      <span class="lang-da">
-        Skriv hvad du vil — bug, ønske, ros, ris. En menneske læser det.
-      </span>
-      <span class="lang-en">
-        Tell us anything — bug, request, love, frustration. A human reads every one.
-      </span>
+    <p style="color: var(--c-ink-500); font-size: 16px; margin: 0; line-height: 1.6;">
+      <span class="lang-da">Bug, feature-ønsker, ros, ris — alt hvad du tænker om produktet former hvad vi bygger næste gang. Et menneske læser hver eneste besked.</span>
+      <span class="lang-en">Bugs, feature requests, love, frustration — anything you think about the product shapes what we build next. A human reads every single message.</span>
     </p>
   </header>
 
-  <FeedbackModal mode="inline" defaultContext="general" />
+  <FeedbackModal mode="inline" defaultContext={defaultContext} />
 </main>
 </Layout>
