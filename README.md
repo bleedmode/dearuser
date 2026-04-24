@@ -2,7 +2,7 @@
 
 **Your AI agent works for you — but how well do you work together?**
 
-Dear User is an open-source tool that audits your Claude Code setup and tells you exactly what to fix. It scores your collaboration, finds leaked secrets and config conflicts, checks system health, and gives you a shareable report — all locally, nothing uploaded unless you explicitly ask.
+Dear User is an open-source tool that audits your Claude Code setup and tells you exactly what to fix. It scores your collaboration, finds leaked secrets and config conflicts, and checks system health — all locally, nothing uploaded unless you explicitly share your Wrapped card.
 
 > `claude mcp add dearuser -- npx dearuser-mcp`
 >
@@ -16,21 +16,21 @@ Dear User is an open-source tool that audits your Claude Code setup and tells yo
 
 Dear User is an **MCP server** (Model Context Protocol — the plugin system Claude Code and Claude Desktop use). Once installed, it shows up as a set of tools your agent can call. No GUI, no sign-up, no cloud account.
 
-Three reports, one share button, one feedback channel:
+Three local reports, one shareable Wrapped card, one feedback channel:
 
 | Tool | What it does | Example prompt |
 |------|--------------|----------------|
 | `collab` | Full collaboration report — persona, 0-100 score, friction patterns, specific recommendations | *"How good is my Claude setup?"* |
 | `security` | Leaked secrets, prompt-injection surfaces, rule conflicts in your agent contract (CLAUDE.md or AGENTS.md) | *"Check my config for leaked API keys"* |
 | `health` | Structural coherence — orphan scheduled tasks, overlapping skills, dead hooks | *"Is anything broken in my setup?"* |
-| `share_report` | Anonymize a report and return a public `dearuser.ai/r/<token>` URL | *"Share my collab report"* |
+| `wrapped` | Spotify-style shareable stats card — scores + counts + persona. Opt-in public URL via `share_report`. | *"Give me my Dear User Wrapped"* |
 | `feedback` | Send a note to the Dear User inbox | *"Send feedback: the health report could be shorter"* |
 
-Plus helpers: `onboard` (7-step guided setup), `wrapped` (Spotify-style stats), `history` (trend without re-scanning), `help` (menu), `implement_recommendation`, `dismiss_recommendation`.
+Plus helpers: `onboard` (7-step guided setup), `history` (trend without re-scanning), `help` (menu), `implement_recommendation`, `dismiss_recommendation`, `share_report` (Wrapped-only upload).
 
 ## Launch highlights
 
-- **Shareable reports** — run `share_report`, get back a `dearuser.ai/r/<token>` URL. The report is anonymized first (paths collapsed to basenames, emails stripped, anything matching our secret patterns redacted) before upload.
+- **Shareable Wrapped** — run `wrapped`, then `share_report` to get a `dearuser.ai/r/<token>` URL for your stats card. Anonymized before upload (paths collapsed to basenames, emails stripped, secrets redacted). Collab/security/health reports stay local — findings can carry business context that isn't safe to auto-share.
 - **12-category secret scanner** — OpenAI, Anthropic, GitHub, AWS, Stripe, Slack, Google, Supabase, Vercel, private keys, generic env secrets, bearer tokens. Scans CLAUDE.md / AGENTS.md, memory files, skills, hooks.
 - **AGENTS.md native support** — first-class input alongside CLAUDE.md. Works out of the box for Cursor, Codex, Aider, Cline, Zed and anyone following the [Linux Foundation cross-tool standard](https://github.com/AgentUserInterface/agentsmd). Both files in the same directory? We merge them.
 - **Semantic conflict detection** (new) — finds rules that contradict each other even when they don't share keywords. "Commit often" vs. "ask before commit" gets flagged.
@@ -118,7 +118,7 @@ Dear User is local-first. Your scans stay on your machine:
 
 The **only** exceptions are things you explicitly trigger:
 
-- **`share_report`** — the report is anonymized (paths collapsed, emails stripped, anything matching our secret patterns redacted) and uploaded to `dearuser.ai` so you can share a URL. Your local DB is not modified. You can set an `expires_at` to auto-expire the link.
+- **`share_report` (Wrapped only)** — your Wrapped card is anonymized (paths collapsed, emails stripped, anything matching our secret patterns redacted) and uploaded to `dearuser.ai` so you can share a URL. Your local DB is not modified. You can set an `expires_at` to auto-expire the link. Collab/security/health reports are NOT shareable — findings can carry business context (project names, client names, architecture notes) we don't think should live on a public URL.
 - **`feedback`** — when you call the feedback tool, your message goes to our Supabase inbox. That's the whole point of the tool. We don't attach your scans or files — only the text you write.
 
 No other tool transmits anything. If `share_report` isn't configured with `DEARUSER_SUPABASE_URL` + `DEARUSER_SUPABASE_SERVICE_KEY`, it errors out cleanly and the rest of Dear User keeps working.
@@ -148,7 +148,7 @@ Your files (CLAUDE.md or AGENTS.md, memory, hooks, skills, sessions)
 - **"Vibe coders"** — you prompt Claude and ship product, but you're never quite sure if your setup is actually working. Dear User tells you.
 - **Senior developers** — you want a fast audit for leaked secrets, config drift and rule conflicts without wiring up a custom lint pipeline.
 - **Indie hackers / solo founders** — you've accumulated hooks, skills and memory across projects. Dear User surfaces what's orphaned or contradicting itself.
-- **Team leads** — you want to share a config audit with your team. `share_report` gives you a URL, anonymized.
+- **Team leads** — you want a local audit of your team's shared agent setup. Collab, security and health reports stay on your machine; only your personal Wrapped card can be shared publicly.
 
 ## Repository layout
 

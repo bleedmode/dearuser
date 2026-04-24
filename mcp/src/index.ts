@@ -801,13 +801,20 @@ When presenting: return the text verbatim. Do NOT summarize or re-wrap — the f
   }
 );
 
-// Tool 9: share_report — upload an anonymized report and get a public URL
+// Tool 9: share_report — upload an anonymized Wrapped card and get a public URL.
+// Pre-launch: restricted to report_type='wrapped' only. Collab/health/security
+// reports contain findings text that may carry business context (project names,
+// client names, internal architecture) — risk of non-technical users sharing
+// sensitive content is too high for a feature they can't audit. Wrapped is
+// pure aggregated stats (scores, counts, persona) with much lower leak surface.
 server.tool(
   'share_report',
-  `Generate a public shareable link for a Dear User report. Uploads an anonymized copy to dearuser.ai and returns a URL the user can paste anywhere (Twitter, Slack, LinkedIn).
+  `Generate a public shareable link for your Dear User Wrapped card. Uploads an anonymized copy to dearuser.ai and returns a URL you can paste anywhere (X, LinkedIn, Slack).
+
+Only Wrapped reports are shareable. Collab/health/security reports stay local.
 
 Privacy contract:
-- Absolute filesystem paths are collapsed to basenames ("/Users/jane/secret-project" → "secret-project").
+- Absolute filesystem paths are collapsed to basenames.
 - Email addresses are stripped.
 - Anything matching our secret-scanner patterns (API keys, tokens, JWTs, private keys) is redacted before upload.
 - The user's local ~/.dearuser/ database is NOT modified.
@@ -818,12 +825,11 @@ IMPORTANT — Presenting results:
 Show the returned URL prominently and tell the user it's public. Do NOT auto-paste it anywhere on their behalf.
 
 Example prompts that should trigger this tool:
-- "Share my collab report"
-- "Generate a public link to my latest scan"
-- "Lav et delbart link til min rapport"`,
+- "Share my Wrapped"
+- "Lav et delbart link til min Wrapped"`,
   {
-    report_type: z.enum(['collab', 'security', 'health', 'wrapped']).describe('Which report kind this is.'),
-    report_json: z.record(z.unknown()).describe('The full structured report object (output of collab/health/security/wrapped).'),
+    report_type: z.enum(['wrapped']).describe('Only "wrapped" is accepted. Collab/health/security sharing is disabled pre-launch to avoid leaking business context.'),
+    report_json: z.record(z.unknown()).describe('The full structured Wrapped report object.'),
     expires_at: z.string().optional().describe('ISO-8601 timestamp after which the link stops working. Omit for a permanent link.'),
   },
   async ({ report_type, report_json, expires_at }) => {

@@ -46,7 +46,7 @@ Kilde D (dashboard) → Visualisering
 - `history` — vis eksisterende rapporter (summary, trend, regression) uden at køre ny scan
 - `implement_recommendation` — udfør en pending recommendation (claude_md_append, settings_merge, manual)
 - `dismiss_recommendation` — markér en recommendation som irrelevant/afvist
-- `share_report` — upload anonymiseret rapport til dearuser.ai og returnér offentlig URL
+- `share_report` — upload anonymiseret WRAPPED-rapport til dearuser.ai og returnér offentlig URL (kun wrapped; collab/health/security-deling er slået fra pre-launch)
 - `feedback` — send kort note til Dear User's founder-inbox (write-only, eneste udgående data-kanal)
 - `help` — capabilities menu
 
@@ -70,7 +70,7 @@ Kilde D (dashboard) → Visualisering
 - Research data lever udenfor Dear User repo'et — kun vores egne produktbeslutninger baseret på research commiteres her
 
 ## Current state (april 2026)
-- MCP server med 11 tools + lokal SQLite database + Hono dashboard + 9 skills shipped via npm
+- MCP server med 11 tools + lokal SQLite database + Hono dashboard + 8 skills shipped via npm (share_report er wrapped-only, dearuser-share skill retired)
 - audit har 6 detectors (orphan, overlap, closure, substrate, mcp_refs, backup)
 - 26 kvalitetskontrollerede kilder i research DB (quality score 31%)
 - Wrapped prototype live på dearuser.ai

@@ -954,7 +954,14 @@ const LETTER_SHARE_LABELS = {
   errorGenericEn: 'Could not create link',
 };
 
+// Flip to true to re-enable public sharing of collab/security/health letters.
+// Disabled pre-launch: findings can carry business context (project names,
+// client names, architecture notes) that non-technical users can't audit
+// before sharing. Only Wrapped sharing is enabled (pure aggregated stats).
+const LETTER_SHARE_ENABLED = false;
+
 function renderLetterShareControls(): string {
+  if (!LETTER_SHARE_ENABLED) return '';
   const L = LETTER_SHARE_LABELS;
   return `
     <div class="flex flex-col items-end gap-2">
@@ -967,6 +974,7 @@ function renderLetterShareControls(): string {
 }
 
 function renderLetterShareScript(runId: string): string {
+  if (!LETTER_SHARE_ENABLED) return '';
   const endpoint = `/r/${encodeURIComponent(runId)}/share`;
   return `
     <script>
@@ -3028,6 +3036,15 @@ export function createApp(): Hono {
   // on success; { errorDa, errorEn } on failure so the button can render a
   // localized message. Never echoes the service key.
   app.post('/r/:id/share', async (c) => {
+    // Pre-launch: collab/security/health sharing is disabled (see
+    // LETTER_SHARE_ENABLED). Endpoint stays so old clients get a clean 410
+    // rather than a 404 — helps if someone stumbles into it from an old link.
+    if (!LETTER_SHARE_ENABLED) {
+      return c.json({
+        errorDa: 'Offentlig deling af denne rapport-type er slået fra. Del din Wrapped i stedet.',
+        errorEn: 'Public sharing of this report type is disabled. Share your Wrapped instead.',
+      }, 410);
+    }
     const id = c.req.param('id');
     const run = getRunById(id);
     if (!run || !run.report_json) {

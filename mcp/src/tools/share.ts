@@ -274,9 +274,13 @@ export async function runShareReport(input: ShareInput): Promise<ShareResult> {
   if (!input || typeof input !== 'object') {
     throw new Error('share_report requires an input object.');
   }
-  if (!['collab', 'security', 'health', 'wrapped'].includes(input.report_type)) {
+  // Pre-launch: wrapped is the only shareable report type. Collab/health/
+  // security reports carry findings text that can contain business context
+  // non-technical users can't audit before sharing — too high a leak risk
+  // for a product positioned on local-only privacy.
+  if (input.report_type !== 'wrapped') {
     throw new Error(
-      `Invalid report_type: ${input.report_type}. Expected one of collab|security|health|wrapped.`,
+      `share_report is restricted to report_type='wrapped'. Collab/health/security reports are not shareable.`,
     );
   }
   if (!input.report_json || typeof input.report_json !== 'object') {

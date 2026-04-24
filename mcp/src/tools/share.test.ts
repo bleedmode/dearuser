@@ -182,7 +182,7 @@ describe('runShareReport — integration', () => {
 
   it('returns a token and public URL', async () => {
     const result = await runShareReport({
-      report_type: 'collab',
+      report_type: 'wrapped',
       report_json: { score: 87, projectName: '/Users/j/app' },
     });
     expect(result.token).toHaveLength(10);
@@ -191,7 +191,7 @@ describe('runShareReport — integration', () => {
 
   it('anonymizes before upload — no absolute paths reach Supabase', async () => {
     await runShareReport({
-      report_type: 'health',
+      report_type: 'wrapped',
       report_json: {
         score: 74,
         projectName: '/Users/secret-person/cool-startup',
@@ -207,16 +207,18 @@ describe('runShareReport — integration', () => {
     expect(body.score).toBe(74);
   });
 
-  it('rejects bad report_type', async () => {
-    await expect(
-      runShareReport({ report_type: 'bogus' as any, report_json: {} }),
-    ).rejects.toThrow(/Invalid report_type/);
+  it('rejects non-wrapped report_type (pre-launch restriction)', async () => {
+    for (const bad of ['collab', 'security', 'health', 'bogus']) {
+      await expect(
+        runShareReport({ report_type: bad as any, report_json: { score: 1 } }),
+      ).rejects.toThrow(/restricted to report_type='wrapped'/);
+    }
   });
 
   it('rejects invalid expires_at', async () => {
     await expect(
       runShareReport({
-        report_type: 'collab',
+        report_type: 'wrapped',
         report_json: { score: 1 },
         expires_at: 'not-a-date',
       }),
@@ -243,7 +245,7 @@ describe('runShareReport — integration', () => {
     }
     try {
       await expect(
-        runShareReport({ report_type: 'collab', report_json: { score: 1 } }),
+        runShareReport({ report_type: 'wrapped', report_json: { score: 1 } }),
       ).rejects.toThrow(/Supabase credentials not configured/);
     } finally {
       if (moved) fs.renameSync(backupPath, configPath);

@@ -17,12 +17,21 @@ import { renderArchetypePair, ARCHETYPE_PAIR_CSS } from '../../lib/archetype-pai
 
 const { token } = Astro.params;
 const tokenStr = (token || '').toString();
-const { row, mock, warning } = await loadSharedReport(tokenStr);
+let { row, mock, warning } = await loadSharedReport(tokenStr);
+
+// Pre-launch: only Wrapped reports are renderable publicly. Legacy
+// collab/security/health shares are treated as 410 Gone — the token still
+// exists in DB but the public page no longer renders findings content.
+// Drop `row` to null so the rest of the page takes the not-found branch.
+if (row && row.report_type !== 'wrapped') {
+  Astro.response.status = 410;
+  row = null;
+}
 
 if (!row) {
   // 404 — friendly page, not a stacktrace. Return a 404 status so search
   // engines don't index and social previews gracefully degrade.
-  Astro.response.status = 404;
+  if (Astro.response.status !== 410) Astro.response.status = 404;
 }
 
 // Fire the view counter without awaiting — keeps the render fast and

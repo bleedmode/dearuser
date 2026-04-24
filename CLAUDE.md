@@ -16,7 +16,8 @@ Menneske↔agent samarbejdsanalyse. Kører lokalt, ingen data forlader maskinen.
 - `/dearuser-history` → `mcp__dearuser__history`
 - `/dearuser-help` → `mcp__dearuser__help`
 - `/dearuser-feedback` → `mcp__dearuser__feedback`
-- `/dearuser-share` → `mcp__dearuser__share_report`
+
+Wrapped can be shared publicly via `mcp__dearuser__share_report` — handled from within the wrapped flow, not a separate slash-command. Collab/health/security reports are local-only.
 
 Dashboard: `http://localhost:7700` — Config: `~/.dearuser/config.json`
 

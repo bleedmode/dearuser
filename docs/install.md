@@ -26,7 +26,7 @@ That's it. Open any project with Claude Code and ask:
 Analyze my collaboration with Claude
 ```
 
-Optional — install the slash commands (`/dearuser-collab`, `/dearuser-security`, `/dearuser-health`, `/dearuser-onboard`, `/dearuser-wrapped`, `/dearuser-history`, `/dearuser-help`, `/dearuser-feedback`, `/dearuser-share`):
+Optional — install the slash commands (`/dearuser-collab`, `/dearuser-security`, `/dearuser-health`, `/dearuser-onboard`, `/dearuser-wrapped`, `/dearuser-history`, `/dearuser-help`, `/dearuser-feedback`):
 
 ```bash
 npx -p dearuser-mcp dearuser-install-skills
