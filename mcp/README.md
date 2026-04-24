@@ -4,7 +4,7 @@
 
 Dear User analyzes your human-agent collaboration and tells you exactly what to fix. It scans your CLAUDE.md, memory, hooks, skills, and sessions to produce a collaboration score, detect your persona, find friction, and recommend specific tools and config changes.
 
-Everything runs locally. No data leaves your machine. No API keys required.
+Everything runs locally. Nothing leaves your machine unless you actively choose to share your Wrapped card. No API keys required.
 
 ## Without Dear User vs. With Dear User
 
@@ -205,7 +205,7 @@ This turns Dear User from a one-time scan into a daily collaboration coach — s
 
 ## Privacy and trust
 
-- **No data transmission** — pure local filesystem scanning
+- **Local by default** — scans and reports stay on your machine; nothing uploads unless you call `share_report` to publish your Wrapped card
 - **No file modification** — read-only, never writes to your config
 - **No API keys needed** — zero external dependencies
 - **No conversation access** — reads metadata only (session count, prompt lengths), never message content

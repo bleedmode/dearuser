@@ -282,7 +282,7 @@ function formatSingleRun(runId: string): string {
 // --------------------------------------------------------------------------
 
 // Returns the latest stored report_json for a single scope as a JSON string.
-// Used by /dearuser-share to forward a structured report straight to
+// Used by the wrapped share flow to forward a structured report straight to
 // share_report without re-running the scan. Scope 'all' is rejected because
 // share_report operates on one report at a time.
 function formatJson(scope: HistoryScope): string {
