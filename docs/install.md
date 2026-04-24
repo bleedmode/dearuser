@@ -26,10 +26,10 @@ That's it. Open any project with Claude Code and ask:
 Analyze my collaboration with Claude
 ```
 
-Optional — install the slash commands (`/dearuser-collab`, `/dearuser-security`, `/dearuser-health`, `/dearuser-onboard`, `/dearuser-wrapped`, `/dearuser-history`, `/dearuser-help`):
+Optional — install the slash commands (`/dearuser-collab`, `/dearuser-security`, `/dearuser-health`, `/dearuser-onboard`, `/dearuser-wrapped`, `/dearuser-history`, `/dearuser-help`, `/dearuser-feedback`, `/dearuser-share`):
 
 ```bash
-npx dearuser-mcp dearuser-install-skills
+npx -p dearuser-mcp dearuser-install-skills
 ```
 
 Restart Claude Code for slash commands to appear.
@@ -137,7 +137,7 @@ Edit Zed's `settings.json`:
 Dear User ships a read-only localhost dashboard that reads from `~/.dearuser/dearuser.db`. Launch it with:
 
 ```bash
-npx dearuser-mcp dearuser-dashboard
+npx -p dearuser-mcp dearuser-dashboard
 ```
 
 It starts on `http://localhost:7700` (or the next open port up to 7709).
@@ -160,7 +160,7 @@ See [`setup/README.md`](setup/README.md) for per-platform guides.
 
 **Permission errors writing to `~/.dearuser/`** — Dear User stores its local DB there. Make sure your home folder is writable: `mkdir -p ~/.dearuser && chmod 700 ~/.dearuser`.
 
-**Slash commands don't appear** — run `npx dearuser-mcp dearuser-install-skills`, then restart the client. Slash commands live in `~/.claude/skills/` and are loaded at startup.
+**Slash commands don't appear** — run `npx -p dearuser-mcp dearuser-install-skills`, then restart the client. Slash commands live in `~/.claude/skills/` and are loaded at startup.
 
 **Dashboard won't start / port 7700 taken** — something else is using the port. Dear User probes 7700-7709. Free one of them, or check `lsof -ti:7700` (macOS/Linux) to see what's holding it.
 
@@ -179,7 +179,7 @@ rm -rf ~/.dearuser/
 Remove the slash commands:
 
 ```bash
-rm ~/.claude/skills/dearuser-*.md
+rm -rf ~/.claude/skills/dearuser-*
 ```
 
 That's it — no global packages, no system services, nothing else left behind.

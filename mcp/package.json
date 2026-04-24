@@ -18,6 +18,7 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
+    "lint:any": "node scripts/lint-any-count.js",
     "dashboard:reload": "bash scripts/reload-dashboard.sh",
     "prepublishOnly": "npm run build"
   },

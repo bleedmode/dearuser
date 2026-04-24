@@ -64,7 +64,7 @@ claude mcp add dearuser -- npx dearuser-mcp
 Optional: install the slash commands so you can type `/dearuser-collab`, `/dearuser-security`, etc.:
 
 ```bash
-npx dearuser-mcp dearuser-install-skills
+npx -p dearuser-mcp dearuser-install-skills
 ```
 
 ## Your first 5 minutes
