@@ -71,7 +71,7 @@ Kilde D (dashboard) → Visualisering
 
 ## Current state (april 2026)
 - MCP server med 11 tools + lokal SQLite database + Hono dashboard + 8 skills shipped via npm (share_report er wrapped-only; dearuser-share skill fjernet fra repo 2026-04-24)
-- health har 8 detectors (orphan, overlap, closure, substrate, mcp_refs, backup, stale_schedule, expected_jobs)
+- health har 9 detectors (orphan, overlap, closure, substrate, mcp_refs, backup, stale_schedule, expected_jobs, reconciliation_gap)
 - 26 kvalitetskontrollerede kilder i research DB (quality score 31%)
 - Wrapped prototype live på dearuser.ai
 - Dashboard live på localhost:7700 med score history, run log, recommendations

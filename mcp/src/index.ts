@@ -279,11 +279,13 @@ server.tool(
 Detects:
 - **Orphan scheduled jobs** — task produces output nothing reads
 - **Stale schedules** — jobs that stopped firing silently despite being enabled
+- **Expected jobs missing** — jobs declared in ~/.dearuser/expected-jobs.json that aren't registered
 - **Overlap** — skills/tasks/commands with similar purpose or same output path
 - **Missing closure** — non-scheduled producers with no downstream reader
 - **Substrate mismatch** — memory files that look like databases in disguise
 - **Unregistered MCP tools** — skills calling tools whose server isn't registered
 - **Unbacked-up substrate** — active ~/.claude/ files outside version control
+- **Reconciliation gap** — findings open in the ledger for 14+ days (closed-loop failure)
 
 What this tool does NOT do:
 - Does NOT fix problems — it identifies them for you to decide
@@ -302,8 +304,8 @@ Example prompts that should trigger this tool:
   {
     projectRoot: z.string().optional().describe('Project root (e.g., "/Users/me/my-project"). Defaults to cwd. Audit is most useful in global scope.'),
     scope: z.enum(['global', 'project']).optional().describe('Default global.'),
-    focus: z.enum(['orphan', 'overlap', 'closure', 'substrate', 'mcp_refs', 'backup', 'stale_schedule', 'expected_jobs', 'all']).optional()
-      .describe('Narrow to one finding type, or "all" (default). `stale_schedule` = jobs that stopped firing; `expected_jobs` = jobs declared in ~/.dearuser/expected-jobs.json but not registered; `mcp_refs` = tools calling unregistered MCP servers; `backup` = ~/.claude/ not in version control.'),
+    focus: z.enum(['orphan', 'overlap', 'closure', 'substrate', 'mcp_refs', 'backup', 'stale_schedule', 'expected_jobs', 'reconciliation_gap', 'all']).optional()
+      .describe('Narrow to one finding type, or "all" (default). `stale_schedule` = jobs that stopped firing; `expected_jobs` = jobs declared in ~/.dearuser/expected-jobs.json but not registered; `mcp_refs` = tools calling unregistered MCP servers; `backup` = ~/.claude/ not in version control; `reconciliation_gap` = findings sitting open for 14+ days.'),
   },
   async ({ projectRoot, scope, focus }) => {
     const nudge = firstRunNudge('health');

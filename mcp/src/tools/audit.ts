@@ -416,6 +416,8 @@ const FOCUS_TO_TYPES: Record<string, AuditFindingType[]> = {
   mcp_refs: ['unregistered_mcp_tool'],
   backup: ['unbacked_up_substrate'],
   stale_schedule: ['stale_schedule'],
+  expected_jobs: ['expected_job_missing'],
+  reconciliation_gap: ['reconciliation_gap'],
 };
 
 /** Format an AuditReport as the markdown string we return to the MCP client. */
