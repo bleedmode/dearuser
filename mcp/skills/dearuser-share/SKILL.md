@@ -19,10 +19,12 @@ Upload an anonymized copy of a Dear User report to dearuser.ai and return a publ
      ```
    - If the response is `{"error":"..."}`, surface the error to the user and stop — typically it means no stored report exists yet (run `/dearuser-<kind>` first).
 3. Parse the returned text as JSON, then call `mcp__dearuser__share_report` with `{ "report_type": "<kind>", "report_json": <parsed object> }`.
-   - Bash fallback:
+   - Bash fallback (pipe the report JSON via stdin so content with apostrophes or quotes doesn't break shell quoting):
      ```
-     npx -y -p dearuser-mcp dearuser-run share_report '{"report_type":"<kind>","report_json":<json>}'
+     jq -n --argjson rpt "$(cat /tmp/du-report.json)" --arg kind "<kind>" '{report_type:$kind, report_json:$rpt}' \
+       | npx -y -p dearuser-mcp dearuser-run share_report -
      ```
+     Save the history response to `/tmp/du-report.json` first (step 2), then run the above.
 4. Show the returned URL prominently and remind the user it's public.
 
 ## Rules

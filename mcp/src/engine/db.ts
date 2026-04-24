@@ -186,12 +186,13 @@ export function getRunById(id: string): any | undefined {
  * Accepts legacy tool names so renames (analyze→collab, audit→health) don't
  * erase history — same mapping logic as getLatestScoresByTool.
  */
-export function getRunsByTool(tool: 'collab' | 'health' | 'security', limit = 14): any[] {
+export function getRunsByTool(tool: 'collab' | 'health' | 'security' | 'wrapped', limit = 14): any[] {
   const db = getDb();
   const alias: Record<string, string[]> = {
     collab: ['collab', 'analyze'],
     health: ['health', 'system-health', 'audit'],
     security: ['security'],
+    wrapped: ['wrapped'],
   };
   const tools = alias[tool];
   const placeholders = tools.map(() => '?').join(', ');

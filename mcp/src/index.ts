@@ -359,7 +359,7 @@ Example prompts that should trigger this tool:
 - "What changed since last run?"
 - "Vis trend"`,
   {
-    scope: z.enum(['collab', 'health', 'security', 'all']).optional().describe('Which tool to fetch history for. Default "all" returns latest from each of collab, health, security.'),
+    scope: z.enum(['collab', 'health', 'security', 'wrapped', 'all']).optional().describe('Which tool to fetch history for. Default "all" returns latest from each of collab, health, security. "wrapped" is only valid with format "json" or "summary".'),
     format: z.enum(['summary', 'trend', 'regression', 'json']).optional().describe('"summary" (default) = latest run per scope. "trend" = score sparkline over time. "regression" = delta vs prior run. "json" = raw report_json for the latest run in a specific scope (used by share_report).'),
     limit: z.number().int().positive().max(90).optional().describe('For trend: number of runs to include (default 14, max 90). Ignored for summary/regression.'),
     run_id: z.string().optional().describe('Fetch a specific run by ID (shown at the bottom of every report). When set, other params are ignored.'),

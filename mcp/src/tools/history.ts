@@ -11,7 +11,7 @@
 
 import { getRunsByTool, getRunById } from '../engine/db.js';
 
-export type HistoryScope = 'collab' | 'health' | 'security' | 'all';
+export type HistoryScope = 'collab' | 'health' | 'security' | 'wrapped' | 'all';
 export type HistoryFormat = 'summary' | 'trend' | 'regression' | 'json';
 
 export interface HistoryOptions {
@@ -38,8 +38,11 @@ const SCOPE_LABEL: Record<Exclude<HistoryScope, 'all'>, string> = {
   collab: 'Collaboration',
   health: 'System-sundhed',
   security: 'Security',
+  wrapped: 'Wrapped',
 };
 
+// Diagnostic scopes only — 'all' iterates these. Wrapped is shareable stats,
+// not a diagnostic, so it's addressable directly but not part of 'all'.
 const SCOPES: Array<Exclude<HistoryScope, 'all'>> = ['collab', 'health', 'security'];
 
 function resolveScopes(scope: HistoryScope): Array<Exclude<HistoryScope, 'all'>> {
