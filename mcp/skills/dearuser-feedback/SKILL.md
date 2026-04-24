@@ -12,10 +12,14 @@ Send the user's message to the Dear User founder inbox.
 
 1. Take whatever the user said (or the argument text) and pass it verbatim as `message`. Do NOT rewrite, shorten, or summarise.
 2. Try calling `mcp__dearuser__feedback` with `{ "message": "<the user's text>" }`.
-3. **If the tool is not available** (first turn of session — MCP tools load lazily), use this Bash fallback. JSON-escape the user's text first (replace `\` → `\\`, `"` → `\"`, newline → `\n`), OR pipe the argument via a heredoc-built file when the message contains quotes:
+3. **If the tool is not available** (first turn of session — MCP tools load lazily), use this Bash fallback. Pipe the message via stdin so apostrophes, quotes, and newlines in the user's text don't break shell quoting:
    ```
-   npx -y -p dearuser-mcp dearuser-run feedback '{"message":"<json-escaped user text>"}'
+   jq -Rn --arg msg "$(cat <<'END_OF_DU_MSG'
+<the user's text — verbatim, any content, no escaping>
+END_OF_DU_MSG
+)" '{message:$msg}' | npx -y -p dearuser-mcp dearuser-run feedback -
    ```
+   The `<<'END_OF_DU_MSG'` (quoted heredoc marker) prevents bash from interpreting any character in the message — apostrophes, `$`, backticks, backslashes all pass through literally. `jq` then produces safe JSON and pipes it to `dearuser-run -` which reads from stdin.
    If the command prints to stderr or exits non-zero, show that output to the user — the message was NOT sent.
 4. Show the returned confirmation to the user exactly as returned — it's already short and friendly.
 

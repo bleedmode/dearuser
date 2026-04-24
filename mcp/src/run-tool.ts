@@ -12,12 +12,42 @@ import { join } from 'path';
 
 // esbuild banner defines __dirname for this ESM bundle.
 const toolName = process.argv[2];
-const toolArgs = process.argv[3] ? JSON.parse(process.argv[3]) : {};
+const rawArg = process.argv[3];
 
 if (!toolName) {
-  console.error('Usage: dearuser-run <tool-name> [json-args]');
+  console.error('Usage: dearuser-run <tool-name> [json-args|-]');
   console.error('Example: dearuser-run collab \'{"format":"text"}\'');
+  console.error('         echo \'{"message":"..."}\' | dearuser-run feedback -');
   process.exit(1);
+}
+
+// Pass "-" to read JSON from stdin — avoids shell-quoting pitfalls when
+// content contains apostrophes, quotes, or shell metacharacters.
+async function readStdin(): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+let toolArgs: Record<string, unknown> = {};
+try {
+  let parsed: unknown = {};
+  if (rawArg === '-') {
+    const stdin = (await readStdin()).trim();
+    parsed = stdin ? JSON.parse(stdin) : {};
+  } else if (rawArg) {
+    parsed = JSON.parse(rawArg);
+  }
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+    toolArgs = parsed as Record<string, unknown>;
+  } else {
+    console.error('dearuser-run: JSON args must be an object');
+    process.exit(2);
+  }
+} catch (err) {
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error(`dearuser-run: failed to parse JSON args — ${msg}`);
+  process.exit(2);
 }
 
 const client = new Client({ name: 'dearuser-runner', version: '1.0.0' });
