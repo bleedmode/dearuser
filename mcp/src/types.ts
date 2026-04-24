@@ -521,12 +521,13 @@ export type LintCheckId =
   | 'hook_unquoted_variable'
   | 'hook_no_timeout'
   | 'hook_stale_tool_ref'
-  // F. Skill Quality (5)
+  // F. Skill Quality (6)
   | 'skill_missing_frontmatter'
   | 'skill_vague_name'
   | 'skill_prompt_too_short'
   | 'skill_unrestricted_bash'
   | 'skill_dangerous_name_no_guard'
+  | 'skill_tool_contract_broken'
   // G. Completeness (4)
   | 'missing_verification'
   | 'missing_error_handling'
@@ -615,15 +616,6 @@ export interface AnalysisReport {
   grade: ScoreGrade;
   /** A-F grade for the CLAUDE.md-only sub-score. Surfaced when substrateEmpty. */
   subScoreGrade: ScoreGrade;
-  /**
-   * True when this report scored an AGENTS.md file the author linked to
-   * instead of their (trivial) CLAUDE.md redirect. See calibration study R2.
-   * UI uses this to explain where the score comes from.
-   */
-  scoredAgentsMdRedirect?: {
-    agentsMdPath: string;
-    claudeMdSize: number;
-  };
   /** Projected ceiling the user reaches if they implement every current recommendation. */
   scoreCeiling: ScoreCeiling;
   categories: {

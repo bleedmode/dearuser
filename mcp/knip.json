@@ -1,0 +1,6 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": ["src/index.ts", "src/dashboard-standalone.ts", "src/install-skills.ts", "src/run-tool.ts"],
+  "project": ["src/**/*.ts"],
+  "ignore": ["calibration/**", "dist/**"]
+}

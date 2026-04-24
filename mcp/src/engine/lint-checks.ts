@@ -1,6 +1,6 @@
 // CLAUDE.md lint checks — prompt & config quality analysis
 //
-// 52 checks across 7 domains that catch common anti-patterns in agent config.
+// 53 checks across 7 domains that catch common anti-patterns in agent config.
 // Designed to complement (not duplicate) the collaboration scoring:
 // scoring measures *what's present*, linting measures *what's wrong*.
 
@@ -1310,6 +1310,42 @@ function checkSkillUnrestrictedBash(skills: SkillInfo[]): LintFinding[] {
   return results;
 }
 
+/**
+ * F6. Skill calls an MCP tool from a server that isn't installed.
+ *
+ * Detects both broken contracts ("mcp__pvs__pvs_task_list" referenced in
+ * SKILL.md but the `pvs` server isn't in any .mcp.json / .claude.json /
+ * settings.json) AND silent rename drift (server was renamed upstream, skill
+ * still references the old slug). Same symptom, same fix: update the skill
+ * or install the server.
+ */
+function checkSkillToolContract(skills: SkillInfo[], installedServers: string[]): LintFinding[] {
+  const results: LintFinding[] = [];
+  const installed = new Set(installedServers.map(s => s.toLowerCase()));
+  const toolRefPattern = /\bmcp__([a-zA-Z0-9_-]+)__([a-zA-Z0-9_-]+)\b/g;
+  for (const skill of skills) {
+    const brokenByServer = new Map<string, Set<string>>();
+    for (const m of skill.content.matchAll(toolRefPattern)) {
+      const server = m[1].toLowerCase();
+      const tool = m[2];
+      if (installed.has(server)) continue;
+      if (!brokenByServer.has(server)) brokenByServer.set(server, new Set());
+      brokenByServer.get(server)!.add(tool);
+    }
+    for (const [server, tools] of brokenByServer) {
+      const toolList = Array.from(tools).slice(0, 3).join(', ');
+      const extra = tools.size > 3 ? ` (+${tools.size - 3} more)` : '';
+      results.push(finding('skill_tool_contract_broken', 'recommended',
+        `Skill calls missing MCP server: ${skill.name} → ${server}`,
+        `${skill.name} references mcp__${server}__* tools (${toolList}${extra}) but no MCP server named "${server}" is installed. The skill will fail silently or the server may have been renamed upstream.`,
+        skill.path, `mcp__${server}__${Array.from(tools)[0]}`, undefined,
+        `Either install the "${server}" MCP server, update the skill to reference the current server name, or remove the broken tool calls.`,
+      ));
+    }
+  }
+  return results;
+}
+
 /** F5. Skill dangerous name without safety guard — delete-*, deploy-*, push-* skills. */
 function checkSkillDangerousNameNoGuard(skills: SkillInfo[]): LintFinding[] {
   const results: LintFinding[] = [];
@@ -1409,9 +1445,9 @@ function checkCognitiveBlueprint(parsed: ParseResult): LintFinding[] {
 // Public API
 // ============================================================================
 
-const TOTAL_CHECKS = 52;
+const TOTAL_CHECKS = 53;
 
-/** Run all 51 lint checks against agent config. */
+/** Run all 53 lint checks against agent config. */
 export function lintClaudeMd(scanResult: ScanResult, parsed: ParseResult): LintResult {
   findingCounter = 0;
   const allFindings: LintFinding[] = [];
@@ -1515,6 +1551,7 @@ export function lintClaudeMd(scanResult: ScanResult, parsed: ParseResult): LintR
     ...checkSkillPromptTooShort(skills),
     ...checkSkillUnrestrictedBash(skills),
     ...checkSkillDangerousNameNoGuard(skills),
+    ...checkSkillToolContract(skills, scanResult.installedServers),
   );
 
   // --- G. Completeness ---

@@ -21,7 +21,7 @@ import type { AuditArtifact, AuditEdge, AuditGraph } from '../types.js';
  *   - verbs in prose: "writes to X", "saves to X", "creates X", "appends to X", "updates X"
  *   - file extensions: .json, .md, .jsonl, .csv, .log, .txt (filter out generic words)
  */
-export function extractProducedPaths(prompt: string): string[] {
+function extractProducedPaths(prompt: string): string[] {
   const paths = new Set<string>();
 
   // Shell redirect (unescaped > or >>)
@@ -61,7 +61,7 @@ export function extractProducedPaths(prompt: string): string[] {
 /**
  * Extract file-ish paths that an artifact *reads from*.
  */
-export function extractConsumedPaths(prompt: string): string[] {
+function extractConsumedPaths(prompt: string): string[] {
   const paths = new Set<string>();
 
   // cat / less / head / tail / read
@@ -170,7 +170,7 @@ function tokenize(text: string): Set<string> {
 }
 
 /** Jaccard similarity between token sets. 0-1. */
-export function jaccard(a: Set<string>, b: Set<string>): number {
+function jaccard(a: Set<string>, b: Set<string>): number {
   if (a.size === 0 || b.size === 0) return 0;
   let intersection = 0;
   for (const tok of a) if (b.has(tok)) intersection++;
@@ -182,7 +182,7 @@ export function jaccard(a: Set<string>, b: Set<string>): number {
 // Edge building
 // ============================================================================
 
-export function buildEdges(artifacts: AuditArtifact[]): AuditEdge[] {
+function buildEdges(artifacts: AuditArtifact[]): AuditEdge[] {
   const edges: AuditEdge[] = [];
   const artifactsByName = new Map<string, AuditArtifact>();
   for (const a of artifacts) {

@@ -88,7 +88,7 @@ type Weights = [number, number, number, number, number, number];
 
 /** Need at least 2 of (outcome, autonomy, cadence, audience) before we
  *  label someone. One signal is coincidence, not a pattern. */
-export function hasEnoughForUserArchetype(prefs: UserPreferences): boolean {
+function hasEnoughForUserArchetype(prefs: UserPreferences): boolean {
   let filled = 0;
   if (prefs.outcome) filled += 1;
   if (prefs.autonomy) filled += 1;

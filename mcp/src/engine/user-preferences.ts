@@ -86,13 +86,6 @@ export function getUserName(): string | null {
   return name.trim().split(/\s+/)[0] || null;
 }
 
-/** Agent's first name. Defaults to "Bobby" if onboarding hasn't set one. */
-export function getAgentName(): string {
-  const name = getPreferences().agentName;
-  if (!name || typeof name !== 'string') return 'Bobby';
-  return name.trim().split(/\s+/)[0] || 'Bobby';
-}
-
 /**
  * Merge partial preferences into the saved config. Creates the file and
  * directory if needed. Non-destructive: existing preferences and other

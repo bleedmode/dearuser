@@ -36,7 +36,6 @@ import { detectPreferenceMismatches } from '../engine/preference-mismatch.js';
 import { detectUserArchetype, getUserArchetypeDefinition } from '../engine/user-archetype-detector.js';
 import { mapPersonaToAgentArchetype } from '../engine/agent-archetype-map.js';
 import { gradeBlendedScore, gradePureSubScore } from '../engine/grade.js';
-import { followAgentsMdRedirect } from '../engine/agents-md-redirect.js';
 import type { AnalysisReport, AnalysisStats, WrappedData, Scope, GitSummary, LintSummary, LintFinding } from '../types.js';
 
 export type AnalyzeFormat = 'text' | 'detailed' | 'json';
@@ -181,13 +180,6 @@ export function runAnalysis(
   //     detection + flag preference/setup mismatches (e.g. "you asked for
   //     daily cadence but have no scheduled tasks").
   const prefs = getPreferences();
-
-  // 1b. R2 (calibration study): if CLAUDE.md is a trivial AGENTS.md redirect
-  //     (small file + mentions AGENTS.md), follow the pointer and score the
-  //     AGENTS.md content instead. Users on the Linux Foundation cross-tool
-  //     standard shouldn't be penalised for keeping agent guidance in the
-  //     canonical location.
-  const scoredAgentsMdRedirect = followAgentsMdRedirect(scanResult);
 
   // 2. Parse content
   const parsed = parse(scanResult);
@@ -361,7 +353,6 @@ export function runAnalysis(
     substrateEmpty,
     grade,
     subScoreGrade,
-    ...(scoredAgentsMdRedirect ? { scoredAgentsMdRedirect } : {}),
     scoreCeiling,
     categories,
     frictionPatterns,
@@ -452,7 +443,6 @@ function formatHeader(report: AnalysisReport): string[] {
     `*${report.grade.summary} · Style: ${report.archetype.nameEn}*`,
     ``,
     ...formatSubScore(report),
-    ...formatRedirectNote(report),
     ...formatCeiling(report),
   ]);
 }
@@ -470,19 +460,6 @@ function formatSubScore(report: AnalysisReport): string[] {
   return [
     `**CLAUDE.md-only sub-score: ${report.claudeMdSubScore}/100 — Grade ${report.subScoreGrade.letter} (${report.subScoreGrade.percentileLabel})**`,
     `*The sub-score ignores memory/hooks/skills — use it while substrate is still empty. The blended score rises automatically as you set those up.*`,
-    ``,
-  ];
-}
-
-/**
- * R2 (calibration study): if we followed an AGENTS.md redirect, tell the
- * user. Transparency matters — the score they see comes from AGENTS.md, not
- * the CLAUDE.md stub they may expect us to read.
- */
-function formatRedirectNote(report: AnalysisReport): string[] {
-  if (!report.scoredAgentsMdRedirect) return [];
-  return [
-    `*Note: your CLAUDE.md is a ${report.scoredAgentsMdRedirect.claudeMdSize}-byte redirect to AGENTS.md. We followed the pointer and scored \`${report.scoredAgentsMdRedirect.agentsMdPath}\` instead.*`,
     ``,
   ];
 }

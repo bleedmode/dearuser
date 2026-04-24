@@ -1,17 +1,13 @@
 // grade.ts — maps raw 0-100 scores to A/B/C/D/F letter grades + percentile
-// context. Original thresholds were tuned against the v1 50-file corpus
-// (research/calibration/2026-04-22-claude-md-corpus). The v2 2,895-file
-// corpus (research/calibration/2026-04-22-claude-md-corpus-v2) shows a
-// wider distribution (blended p50=18, p90=35, p99=47, max=60) — a proper
-// retuning against v2 percentiles is a post-launch polish task.
+// context. Thresholds tuned against the v2 2,895-file corpus
+// (research/calibration/2026-04-22-claude-md-corpus-v2).
 //
 // Why: the raw 0-100 number is honest but demoralising at the current state
 // of the ecosystem — median public CLAUDE.md scored 18 (blended) across
 // 2,895 files. Showing "32/100" alone crushes even strong setups. The
 // grade layer contextualises the score:
 //   • Keeps the raw number for power users.
-//   • Adds an A-F letter anchored to real corpus percentiles so a 32 lands
-//     as "A (top 2%)" instead of "32%".
+//   • Adds an A-F letter anchored to real corpus percentiles.
 //
 // The thresholds are recomputed from data/scores.jsonl percentiles; update
 // this file if the corpus is refreshed and the distribution shifts.
@@ -32,44 +28,38 @@ export interface ScoreGrade {
 }
 
 /**
- * Thresholds tuned to the v1 50-file public CLAUDE.md corpus + pure-subscore.
- * v2 (2,895 files) has a wider distribution; retuning pending as post-launch polish.
+ * Thresholds tuned to the v2 2,895-file public CLAUDE.md corpus.
  *
- * Corpus reality (April 2026): no public CLAUDE.md scored above 32 (blended)
- * or 42 (pure). Percentiles:
- *   blended — p10=7, p25=16, p50=19, p75=24, p90=26, max=32
- *   pure    — p10=11, p25=18, p50=24, p75=31, p90=36, max=42
+ * Corpus percentiles (April 2026):
+ *   blended — p10=7, p25=9, p50=18, p75=27, p90=35, p95=39, p99=47, max=60
+ *   pure    — p10=11, p25=13, p50=22, p75=33, p90=44, p95=49, p99=62, max=78
  *
  * Grade mapping balances two constraints:
- *  1. At current corpus quality, A/B should feel earned — top 10-20% of
- *     public files, not half. C is "median public repo". D/F is the long
- *     tail of stub/redirect files.
+ *  1. At current corpus quality, A/B should feel earned — top 5-25% of
+ *     public files. C is median-ish public repo. D/F is the long tail.
  *  2. The mapping has to age gracefully — a user who implements Dear User's
  *     recommendations should be able to climb. So A extends up to 100 even
- *     though no corpus file touches it. That's correct: our report's whole
- *     purpose is helping users push past the corpus ceiling.
+ *     though few corpus files touch the top.
  *
- * Thresholds chosen by percentile lookup, rounded to user-legible numbers:
- *   blended: F <10, D 10-17, C 18-23, B 24-29, A >=30 (top 2% corpus, ~p98).
- *
- * The pure subscore has a different scale so we apply a slightly looser
- * mapping. Both use the same letter shape — a user seeing "B (top 10%)"
- * on either score understands it the same way.
+ * Thresholds anchored to percentile boundaries, rounded for legibility:
+ *   blended: F <10 (bottom 25%), D 10-17, C 18-27 (median), B 28-39,
+ *            A >=40 (top 4%, above p95).
+ *   pure:    F <13, D 13-21, C 22-33 (median), B 34-49, A >=50 (top 4%).
  */
 const BLENDED_THRESHOLDS: Array<{ min: number; letter: LetterGrade; percentile: number }> = [
-  { min: 30, letter: 'A', percentile: 98 },
-  { min: 24, letter: 'B', percentile: 85 },
-  { min: 18, letter: 'C', percentile: 55 },
-  { min: 10, letter: 'D', percentile: 20 },
-  { min: 0, letter: 'F', percentile: 5 },
+  { min: 40, letter: 'A', percentile: 96 },
+  { min: 28, letter: 'B', percentile: 78 },
+  { min: 18, letter: 'C', percentile: 50 },
+  { min: 10, letter: 'D', percentile: 25 },
+  { min: 0, letter: 'F', percentile: 10 },
 ];
 
 const PURE_THRESHOLDS: Array<{ min: number; letter: LetterGrade; percentile: number }> = [
-  { min: 40, letter: 'A', percentile: 97 },
-  { min: 32, letter: 'B', percentile: 82 },
-  { min: 24, letter: 'C', percentile: 55 },
-  { min: 15, letter: 'D', percentile: 22 },
-  { min: 0, letter: 'F', percentile: 5 },
+  { min: 50, letter: 'A', percentile: 96 },
+  { min: 34, letter: 'B', percentile: 77 },
+  { min: 22, letter: 'C', percentile: 50 },
+  { min: 13, letter: 'D', percentile: 25 },
+  { min: 0, letter: 'F', percentile: 10 },
 ];
 
 function pickGrade(

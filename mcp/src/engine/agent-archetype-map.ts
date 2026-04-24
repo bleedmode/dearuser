@@ -87,6 +87,3 @@ export function mapPersonaToAgentArchetype(id: PersonaId | null | undefined): Ag
   }
 }
 
-export function getAgentArchetypeDisplay(id: AgentArchetypeId): AgentArchetypeDisplay {
-  return ARCHETYPES[id];
-}

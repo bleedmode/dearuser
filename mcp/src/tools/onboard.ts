@@ -23,6 +23,9 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { scan } from '../engine/scanner.js';
+import { parse } from '../engine/parser.js';
+import { lintClaudeMd } from '../engine/lint-checks.js';
+import { summariseContextHealth, type ContextFileHealth } from '../engine/context-file-health.js';
 import type { LocalizedString } from '../engine/friendly-labels.js';
 import {
   installDearUserSkills,
@@ -76,6 +79,8 @@ export interface OnboardState {
     hasMemory: boolean;
     skillCount: number;
     hookCount: number;
+    /** Bloat / LLM-smell / staleness summary — only when the user has a CLAUDE.md to score. */
+    contextHealth?: ContextFileHealth | null;
   } | null;
 }
 
@@ -205,11 +210,23 @@ function stepWelcome(state: OnboardState, answer: string): OnboardResult {
   if (!answer) {
     try {
       const scanResult = scan(process.cwd(), 'global');
+      const hasClaudeMd = scanResult.globalClaudeMd !== null || scanResult.projectClaudeMd !== null;
+      let contextHealth: ContextFileHealth | null = null;
+      if (hasClaudeMd) {
+        try {
+          const parsed = parse(scanResult);
+          const lintResult = lintClaudeMd(scanResult, parsed);
+          contextHealth = summariseContextHealth(lintResult.findings);
+        } catch {
+          contextHealth = null;
+        }
+      }
       state.existingSetup = {
-        hasClaudeMd: scanResult.globalClaudeMd !== null || scanResult.projectClaudeMd !== null,
+        hasClaudeMd,
         hasMemory: scanResult.memoryFiles.length > 0,
         skillCount: scanResult.skillsCount ?? 0,
         hookCount: scanResult.hooksCount ?? 0,
+        contextHealth,
       };
     } catch {
       state.existingSetup = null;
