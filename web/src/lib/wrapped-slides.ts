@@ -88,6 +88,20 @@ function h(s: unknown): string {
     .replace(/"/g, '&quot;');
 }
 
+// Strip common Markdown syntax from quoted strings rendered into Wrapped
+// narratives. Defensive — catches both future quotes (analyze.ts applies the
+// same strip at source) and existing shares frozen in Supabase with raw
+// **bold** markers from CLAUDE.md / session lines.
+function stripMd(s: unknown): string {
+  return String(s ?? '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/(?<!\*)\*(?!\*)([^*\n]+?)(?<!\*)\*(?!\*)/g, '$1')
+    .replace(/(?<!_)_(?!_)([^_\n]+?)(?<!_)_(?!_)/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^\s*#{1,6}\s+/gm, '');
+}
+
 function clampPct(n: unknown): number {
   const v = Number(n);
   if (!Number.isFinite(v)) return 0;
@@ -288,7 +302,7 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
           <span class="lang-da">Hvor du står</span><span class="lang-en">Where you rank</span>
         </div>
         <div class="du-slide-big-number good">${h(percentileMoment.value || '')}</div>
-        <p class="du-slide-big-label">${h(percentileMoment.narrative || '')}</p>
+        <p class="du-slide-big-label">${h(stripMd(percentileMoment.narrative || ''))}</p>
         ${percentileMoment.detail ? `<p class="du-slide-detail">${h(percentileMoment.detail)}</p>` : ''}
       </section>
     `);
@@ -302,7 +316,7 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
           <span class="lang-da">Rettelser</span><span class="lang-en">Corrections</span>
         </div>
         <div class="du-slide-big-number" data-du-count="${h(correctionsMoment.value || '0')}">0</div>
-        <p class="du-slide-big-label">${h(correctionsMoment.narrative || '')}</p>
+        <p class="du-slide-big-label">${h(stripMd(correctionsMoment.narrative || ''))}</p>
       </section>
     `);
   }
@@ -315,7 +329,7 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
           <span class="lang-da">Ubrugte skills</span><span class="lang-en">Dead skills</span>
         </div>
         <div class="du-slide-big-number bad" data-du-count="${h(deadSkillMoment.value || '0')}">0</div>
-        <p class="du-slide-big-label">${h(deadSkillMoment.narrative || '')}</p>
+        <p class="du-slide-big-label">${h(stripMd(deadSkillMoment.narrative || ''))}</p>
         ${deadSkillMoment.detail ? `<p class="du-slide-detail">${h(deadSkillMoment.detail)}</p>` : ''}
       </section>
     `);
@@ -329,7 +343,7 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
           <span class="lang-da">Din længste regel</span><span class="lang-en">Your longest rule</span>
         </div>
         <div class="du-slide-big-number ink">${h(biggestRuleMoment.value || '')}</div>
-        <p class="du-slide-big-label">${h(biggestRuleMoment.narrative || '')}</p>
+        <p class="du-slide-big-label">${h(stripMd(biggestRuleMoment.narrative || ''))}</p>
         ${biggestRuleMoment.detail ? `<p class="du-slide-detail">${h(biggestRuleMoment.detail)}</p>` : ''}
       </section>
     `);
@@ -369,8 +383,8 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
           <span class="lang-da">Din agents største lære</span>
           <span class="lang-en">Your agent's #1 lesson</span>
         </div>
-        <div class="du-slide-quote">${h(lesson.quote)}</div>
-        ${lesson.context ? `<div class="du-slide-quote-attr">— ${h(lesson.context)}</div>` : ''}
+        <div class="du-slide-quote">${h(stripMd(lesson.quote))}</div>
+        ${lesson.context ? `<div class="du-slide-quote-attr">— ${h(stripMd(lesson.context))}</div>` : ''}
       </section>
     `);
   }
