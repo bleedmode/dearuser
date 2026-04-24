@@ -26,7 +26,7 @@ That's it. Open any project with Claude Code and ask:
 Analyze my collaboration with Claude
 ```
 
-Optional — install the slash commands (`/dearuser-collab`, `/dearuser-security`, `/dearuser-health`, `/dearuser-onboard`, `/dearuser-wrapped`, `/dearuser-history`, `/dearuser-help`):
+Optional — install the slash commands (`/dearuser-collab`, `/dearuser-security`, `/dearuser-health`, `/dearuser-onboard`, `/dearuser-wrapped`, `/dearuser-history`, `/dearuser-help`, `/dearuser-feedback`, `/dearuser-share`):
 
 ```bash
 npx -p dearuser-mcp dearuser-install-skills
@@ -137,7 +137,7 @@ Edit Zed's `settings.json`:
 Dear User ships a read-only localhost dashboard that reads from `~/.dearuser/dearuser.db`. Launch it with:
 
 ```bash
-npx dearuser-mcp dearuser-dashboard
+npx -p dearuser-mcp dearuser-dashboard
 ```
 
 It starts on `http://localhost:7700` (or the next open port up to 7709).
@@ -179,7 +179,7 @@ rm -rf ~/.dearuser/
 Remove the slash commands:
 
 ```bash
-rm ~/.claude/skills/dearuser-*.md
+rm -rf ~/.claude/skills/dearuser-*
 ```
 
 That's it — no global packages, no system services, nothing else left behind.

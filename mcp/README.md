@@ -158,17 +158,19 @@ Full report in under 10 seconds: persona, score, friction patterns, and specific
 | **history** | Show existing reports (trend, regression) without re-scanning | *"What did last night's scan say?"* |
 | **implement_recommendation** | Apply a pending recommendation (CLAUDE.md append, settings merge, or manual) | *"Yes, add that rule"* |
 | **dismiss_recommendation** | Mark a recommendation as irrelevant | *"Skip that one"* |
+| **share_report** | Upload an anonymized copy of a report to dearuser.ai and return a public URL | *"Share my collab report"* |
+| **feedback** | Send a short note (bug, request, reaction) to the Dear User founders | *"Tell them this crashed"* |
 | **help** | Capabilities menu | *"What can Dear User do?"* |
 
 ## Slash commands (skills)
 
-Dear User ships with 7 slash commands. Install them to `~/.claude/skills/` with:
+Dear User ships with 9 slash commands. Install them to `~/.claude/skills/` with:
 
 ```bash
 npx -p dearuser-mcp dearuser-install-skills
 ```
 
-Then restart Claude Code. Available commands: `/dearuser-collab`, `/dearuser-health`, `/dearuser-security`, `/dearuser-onboard`, `/dearuser-wrapped`, `/dearuser-history`, `/dearuser-help`.
+Then restart Claude Code. Available commands: `/dearuser-collab`, `/dearuser-health`, `/dearuser-security`, `/dearuser-onboard`, `/dearuser-wrapped`, `/dearuser-history`, `/dearuser-help`, `/dearuser-feedback`, `/dearuser-share`.
 
 ## How it works
 

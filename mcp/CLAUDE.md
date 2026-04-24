@@ -70,7 +70,7 @@ Kilde D (dashboard) → Visualisering
 - Research data lever udenfor Dear User repo'et — kun vores egne produktbeslutninger baseret på research commiteres her
 
 ## Current state (april 2026)
-- MCP server med 9 tools + lokal SQLite database + Hono dashboard + 7 skills shipped via npm
+- MCP server med 11 tools + lokal SQLite database + Hono dashboard + 9 skills shipped via npm
 - audit har 6 detectors (orphan, overlap, closure, substrate, mcp_refs, backup)
 - 26 kvalitetskontrollerede kilder i research DB (quality score 31%)
 - Wrapped prototype live på dearuser.ai
