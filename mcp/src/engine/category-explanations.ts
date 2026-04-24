@@ -641,6 +641,3 @@ export function systemHealthVerdict(score: number): LocalizedString {
   };
 }
 
-export function explanationFor(key: string): CategoryExplanation | undefined {
-  return CATEGORY_EXPLANATIONS[key];
-}

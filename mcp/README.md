@@ -165,7 +165,7 @@ Full report in under 10 seconds: persona, score, friction patterns, and specific
 Dear User ships with 7 slash commands. Install them to `~/.claude/skills/` with:
 
 ```bash
-npx dearuser-mcp dearuser-install-skills
+npx -p dearuser-mcp dearuser-install-skills
 ```
 
 Then restart Claude Code. Available commands: `/dearuser-collab`, `/dearuser-health`, `/dearuser-security`, `/dearuser-onboard`, `/dearuser-wrapped`, `/dearuser-history`, `/dearuser-help`.

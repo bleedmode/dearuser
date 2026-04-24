@@ -133,14 +133,3 @@ export function reconcileFindings(
     history,
   };
 }
-
-/** Mark a finding as explicitly dismissed. Called when user passes dismiss=id. */
-export function dismissFinding(id: string): boolean {
-  const store = loadStore();
-  const target = store.findings.find(f => f.id === id);
-  if (!target) return false;
-  target.status = 'dismissed';
-  target.lastSeenAt = new Date().toISOString();
-  saveStore(store);
-  return true;
-}

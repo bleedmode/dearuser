@@ -37,7 +37,7 @@ Kilde D (dashboard) → Visualisering
 - Dashboard åbner DB med readonly: true
 - JSON-fil migration: eksisterende recommendations.json importeres automatisk
 
-## MCP Tools (9 stk)
+## MCP Tools (11 stk)
 - `collab` — collaboration-analyse: scan + diagnose + anbefalinger + session-mønstre + feedback loop → skriver du_agent_runs + du_score_history + du_recommendations (legacy: analyze)
 - `health` — system-sundhed: orphan jobs, overlap, missing closure, substrate mismatch → skriver du_agent_runs (legacy: audit, system_health)
 - `security` — secret scanning, prompt-injection surfaces, CLAUDE.md↔artefakt rule conflicts → skriver du_agent_runs
@@ -46,6 +46,8 @@ Kilde D (dashboard) → Visualisering
 - `history` — vis eksisterende rapporter (summary, trend, regression) uden at køre ny scan
 - `implement_recommendation` — udfør en pending recommendation (claude_md_append, settings_merge, manual)
 - `dismiss_recommendation` — markér en recommendation som irrelevant/afvist
+- `share_report` — upload anonymiseret rapport til dearuser.ai og returnér offentlig URL
+- `feedback` — send kort note til Dear User's founder-inbox (write-only, eneste udgående data-kanal)
 - `help` — capabilities menu
 
 ## Tech stack

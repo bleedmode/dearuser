@@ -29,7 +29,7 @@ Analyze my collaboration with Claude
 Optional — install the slash commands (`/dearuser-collab`, `/dearuser-security`, `/dearuser-health`, `/dearuser-onboard`, `/dearuser-wrapped`, `/dearuser-history`, `/dearuser-help`):
 
 ```bash
-npx dearuser-mcp dearuser-install-skills
+npx -p dearuser-mcp dearuser-install-skills
 ```
 
 Restart Claude Code for slash commands to appear.
@@ -160,7 +160,7 @@ See [`setup/README.md`](setup/README.md) for per-platform guides.
 
 **Permission errors writing to `~/.dearuser/`** — Dear User stores its local DB there. Make sure your home folder is writable: `mkdir -p ~/.dearuser && chmod 700 ~/.dearuser`.
 
-**Slash commands don't appear** — run `npx dearuser-mcp dearuser-install-skills`, then restart the client. Slash commands live in `~/.claude/skills/` and are loaded at startup.
+**Slash commands don't appear** — run `npx -p dearuser-mcp dearuser-install-skills`, then restart the client. Slash commands live in `~/.claude/skills/` and are loaded at startup.
 
 **Dashboard won't start / port 7700 taken** — something else is using the port. Dear User probes 7700-7709. Free one of them, or check `lsof -ti:7700` (macOS/Linux) to see what's holding it.
 

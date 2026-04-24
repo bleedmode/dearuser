@@ -389,13 +389,3 @@ export function migrateFromJson(): { imported: number } {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Close (for clean shutdown)
-// ---------------------------------------------------------------------------
-
-export function closeDb(): void {
-  if (_db) {
-    _db.close();
-    _db = null;
-  }
-}

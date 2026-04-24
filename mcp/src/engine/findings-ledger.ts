@@ -391,37 +391,3 @@ export function dismissFinding(
   logEvent(existing.id, 'dismissed', agentRunId, reason);
 }
 
-/**
- * Reconciliation KPI: gap between open findings and workflow-tasks that
- * reference them. Tenable's rule of thumb is <1% gap; larger gaps indicate
- * stale tasks or unacked findings. Returns per-platform counts.
- */
-export function getReconciliationHealth(): {
-  platform: string;
-  openFindings: number;
-  linkedRecommendations: number;
-  gap: number;
-  gapPct: number;
-}[] {
-  const db = getDb();
-  const platforms = db.prepare(
-    `SELECT DISTINCT platform FROM du_findings WHERE state = 'open'`
-  ).all() as { platform: string }[];
-
-  return platforms.map(({ platform }) => {
-    const openFindings = (db.prepare(
-      `SELECT COUNT(*) as n FROM du_findings WHERE state = 'open' AND platform = ?`
-    ).get(platform) as { n: number }).n;
-
-    const linkedRecs = (db.prepare(`
-      SELECT COUNT(DISTINCT r.finding_hash) as n
-      FROM du_recommendations r
-      INNER JOIN du_findings f ON f.finding_hash = r.finding_hash
-      WHERE f.platform = ? AND f.state = 'open' AND r.status = 'pending'
-    `).get(platform) as { n: number }).n;
-
-    const gap = Math.abs(openFindings - linkedRecs);
-    const gapPct = openFindings === 0 ? 0 : (gap / openFindings) * 100;
-    return { platform, openFindings, linkedRecommendations: linkedRecs, gap, gapPct };
-  });
-}
