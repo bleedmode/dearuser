@@ -28,7 +28,7 @@ const {
 const canonical = ogUrl || Astro.url.toString();
 ---
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -85,6 +85,13 @@ const canonical = ogUrl || Astro.url.toString();
     line-height: 1.5;
   }
   a { color: inherit; }
+
+  /* Language toggle — share pages are English-locked (viral/cross-boundary).
+     Components render both .lang-da and .lang-en spans; hide Danish here so
+     shared links always read in one language. Matches the behavior promised
+     in the header comment at the top of this file. */
+  html[data-lang="en"] .lang-da { display: none; }
+  html[data-lang="da"] .lang-en { display: none; }
 
   .du-share-header {
     border-bottom: 1px solid var(--c-paper-200);

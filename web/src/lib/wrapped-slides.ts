@@ -123,7 +123,6 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
   const split = w.autonomySplit || {};
   const grid = w.systemGrid || {};
   const lesson = w.topLesson || null;
-  const headline = w.headlineStat?.label || '';
 
   const percentileMoment = findMoment(moments, 'percentile');
   const correctionsMoment = findMoment(moments, 'corrections');
@@ -171,6 +170,11 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
   `);
 
   // Slide 2 — Hero score
+  // Note: we deliberately do NOT render w.headlineStat.label here. That text
+  // belongs to the corrections stat and has its own slide via correctionsMoment.
+  // Dumping it under the score produced a misleading "95 / out of 100 / times
+  // your agent was corrected" read, where the caption looked like it described
+  // the 95.
   if (score !== null && score !== undefined) {
     slides.push(`
       <section class="du-slide du-slide-score" data-du-slide>
@@ -181,7 +185,6 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
         <div class="du-slide-score-sub">
           <span class="lang-da">ud af 100</span><span class="lang-en">out of 100</span>
         </div>
-        ${headline ? `<p class="du-slide-big-label du-slide-headline">${h(headline)}</p>` : ''}
       </section>
     `);
   }
