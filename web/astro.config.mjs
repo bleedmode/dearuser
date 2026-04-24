@@ -1,5 +1,6 @@
 import { defineConfig } from 'astro/config';
 import vercel from '@astrojs/vercel';
+import sitemap from '@astrojs/sitemap';
 
 // Hybrid output: static pages stay static by default. Only the dynamic
 // `/r/[token]` route opts into server rendering (prerender=false in the
@@ -9,6 +10,13 @@ import vercel from '@astrojs/vercel';
 export default defineConfig({
   site: 'https://dearuser.ai',
   output: 'static',
+  integrations: [
+    sitemap({
+      // Skip dynamic /r/<token> share pages — tokens are unknown at build time
+      // and each share URL is unique to its recipient, not general-audience content.
+      filter: (page) => !page.includes('/r/'),
+    }),
+  ],
   adapter: vercel({
     imageService: true,
   }),
