@@ -149,8 +149,8 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
   const slides: string[] = [];
 
   // Slide 1 — Intro
-  const greetingEn = userName ? `In numbers, ${h(userName)}` : 'In numbers, from a <span class="du-slide-accent">friend</span>';
-  const greetingDa = userName ? `I tal, ${h(userName)}` : 'I tal, fra en <span class="du-slide-accent">ven</span>';
+  const greetingEn = userName ? `Dear ${h(userName)}` : 'Dear <span class="du-slide-accent">friend</span>';
+  const greetingDa = userName ? `Kære ${h(userName)}` : 'Kære <span class="du-slide-accent">ven</span>';
   slides.push(`
     <section class="du-slide du-slide-intro visible" data-du-slide>
       <div class="du-slide-eyebrow">
