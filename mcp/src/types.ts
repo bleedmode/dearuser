@@ -244,6 +244,9 @@ export interface WrappedContrast {
 }
 
 export interface WrappedData {
+  /** First name from onboarding prefs. Piped to the public share's greeting
+   *  slide ("Dear Jarl"). Null when onboarding didn't capture a name. */
+  userName?: string | null;
   headlineStat: { value: string; label: string };
   topLesson: { quote: string; context: string } | null;
   autonomySplit: { doSelf: number; askFirst: number; suggest: number };

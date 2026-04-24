@@ -184,7 +184,7 @@ function correctionMoment(session: SessionData | undefined): WrappedMoment | nul
   if (neg < 3) return null;
   const example = session.corrections.examples[0];
   const narrative = example
-    ? `You caught me and pushed back ${neg} times. The one I remember: "${truncate(example, 80)}"`
+    ? `You caught me and pushed back ${neg} times. The one I remember: "${truncate(stripMarkdown(example), 80)}"`
     : `You caught me and pushed back ${neg} times. I'm keeping track — so the next correction comes sooner.`;
   return {
     id: 'corrections',
@@ -291,7 +291,7 @@ function biggestRuleMoment(rules: ParsedRule[] | undefined): WrappedMoment | nul
     }
   }
   if (!longest || longestWords < 40) return null;
-  const head = truncate(longest.text.trim().replace(/\s+/g, ' '), 80);
+  const head = truncate(stripMarkdown(longest.text.trim().replace(/\s+/g, ' ')), 80);
   return {
     id: 'biggest-rule',
     value: `${longestWords} words`,
@@ -428,4 +428,19 @@ export function buildMoments(input: BuildMomentsInput): BuildMomentsResult {
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
   return s.slice(0, max - 1) + '…';
+}
+
+// Strip common Markdown syntax from a quoted string. Wrapped quotes rules
+// and session lines verbatim; those often contain **bold**, *italic* or
+// `code` markers that render as raw punctuation on the public share page
+// (no markdown parser in the viewer). Clean them before truncating so the
+// quote reads as plain text.
+function stripMarkdown(s: string): string {
+  return s
+    .replace(/\*\*([^*]+)\*\*/g, '$1')   // **bold**
+    .replace(/__([^_]+)__/g, '$1')       // __bold__
+    .replace(/(?<!\*)\*(?!\*)([^*\n]+?)(?<!\*)\*(?!\*)/g, '$1')  // *italic*
+    .replace(/(?<!_)_(?!_)([^_\n]+?)(?<!_)_(?!_)/g, '$1')         // _italic_
+    .replace(/`([^`]+)`/g, '$1')         // `code`
+    .replace(/^\s*#{1,6}\s+/gm, '');     // # headers
 }

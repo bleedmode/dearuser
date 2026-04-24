@@ -72,6 +72,7 @@ function buildWrapped(
   friction: ReturnType<typeof analyzeFriction>,
   momentsInput: Parameters<typeof buildMoments>[0],
   userArchetype: ReturnType<typeof detectUserArchetype> | null,
+  userName: string | null,
 ): WrappedData {
   const total = stats.doRules + stats.askRules + stats.suggestRules;
   const doSelf = total > 0 ? Math.round((stats.doRules / total) * 100) : 0;
@@ -86,6 +87,10 @@ function buildWrapped(
   const mappedAgent = mapPersonaToAgentArchetype(persona.detected);
 
   return {
+    // First name from onboarding — piped through into the greeting slide on
+    // the public share page. Optional; shared HTML falls back to "Dear friend"
+    // when absent.
+    userName: userName || null,
     headlineStat: {
       value: String(stats.feedbackMemories),
       label: 'times your agent was corrected — and remembered every single one',
@@ -260,7 +265,7 @@ export function runAnalysis(
     scanResult,
     session: sessionData,
     categories: categories as unknown as Record<string, import('../types.js').CategoryScore>,
-  }, userArchetype);
+  }, userArchetype, prefs.name || null);
 
   // 14. Feedback loop — check previous recommendations + track new ones
   const claudeMdContent = [scanResult.globalClaudeMd?.content, scanResult.projectClaudeMd?.content]

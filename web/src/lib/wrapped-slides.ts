@@ -28,6 +28,9 @@ export interface WrappedMomentInput {
 }
 
 export interface WrappedDataInput {
+  /** First name from onboarding — "Jarl", "Alex". Used in greeting slides.
+   *  Optional; falls back to a generic greeting when absent. */
+  userName?: string | null;
   headlineStat?: { value?: string; label?: string };
   topLesson?: { quote?: string; context?: string } | null;
   autonomySplit?: { doSelf?: number; askFirst?: number; suggest?: number };
@@ -106,11 +109,15 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
   const {
     score,
     year,
-    userName,
     wrapped: w,
     setupArchetypeName,
     mode = 'live',
   } = input;
+
+  // userName can be provided at the top level (dashboard/demo callers) or
+  // inside the wrapped payload (public share page, where only report_json
+  // crosses the wire). Top-level wins when both are set.
+  const userName = input.userName || w.userName || undefined;
 
   const moments: WrappedMomentInput[] = (
     Array.isArray(input.moments) && input.moments.length > 0
@@ -147,9 +154,13 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
   // ------------------------------------------------------------------
   const slides: string[] = [];
 
-  // Slide 1 — Intro
-  const greetingEn = userName ? `In numbers, ${h(userName)}` : 'In numbers, from a <span class="du-slide-accent">friend</span>';
-  const greetingDa = userName ? `I tal, ${h(userName)}` : 'I tal, fra en <span class="du-slide-accent">ven</span>';
+  // Slide 1 — Intro. "Dear <name>" matches the letter-voice Dear User uses
+  // everywhere else. Falls back to "Dear friend" / "Kære ven" when the user
+  // hasn't shared a name via onboarding.
+  const nameAccent = userName ? `<span class="du-slide-accent">${h(userName)}</span>` : '<span class="du-slide-accent">friend</span>';
+  const nameAccentDa = userName ? `<span class="du-slide-accent">${h(userName)}</span>` : '<span class="du-slide-accent">ven</span>';
+  const greetingEn = `Dear ${nameAccent}`;
+  const greetingDa = `Kære ${nameAccentDa}`;
   slides.push(`
     <section class="du-slide du-slide-intro visible" data-du-slide>
       <div class="du-slide-eyebrow">
