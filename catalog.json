@@ -1,6 +1,6 @@
 {
   "version": "1",
-  "lastSynced": "2026-04-23",
+  "lastSynced": "2026-04-24",
   "source": "github.com/bleedmode/dearuser",
   "tools": [
     {
@@ -385,6 +385,89 @@
         "venture_studio"
       ],
       "lastVerified": "2026-04-23"
+    },
+    {
+      "name": "GitHub MCP Server",
+      "type": "mcp_server",
+      "description": "Official GitHub MCP server. Full repo/issue/PR/workflow access via natural language.",
+      "userFriendlyDescription": "Lets your agent work with your GitHub repos — open issues, review PRs, trigger workflows — without copy-pasting.",
+      "whoActs": "I can add this with one command — want me to?",
+      "install": "claude mcp add github -- npx -y @github/github-mcp-server",
+      "stars": 29200,
+      "url": "https://github.com/github/github-mcp-server",
+      "solves": [
+        "repo_friction",
+        "manual_github_ops",
+        "context_switching"
+      ],
+      "personas": [
+        "senior_dev",
+        "indie_hacker",
+        "venture_studio",
+        "team_lead"
+      ],
+      "lastVerified": "2026-04-24"
+    },
+    {
+      "name": "Microsoft MCP Servers",
+      "type": "github_repo",
+      "description": "Microsoft's official MCP catalog — Azure, Fabric, M365 (Calendar/Mail/Teams/Word), Azure DevOps, Sentinel, SQL.",
+      "userFriendlyDescription": "Microsoft's entire platform — Azure, Office 365, Teams, SQL — accessible to your agent via MCP. Pick the ones you use.",
+      "whoActs": "You need to follow the setup guide — each server installs separately, takes about 5 minutes per server.",
+      "install": "https://github.com/microsoft/mcp — see individual server READMEs",
+      "stars": 3000,
+      "url": "https://github.com/microsoft/mcp",
+      "solves": [
+        "missing_context",
+        "manual_cloud_ops",
+        "microsoft_integration"
+      ],
+      "personas": [
+        "senior_dev",
+        "team_lead",
+        "venture_studio"
+      ],
+      "lastVerified": "2026-04-24"
+    },
+    {
+      "name": "AWS MCP Servers",
+      "type": "github_repo",
+      "description": "AWS official MCP suite — 40+ servers: IaC, EKS, DynamoDB, PostgreSQL, Bedrock, SageMaker, S3, IAM.",
+      "userFriendlyDescription": "40+ AWS services exposed as MCP servers. Your agent can query DynamoDB, deploy to EKS, read CloudWatch logs directly.",
+      "whoActs": "You need to follow the setup guide — each server installs separately, takes about 5 minutes per server.",
+      "install": "https://github.com/awslabs/mcp — see individual server READMEs",
+      "stars": 8900,
+      "url": "https://github.com/awslabs/mcp",
+      "solves": [
+        "missing_context",
+        "manual_cloud_ops",
+        "aws_integration"
+      ],
+      "personas": [
+        "senior_dev",
+        "team_lead",
+        "venture_studio"
+      ],
+      "lastVerified": "2026-04-24"
+    },
+    {
+      "name": "IBM MCP Servers",
+      "type": "github_repo",
+      "description": "IBM's official MCP catalog — IBM Cloud, DB2, watsonx.data, Guardium, QRadar, Instana, Carbon.",
+      "userFriendlyDescription": "IBM enterprise stack via MCP — useful if you work with IBM Cloud, DB2, or watsonx.",
+      "whoActs": "You need to follow the setup guide — each server installs separately.",
+      "install": "https://github.com/IBM/mcp — see individual server READMEs",
+      "stars": 369,
+      "url": "https://github.com/IBM/mcp",
+      "solves": [
+        "ibm_integration",
+        "enterprise_data_access"
+      ],
+      "personas": [
+        "senior_dev",
+        "team_lead"
+      ],
+      "lastVerified": "2026-04-24"
     }
   ]
 }
