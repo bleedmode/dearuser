@@ -10,22 +10,24 @@ Upload an anonymized copy of a Dear User report to dearuser.ai and return a publ
 
 ## What to do
 
-1. Figure out WHICH report to share. If the user said a kind (e.g. "share my collab report"), use that. Otherwise default to `collab`.
-2. Fetch the latest structured report:
-   - Try `mcp__dearuser__history` with `{ "report_type": "<kind>", "format": "json" }` to get the latest stored report as JSON.
+1. Figure out WHICH report to share. If the user said a kind (e.g. "share my collab report"), use that. Otherwise default to `collab`. Allowed kinds: `collab`, `health`, `security`, `wrapped`.
+2. Fetch the latest structured report as JSON:
+   - Try `mcp__dearuser__history` with `{ "scope": "<kind>", "format": "json" }`. The returned text is the raw JSON string of the latest stored report for that scope.
    - **If the tool is not available** (first turn):
      ```
-     npx -y -p dearuser-mcp dearuser-run history '{"report_type":"<kind>","format":"json"}' 2>/dev/null
+     npx -y -p dearuser-mcp dearuser-run history '{"scope":"<kind>","format":"json"}'
      ```
-3. Call `mcp__dearuser__share_report` with `{ "report_type": "<kind>", "report_json": <the JSON from step 2> }`.
+   - If the response is `{"error":"..."}`, surface the error to the user and stop — typically it means no stored report exists yet (run `/dearuser-<kind>` first).
+3. Parse the returned text as JSON, then call `mcp__dearuser__share_report` with `{ "report_type": "<kind>", "report_json": <parsed object> }`.
    - Bash fallback:
      ```
-     npx -y -p dearuser-mcp dearuser-run share_report '{"report_type":"<kind>","report_json":<json>}' 2>/dev/null
+     npx -y -p dearuser-mcp dearuser-run share_report '{"report_type":"<kind>","report_json":<json>}'
      ```
 4. Show the returned URL prominently and remind the user it's public.
 
 ## Rules
 
-- The privacy contract is already enforced server-side: paths collapsed to basenames, emails stripped, secret patterns redacted. Mention this to the user if they ask.
+- The privacy contract is enforced client-side before upload: paths collapsed to basenames, emails stripped, secret patterns redacted — nothing sensitive leaves the machine. Mention this to the user if they ask.
 - Do NOT auto-paste the URL into social media, email, or anywhere on the user's behalf — hand it back and let them share.
 - If `DEARUSER_SUPABASE_URL` / `DEARUSER_SUPABASE_SERVICE_KEY` are missing, the tool errors — explain that sharing requires those env vars; everything else in Dear User still works locally.
+- If any tool returns an error, show the error text — the share was NOT completed.

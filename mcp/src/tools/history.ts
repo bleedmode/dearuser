@@ -12,7 +12,7 @@
 import { getRunsByTool, getRunById } from '../engine/db.js';
 
 export type HistoryScope = 'collab' | 'health' | 'security' | 'all';
-export type HistoryFormat = 'summary' | 'trend' | 'regression';
+export type HistoryFormat = 'summary' | 'trend' | 'regression' | 'json';
 
 export interface HistoryOptions {
   scope?: HistoryScope;
@@ -278,6 +278,27 @@ function formatSingleRun(runId: string): string {
 // Public entry
 // --------------------------------------------------------------------------
 
+// Returns the latest stored report_json for a single scope as a JSON string.
+// Used by /dearuser-share to forward a structured report straight to
+// share_report without re-running the scan. Scope 'all' is rejected because
+// share_report operates on one report at a time.
+function formatJson(scope: HistoryScope): string {
+  if (scope === 'all') {
+    return JSON.stringify({ error: 'format "json" requires a specific scope (collab, health, or security), not "all".' });
+  }
+  const runs = getRunsByTool(scope, 1) as Run[];
+  const latest = runs[0];
+  if (!latest) {
+    return JSON.stringify({ error: `No stored ${scope} report found. Run \`${scope}\` first.` });
+  }
+  if (!latest.report_json) {
+    return JSON.stringify({ error: `Latest ${scope} run (${latest.id}) has no structured report_json — it was stored before JSON persistence was added. Re-run \`${scope}\` to capture it.` });
+  }
+  // report_json is already a JSON string in the DB — return as-is so the
+  // agent can parse and forward to share_report unchanged.
+  return latest.report_json;
+}
+
 export function runHistory(options: HistoryOptions = {}): string {
   if (options.runId) return formatSingleRun(options.runId);
   const scope = options.scope || 'all';
@@ -288,5 +309,6 @@ export function runHistory(options: HistoryOptions = {}): string {
     case 'summary':    return formatSummary(scope);
     case 'trend':      return formatTrend(scope, limit);
     case 'regression': return formatRegression(scope);
+    case 'json':       return formatJson(scope);
   }
 }
