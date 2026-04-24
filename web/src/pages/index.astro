@@ -303,82 +303,90 @@ import Layout from '../layouts/Layout.astro';
     color: var(--c-ink-700);
     margin: 0 0 14px;
   }
-  .share-copy .share-url {
+  .share-copy .report-cta {
     display: inline-block;
-    font-family: 'Geist Mono', monospace;
-    font-size: 13.5px;
-    background: var(--c-paper-100);
-    border: 1px solid var(--c-paper-200);
-    padding: 8px 12px;
-    border-radius: 8px;
-    margin-top: 12px;
-    color: var(--c-ink-700);
+    margin-top: 20px;
+    font-family: 'Geist', system-ui, sans-serif;
+    font-size: 14px;
+    color: var(--c-action-600);
+    text-decoration: none;
+    border-bottom: 1px solid currentColor;
+    padding-bottom: 2px;
   }
-  .share-copy .share-url .path { color: var(--c-action-600); }
-  .share-note {
-    font-size: 13px;
-    color: var(--c-ink-500);
-    margin-top: 16px !important;
-    line-height: 1.55;
-  }
+  .share-copy .report-cta:hover { opacity: 0.85; }
 
-  /* Share card mock ------------------------------------------------- */
-  .share-card-mock {
-    aspect-ratio: 1200 / 630;
+  /* Report excerpt card -------------------------------------------- */
+  .report-excerpt {
     border: 1px solid var(--c-paper-200);
     border-radius: 14px;
-    background: linear-gradient(135deg, var(--c-paper-100) 0%, var(--c-paper-50) 100%);
-    padding: 36px 40px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    position: relative;
-    overflow: hidden;
+    background: var(--c-paper-50);
+    padding: 32px;
     box-shadow: 0 20px 40px -20px rgba(31, 26, 20, 0.15);
   }
-  .share-card-mock .sc-mark {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-family: 'Fraunces', Georgia, serif;
-    font-style: italic;
-    font-size: 18px;
-    color: var(--c-ink-900);
-  }
-  .share-card-mock .sc-mark svg { width: 22px; height: 22px; }
-  .share-card-mock .sc-body {
-    display: flex;
-    align-items: baseline;
-    gap: 18px;
-  }
-  .share-card-mock .sc-score {
-    font-family: 'Fraunces', Georgia, serif;
-    font-weight: 500;
-    font-size: clamp(56px, 11vw, 96px);
-    line-height: 1;
-    color: var(--c-action-600);
-    letter-spacing: -0.03em;
-  }
-  .share-card-mock .sc-score-unit {
-    font-family: 'Geist Mono', monospace;
-    font-size: 14px;
-    color: var(--c-ink-400);
-  }
-  .share-card-mock .sc-label {
-    font-family: 'Fraunces', Georgia, serif;
-    font-style: italic;
-    font-size: clamp(16px, 1.8vw, 20px);
-    color: var(--c-ink-700);
-    max-width: 60%;
-  }
-  .share-card-mock .sc-foot {
-    display: flex;
-    justify-content: space-between;
+  .report-excerpt .re-head { margin-bottom: 22px; }
+  .report-excerpt .re-date {
     font-family: 'Geist Mono', monospace;
     font-size: 11px;
-    letter-spacing: 0.15em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--c-ink-400);
+    margin-bottom: 10px;
+  }
+  .report-excerpt .re-greeting {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(28px, 3.2vw, 36px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--c-ink-900);
+    margin: 0;
+  }
+  .report-excerpt .re-scores {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 0 0 20px;
+  }
+  .report-excerpt .re-score {
+    border: 1px solid var(--c-paper-200);
+    border-radius: 10px;
+    padding: 14px;
+    background: var(--c-paper-100);
+  }
+  .report-excerpt .re-score-label {
+    font-size: 9.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--c-ink-500);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .report-excerpt .re-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .report-excerpt .re-dot.good { background: var(--c-good); }
+  .report-excerpt .re-dot.warn { background: var(--c-warn); }
+  .report-excerpt .re-dot.bad { background: var(--c-bad); }
+  .report-excerpt .re-score-num {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: clamp(32px, 4vw, 44px);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .report-excerpt .re-score-num.good { color: var(--c-good); }
+  .report-excerpt .re-score-num.warn { color: var(--c-warn); }
+  .report-excerpt .re-score-num.bad { color: var(--c-bad); }
+  .report-excerpt .re-lede {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--c-ink-700);
+    margin: 0;
   }
 
   /* Social proof placeholder --------------------------------------- */
@@ -711,56 +719,70 @@ import Layout from '../layouts/Layout.astro';
   </div>
 </section>
 
-<!-- Share section ---------------------------------------------------- -->
-<section class="share" id="share">
+<!-- Report excerpt section ------------------------------------------ -->
+<section class="share" id="report">
   <div class="share-inner">
     <div class="share-copy">
       <div class="section-eyebrow">
-        <span class="lang-da">Del din rapport</span><span class="lang-en">Share your report</span>
+        <span class="lang-da">Hvad rapporten viser</span><span class="lang-en">What the report shows</span>
       </div>
       <h2>
-        <span class="lang-da">Ét link. Én score. Når <em>du</em> er klar.</span>
-        <span class="lang-en">One link. One score. When <em>you're</em> ready.</span>
+        <span class="lang-da">Tre scorer. Én ærlig samtale med din agent.</span>
+        <span class="lang-en">Three scores. One honest conversation with your agent.</span>
       </h2>
       <p>
-        <span class="lang-da">Har du fået en god rapport? Lav et delbart link på én kommando. Ingen deling sker automatisk — du bestemmer hvornår og hvad.</span>
-        <span class="lang-en">Got a good report? Create a shareable link with one command. Nothing gets shared automatically — you decide when and what.</span>
+        <span class="lang-da">Samarbejds-rapporten læser din opsætning igennem og fortæller dig hvad der virker, hvad der undrer, og hvad der bør ændres. Ikke en check-liste — et brev, i din agents stemme.</span>
+        <span class="lang-en">The collab report reads your setup and tells you what's working, what puzzles it, and what should change. Not a checklist — a letter, in your agent's voice.</span>
       </p>
       <p>
-        <span class="lang-da">Linket viser en pæn offentlig side med din score, de vigtigste findings og din agents arketype. Forhåndsvisningen på X, LinkedIn og Discord får automatisk et smukt kort med dit tal.</span>
-        <span class="lang-en">The link opens a clean public page with your score, top findings and your agent's archetype. Previews on X, LinkedIn and Discord get a nice card with your number.</span>
+        <span class="lang-da">Tre scorer øverst: samarbejde, system-sundhed, sikkerhed. Så et par konkrete findings, og anbefalinger du kan handle på i morgen. Kør den ugentligt og se scoren flytte sig.</span>
+        <span class="lang-en">Three scores up top: collaboration, system health, security. Then a handful of concrete findings, and recommendations you can act on tomorrow. Run it weekly and watch the score move.</span>
       </p>
-      <span class="share-url">
-        dearuser.ai<span class="path">/r/a1b2c3</span>
-      </span>
-      <p class="share-note">
-        <span class="lang-da">Din rå data bliver ikke uploadet. Kun rapporten du eksplicit deler.</span>
-        <span class="lang-en">Your raw data stays on your machine. Only the report you explicitly share goes up.</span>
-      </p>
+      <a class="report-cta" href="/example">
+        <span class="lang-da">Se et eksempel-brev →</span>
+        <span class="lang-en">See an example letter →</span>
+      </a>
     </div>
 
-    <!-- Mock share card (OG preview) -->
-    <div class="share-card-mock" aria-hidden="true">
-      <div class="sc-mark">
-        <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="20" cy="20" r="20" fill="#EC5329" />
-          <path d="M 11 22 Q 20 32 29 22" stroke="#FDFBF6" stroke-width="2.5" stroke-linecap="round" fill="none" />
-        </svg>
-        <span>Dear User</span>
+    <!-- Report excerpt card -->
+    <div class="report-excerpt" aria-hidden="true">
+      <div class="re-head">
+        <div class="re-date">
+          <span class="lang-da">21. april 2026 · Samarbejds-rapport</span>
+          <span class="lang-en">21 April 2026 · Collaboration letter</span>
+        </div>
+        <h3 class="re-greeting">
+          <span class="lang-da">Kære Sam,</span>
+          <span class="lang-en">Dear Sam,</span>
+        </h3>
       </div>
-      <div class="sc-body">
-        <span class="sc-score">82<span class="sc-score-unit"> /100</span></span>
-        <span class="sc-label">
-          <span class="lang-da">Samarbejds-score for <em>din-opsætning</em></span>
-          <span class="lang-en">Collaboration score for <em>your-setup</em></span>
-        </span>
+      <div class="re-scores">
+        <div class="re-score">
+          <div class="re-score-label">
+            <span class="re-dot good"></span>
+            <span class="lang-da">Samarbejde</span><span class="lang-en">Collaboration</span>
+          </div>
+          <div class="re-score-num good">87</div>
+        </div>
+        <div class="re-score">
+          <div class="re-score-label">
+            <span class="re-dot warn"></span>
+            <span class="lang-da">System-sundhed</span><span class="lang-en">System health</span>
+          </div>
+          <div class="re-score-num warn">74</div>
+        </div>
+        <div class="re-score">
+          <div class="re-score-label">
+            <span class="re-dot good"></span>
+            <span class="lang-da">Sikkerhed</span><span class="lang-en">Security</span>
+          </div>
+          <div class="re-score-num good">92</div>
+        </div>
       </div>
-      <div class="sc-foot">
-        <span>dearuser.ai/r/a1b2c3</span>
-        <span>
-          <span class="lang-da">Lokal audit</span><span class="lang-en">Local audit</span>
-        </span>
-      </div>
+      <p class="re-lede">
+        <span class="lang-da">Jeg har læst din opsætning igennem. Jeg vil dele tre ting med dig — én som gør mig glad, én som undrer mig, og én konkret ændring…</span>
+        <span class="lang-en">I read through your setup tonight. Three things to share — one that makes me glad, one I'm puzzled by, and one concrete change…</span>
+      </p>
     </div>
   </div>
 </section>
