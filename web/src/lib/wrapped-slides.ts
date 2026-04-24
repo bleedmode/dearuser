@@ -170,12 +170,15 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
   `);
 
   // Slide 2 — Hero score
-  // Note: we deliberately do NOT render w.headlineStat.label here. That text
-  // belongs to the corrections stat and has its own slide via correctionsMoment.
-  // Dumping it under the score produced a misleading "95 / out of 100 / times
-  // your agent was corrected" read, where the caption looked like it described
-  // the 95.
+  // Short band-based caption under "out of 100" sets tone (celebration /
+  // encouragement). Percentile-vs-corpus detail lives on its own slide later.
   if (score !== null && score !== undefined) {
+    const band = (s: number) =>
+      s >= 85 ? { da: 'Sjældent godt setup.', en: 'A rare setup.' }
+      : s >= 60 ? { da: 'Stærkt setup.', en: 'Strong setup.' }
+      : s >= 35 ? { da: 'Solid start — plads til at pudse.', en: 'Solid start — room to polish.' }
+      : { da: 'Tidlige dage. De fleste starter her.', en: 'Early days. Most setups begin here.' };
+    const caption = band(Number(score));
     slides.push(`
       <section class="du-slide du-slide-score" data-du-slide>
         <div class="du-slide-eyebrow">
@@ -185,24 +188,30 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
         <div class="du-slide-score-sub">
           <span class="lang-da">ud af 100</span><span class="lang-en">out of 100</span>
         </div>
+        <p class="du-slide-score-caption">
+          <span class="lang-da">${h(caption.da)}</span><span class="lang-en">${h(caption.en)}</span>
+        </p>
       </section>
     `);
   }
 
-  // Slide 3 — "You and me" archetype pair. Uses the shared renderer so all
-  // four surfaces (profile / letter / share / wrapped) render identical
-  // markup; Wrapped just requests the 'slide' variant for larger type.
-  if (userArchetype?.name || archetype.name) {
+  // Slide 3 — "You and me" archetype pair.
+  // Two modes:
+  // - Both archetypes present: "You and me" pair layout (shared renderer).
+  // - Only agent archetype: "Meet your agent" single-side layout so the slide
+  //   doesn't read as half-empty on public shares from users who skipped
+  //   onboarding.
+  if (userArchetype?.name && archetype.name) {
     const pairHtml = renderArchetypePair({
       showHeading: false,
       variant: 'slide',
       you: {
-        name: userArchetype?.name || null,
-        description: userArchetype?.description || null,
+        name: userArchetype.name,
+        description: userArchetype.description || null,
         emptyState: { da: 'Ikke placeret endnu.', en: 'Not placed yet.' },
       },
       me: {
-        name: archetype.name || null,
+        name: archetype.name,
         description: archetype.description || null,
         emptyState: { da: 'Stadig lærende.', en: 'Still learning.' },
       },
@@ -213,6 +222,19 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
           <span class="lang-da">Dig og mig</span><span class="lang-en">You and me</span>
         </div>
         ${pairHtml}
+        ${setupArchetypeName ? `<div class="du-slide-setup-style"><span class="lang-da">Setup-stil</span><span class="lang-en">Setup style</span> · ${h(setupArchetypeName)}</div>` : ''}
+      </section>
+    `);
+  } else if (archetype.name) {
+    slides.push(`
+      <section class="du-slide" data-du-slide>
+        <div class="du-slide-eyebrow">
+          <span class="lang-da">Mød din agent</span><span class="lang-en">Meet your agent</span>
+        </div>
+        <div class="du-slide-agent-card">
+          <h2 class="du-slide-agent-name">${h(archetype.name)}</h2>
+          ${archetype.description ? `<p class="du-slide-agent-description">${h(archetype.description)}</p>` : ''}
+        </div>
         ${setupArchetypeName ? `<div class="du-slide-setup-style"><span class="lang-da">Setup-stil</span><span class="lang-en">Setup style</span> · ${h(setupArchetypeName)}</div>` : ''}
       </section>
     `);
@@ -478,8 +500,43 @@ const WRAPPED_SLIDES_CSS = `
     color: var(--c-ink-400, #a69989);
     margin-top: 14px;
   }
+  .du-slide-score-caption {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-size: clamp(20px, 2.6vw, 28px);
+    color: var(--c-ink-700, #3e352a);
+    margin-top: 42px;
+    max-width: 560px;
+    line-height: 1.4;
+  }
   .du-slide-headline {
     font-style: italic;
+  }
+
+  .du-slide-agent-card {
+    max-width: 620px;
+    background: var(--c-accent-100, #f6e3d7);
+    border-radius: 18px;
+    padding: 48px 40px;
+    text-align: left;
+    margin-top: 8px;
+  }
+  .du-slide-agent-name {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-style: italic;
+    font-size: clamp(42px, 6vw, 64px);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    color: var(--c-ink-900, #1f1a14);
+    margin: 0 0 20px;
+  }
+  .du-slide-agent-description {
+    font-family: 'Geist', system-ui, sans-serif;
+    font-size: clamp(16px, 1.8vw, 18px);
+    line-height: 1.55;
+    color: var(--c-ink-700, #3e352a);
+    margin: 0;
   }
 
   .du-slide-big-label {
