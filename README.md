@@ -61,7 +61,7 @@ claude mcp add dearuser -- npx dearuser-mcp
 
 **Cursor, Windsurf, Cline, Zed** — see [`docs/install.md`](docs/install.md).
 
-Optional: install the slash commands so you can type `/dearuser-collab`, `/dearuser-security`, etc.:
+Optional: install the slash commands (see [Commands](#commands) for the full list) so you can type `/dearuser-collab` instead of asking in prose:
 
 ```bash
 npx -p dearuser-mcp dearuser-install-skills
@@ -105,6 +105,23 @@ Recommendations (3 shown, 5 total):
   2. Rotate the OpenAI key leaked in ~/.claude/memory/api-notes.md
   3. Merge overlapping skills: deploy-check and ship-check share 80% of their rules
 ```
+
+## Commands
+
+Eight slash commands ship with Dear User. Ask your agent by name, or type the slash command if you installed them with `dearuser-install-skills`.
+
+| Command | What it does |
+|---|---|
+| `/dearuser-collab` | Collaboration analysis — persona, 0-100 score across 7 categories, prioritized recommendations. |
+| `/dearuser-health` | System health — orphan jobs, overlap, stale schedules, missing MCP registrations, reconciliation gaps. |
+| `/dearuser-security` | Secret scan, prompt-injection surfaces, and rule conflicts in your agent contract. |
+| `/dearuser-wrapped` | Shareable collaboration stats in a Spotify-Wrapped style card. |
+| `/dearuser-onboard` | Conversational 7-step setup for first-time users. |
+| `/dearuser-history` | Show your last reports, score trend over time, or what changed since the last run — no re-scan. |
+| `/dearuser-feedback` | Send a short note (bug, request, reaction) to the Dear User founders. |
+| `/dearuser-help` | Show what Dear User can do and list every tool. |
+
+Three in-chat actions the agent can call for you: `share_report` (upload a Wrapped card to `dearuser.ai/r/<token>`), `implement_recommendation` (apply a pending recommendation), `dismiss_recommendation` (mark one irrelevant).
 
 ## Privacy
 
