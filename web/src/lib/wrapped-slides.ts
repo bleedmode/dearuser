@@ -99,7 +99,12 @@ function stripMd(s: unknown): string {
     .replace(/(?<!\*)\*(?!\*)([^*\n]+?)(?<!\*)\*(?!\*)/g, '$1')
     .replace(/(?<!_)_(?!_)([^_\n]+?)(?<!_)_(?!_)/g, '$1')
     .replace(/`([^`]+)`/g, '$1')
-    .replace(/^\s*#{1,6}\s+/gm, '');
+    .replace(/^\s*#{1,6}\s+/gm, '')
+    // Stray unpaired markers left by truncation ("starts with **foo…"
+    // where the closing pair was cut off). Drop them so the quote reads
+    // clean. Safe: no legitimate prose uses ** as punctuation.
+    .replace(/\*\*/g, '')
+    .replace(/`/g, '');
 }
 
 function clampPct(n: unknown): number {
