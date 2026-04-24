@@ -1,0 +1,11 @@
+{
+  "scheduledTasks": [
+    {
+      "id": "stale-watcher",
+      "cronExpression": "0 * * * *",
+      "enabled": true,
+      "lastRunAt": "2026-03-24T00:00:00.000Z",
+      "createdAt": 1735689600000
+    }
+  ]
+}

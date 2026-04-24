@@ -1,2 +1,4 @@
 dist/
-fixtures/**/.dearuser/
+fixtures/**/.dearuser/dearuser.db
+fixtures/**/.dearuser/dearuser.db-*
+fixtures/**/.dearuser/config.json

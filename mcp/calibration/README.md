@@ -34,7 +34,7 @@ Each fixture is a directory containing a `.claude/` subdir that emulates a user'
 | `empty` | Fresh install — minimal CLAUDE.md, no substrate | collab R1 path |
 | `starter` | Well-written CLAUDE.md (do/ask/prohibit + intentional autonomy), empty substrate — the actual "6pt bug" scenario | collab R1 + R3 |
 | `mature` | Full setup (hooks, skills, scheduled-task, commands, 3 memory files) | convergence check |
-| `messy` | Leaked secrets, unsafe rm -rf hook, force-push rule conflict, overlapping orphan skills | health + security detectors |
+| `messy` | Leaked secrets, unsafe rm -rf hook, force-push rule conflict, overlapping orphan skills, phantom MCP caller, stale scheduled task, expected-but-missing job, substrate_mismatch memory file | all 8 health detectors + secrets + injection + rule-conflict |
 
 ## Ground truth
 
@@ -42,6 +42,5 @@ Each fixture is a directory containing a `.claude/` subdir that emulates a user'
 
 ## Known gaps (for next iteration)
 
-- **Narrow health coverage.** The `messy` fixture triggers only `overlap`, `missing_closure`, and `unbacked_up_substrate`. Expand to also trigger `orphan_job`, `substrate_mismatch`, `unregistered_mcp_tool`, `stale_schedule`, `expected_job_missing`.
 - **No Snyk/Semgrep/CodeQL comparison.** Parked for follow-up: requires installing those scanners, scoping the comparison (Dear User scans agent config; those scan source code — different surfaces), and documenting overlap/gap matrix.
 - **Middle-substrate fixtures missing.** Only zero-substrate and full-substrate tested — the "partial substrate" case where score inflection might happen isn't covered.

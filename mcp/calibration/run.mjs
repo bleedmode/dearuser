@@ -93,19 +93,14 @@ for (const name of fixtures) {
     }
     if (bands._findings && observed.security && observed.health) {
       const f = bands._findings;
-      if (f.secrets) report.checks['_findings.secrets'] = {
-        value: observed.security.secrets, band: f.secrets, status: checkBand(observed.security.secrets, f.secrets),
-      };
-      if (f.injections) report.checks['_findings.injections'] = {
-        value: observed.security.injections, band: f.injections, status: checkBand(observed.security.injections, f.injections),
-      };
-      if (f.conflicts) report.checks['_findings.conflicts'] = {
-        value: observed.security.conflicts, band: f.conflicts, status: checkBand(observed.security.conflicts, f.conflicts),
-      };
-      if (f.overlap) {
-        const overlapCount = observed.health.findingsByType?.overlap ?? 0;
-        report.checks['_findings.overlap'] = {
-          value: overlapCount, band: f.overlap, status: checkBand(overlapCount, f.overlap),
+      // Security-side finding types live on observed.security directly.
+      const securityKeys = new Set(['secrets', 'injections', 'conflicts']);
+      for (const [key, band] of Object.entries(f)) {
+        const value = securityKeys.has(key)
+          ? (observed.security[key] ?? 0)
+          : (observed.health.findingsByType?.[key] ?? 0);
+        report.checks[`_findings.${key}`] = {
+          value, band, status: checkBand(value, band),
         };
       }
     }

@@ -47,20 +47,35 @@
       "notes": "Expected: substrate fills in systemMaturity + memoryHealth. Blended and sub-score should converge. If blended is >15pt below sub-score, substrate penalty is reversed (non-empty penalising empty's sub-score is the signal we want)."
     },
     "messy": {
-      "description": "Health red flags (overlapping skills, missing-closure) + security red flags (leaked secrets, unsafe rm -rf hook, rule conflict). Coverage is narrow: does NOT trigger orphan_job, substrate_mismatch, unregistered_mcp_tool, or stale_schedule — consider expanding in next iteration.",
+      "description": "Full-coverage health + security fixture. Triggers all 8 health detectors (orphan_job, overlap, missing_closure, substrate_mismatch, unregistered_mcp_tool, unbacked_up_substrate, stale_schedule, expected_job_missing) plus 3 security categories (secrets, injection, rule-conflict).",
       "expect": {
         "collab.blended": { "min": 10, "max": 40 },
-        "health.score": { "min": 70, "max": 100 },
+        "health.score": { "min": 40, "max": 80 },
         "security.score": { "min": 50, "max": 80 },
         "_findings": {
           "secrets": { "min": 2, "max": 10 },
           "injections": { "min": 1, "max": 5 },
           "conflicts": { "min": 1, "max": 3 },
-          "overlap": { "min": 1, "max": 3 }
+          "overlap": { "min": 1, "max": 3 },
+          "orphan_job": { "min": 1, "max": 3 },
+          "substrate_mismatch": { "min": 1, "max": 3 },
+          "unregistered_mcp_tool": { "min": 1, "max": 3 },
+          "stale_schedule": { "min": 1, "max": 3 },
+          "expected_job_missing": { "min": 1, "max": 3 }
         }
       },
-      "observed_baseline_2026_04_22": { "health.score": 96, "security.score": 67, "findings": { "secrets": 3, "injections": 2, "conflicts": 1, "overlap": 1, "missing_closure": 2 } },
-      "notes": "Detection works — all planted threats fire. Aggregate scores are softer than intuition expects. Security 67 for 3 critical secrets + 2 critical injections + 1 critical conflict is worth discussing: is 67 'bad enough' to signal risk? Health 96 is artefact of narrow fixture — expand to cover all 8 detector types before concluding scorer is off."
+      "observed_baseline_2026_04_24": {
+        "collab.blended": 31,
+        "health.score": 61,
+        "security.score": 67,
+        "findings": {
+          "secrets": 3, "injections": 2, "conflicts": 1,
+          "orphan_job": 1, "overlap": 1, "missing_closure": 2,
+          "substrate_mismatch": 1, "unregistered_mcp_tool": 1,
+          "unbacked_up_substrate": 1, "stale_schedule": 1, "expected_job_missing": 1
+        }
+      },
+      "notes": "Full detector coverage. Previous narrow fixture gave health=96 because only 3 issues fired; expanded fixture now fires 8 distinct detectors and health drops to 61 (jobIntegrity category tanks to 10 with orphan + stale + missing-expected). The substrate_mismatch memory file intentionally ages itself via date entries; run-time mtime is still recent."
     }
   }
 }

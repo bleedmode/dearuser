@@ -1,0 +1,4 @@
+[
+  { "name": "ghost-backup", "cron": "0 2 * * *", "purpose": "Nightly backup — registered in expectations but never created." },
+  { "name": "stale-watcher" }
+]
