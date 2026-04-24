@@ -12,10 +12,11 @@ Send the user's message to the Dear User founder inbox.
 
 1. Take whatever the user said (or the argument text) and pass it verbatim as `message`. Do NOT rewrite, shorten, or summarise.
 2. Try calling `mcp__dearuser__feedback` with `{ "message": "<the user's text>" }`.
-3. **If the tool is not available** (first turn of session — MCP tools load lazily), use this Bash fallback:
+3. **If the tool is not available** (first turn of session — MCP tools load lazily), use this Bash fallback. JSON-escape the user's text first (replace `\` → `\\`, `"` → `\"`, newline → `\n`), OR pipe the argument via a heredoc-built file when the message contains quotes:
    ```
-   npx -y -p dearuser-mcp dearuser-run feedback '{"message":"<escaped user text>"}' 2>/dev/null
+   npx -y -p dearuser-mcp dearuser-run feedback '{"message":"<json-escaped user text>"}'
    ```
+   If the command prints to stderr or exits non-zero, show that output to the user — the message was NOT sent.
 4. Show the returned confirmation to the user exactly as returned — it's already short and friendly.
 
 ## Optional parameters
