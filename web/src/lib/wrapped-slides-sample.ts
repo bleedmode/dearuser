@@ -1,30 +1,33 @@
-// Sample wrapped payload for /demo. Invented tastefully — "Alex" is a
-// fictional vibe-coder with a lived-in setup: one loud correction pattern,
-// a skill they built and never ran, and a five-page CLAUDE.md.
-//
-// Update freely — this file only powers the marketing demo page.
+// Sample wrapped payload for /demo. Mirrors the /example letter — same
+// person (Sam), same archetype (Solo Builder) — so the two marketing
+// surfaces read as one coherent user journey. Keep the numbers, lessons
+// and moments consistent with example.astro whenever you update either.
 
 import type { WrappedSlidesInput } from './wrapped-slides.ts';
 
 export const DEMO_WRAPPED: WrappedSlidesInput = {
   score: 87,
   year: new Date().getFullYear(),
-  userName: 'Alex',
-  projectName: 'alex-studio',
+  userName: 'Sam',
+  projectName: 'sam-studio',
   mode: 'sample',
   showShareCta: true,
   setupArchetypeName: 'Trust-and-go',
   wrapped: {
     headlineStat: { value: '87', label: "Strong collaboration — you built a system, not a script." },
     topLesson: {
-      quote: 'Never change code beyond what you were asked to change.',
-      context: 'learned the hard way when a small UI tweak broke an unrelated flow',
+      quote: "The hook was routing around your own rule — fix the hook, not the rule.",
+      context: 'learned on a Friday night when the build committed something it shouldn\'t have',
     },
-    autonomySplit: { doSelf: 58, askFirst: 30, suggest: 12 },
+    autonomySplit: { doSelf: 62, askFirst: 26, suggest: 12 },
+    userArchetype: {
+      name: 'Indie Hacker',
+      description: "Solo, speed-obsessed, revenue-pragmatic. You'd rather ship imperfect and iterate than polish in the dark — every decision measured against one question: does this get us closer to paying users?",
+    },
     archetype: {
-      name: 'The Overachieving Assistant',
-      description: "Does too much. Needs boundaries. Refactors your entire codebase when asked to fix a typo — but also manages your git, builds your apps and remembers every lesson learned.",
-      traits: ['Proactive', 'Scope-creepy', 'Systems thinker', 'Boundary-tested', 'Multilingual'],
+      name: 'The Solo Builder',
+      description: "Your agent isn't a colleague — it's a scaffold. Optimizes for momentum, not elegance. Your CLAUDE.md grows with every Friday-night lesson.",
+      traits: ['Pragmatic', 'Iterative', 'Memory-first', 'Learns from mistakes', 'Scaffold-builder'],
     },
     systemGrid: { hooks: 4, skills: 12, scheduled: 3, rules: 48 },
     shareCard: {
