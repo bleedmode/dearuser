@@ -3,7 +3,7 @@
 Globale regler i `~/.claude/CLAUDE.md`. MCP-internt i `mcp/CLAUDE.md`. Her ligger learnings der gælder Dear User-produktet på tværs.
 
 ## Produkt-scope
-Menneske↔agent samarbejdsanalyse. Kører lokalt, ingen data forlader maskinen. Live: dearuser.ai. Lokal DB: `~/.dearuser/dearuser.db` (SQLite, 4 tabeller: agent_runs, score_history, recommendations, migrations, auto-oprettes).
+Menneske↔agent samarbejdsanalyse. Kører lokalt, ingen data forlader maskinen. Live: dearuser.ai. Lokal DB: `~/.dearuser/dearuser.db` (SQLite, 6 tabeller: du_migrations, du_agent_runs, du_recommendations, du_score_history, du_findings, du_finding_events — auto-oprettes).
 
 **Scope:** Diagnose + feedback loop. IKKE task management, research eller dashboard — det er PVS OS.
 
@@ -12,6 +12,11 @@ Menneske↔agent samarbejdsanalyse. Kører lokalt, ingen data forlader maskinen.
 - `/dearuser-health` → `mcp__dearuser__health`
 - `/dearuser-security` → `mcp__dearuser__security`
 - `/dearuser-wrapped` → `mcp__dearuser__wrapped`
+- `/dearuser-onboard` → `mcp__dearuser__onboard`
+- `/dearuser-history` → `mcp__dearuser__history`
+- `/dearuser-help` → `mcp__dearuser__help`
+- `/dearuser-feedback` → `mcp__dearuser__feedback`
+- `/dearuser-share` → `mcp__dearuser__share_report`
 
 Dashboard: `http://localhost:7700` — Config: `~/.dearuser/config.json`
 
