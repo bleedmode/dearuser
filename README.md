@@ -34,7 +34,7 @@ Plus helpers: `onboard` (7-step guided setup), `history` (trend without re-scann
 - **12-category secret scanner** — OpenAI, Anthropic, GitHub, AWS, Stripe, Slack, Google, Supabase, Vercel, private keys, generic env secrets, bearer tokens. Scans CLAUDE.md / AGENTS.md, memory files, skills, hooks.
 - **AGENTS.md native support** — first-class input alongside CLAUDE.md. Works out of the box for Cursor, Codex, Aider, Cline, Zed and anyone following the [Linux Foundation cross-tool standard](https://github.com/AgentUserInterface/agentsmd). Both files in the same directory? We merge them.
 - **Semantic conflict detection** (new) — finds rules that contradict each other even when they don't share keywords. "Commit often" vs. "ask before commit" gets flagged.
-- **Score calibrated against reality** — we scanned 2,895 public CLAUDE.md files and tuned the scoring so the distribution is honest (median 18/100, 99th percentile 47, ceiling observed 60). No fake 100s. See [`research/calibration/`](research/calibration/2026-04-22-claude-md-corpus-v2/report.md).
+- **Score calibrated against reality** — two studies: 988 public Claude Code setups with substrate committed (median 32/100, max 63) and 2,895 standalone CLAUDE.md files (median 18, max 60). The substrate corpus is the apples-to-apples benchmark for live scores. See [`research/calibration/`](research/calibration/2026-04-24-substrate-corpus/) for both studies.
 
 ## Install
 

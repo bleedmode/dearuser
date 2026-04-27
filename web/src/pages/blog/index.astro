@@ -1,0 +1,128 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+
+function formatDate(d: Date) {
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+---
+<Layout title="Blog — Dear User" description="Notes from the team behind Dear User. Why we built it, what we're learning, and the odd technical deep-dive." active="blog">
+
+<style>
+  .blog-hero {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 80px 24px 48px;
+    text-align: center;
+  }
+  .blog-eyebrow {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--c-action-600);
+    margin-bottom: 20px;
+  }
+  .blog-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(40px, 6vw, 60px);
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+    color: var(--c-ink-900);
+    margin: 0 0 18px;
+  }
+  .blog-sub {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 18px;
+    line-height: 1.55;
+    color: var(--c-ink-700);
+    margin: 0 auto;
+    max-width: 560px;
+  }
+
+  .blog-list {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+  .blog-item {
+    display: block;
+    padding: 32px 0;
+    border-top: 1px solid var(--c-paper-200);
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.15s;
+  }
+  .blog-item:last-child {
+    border-bottom: 1px solid var(--c-paper-200);
+  }
+  .blog-item:hover {
+    transform: translateX(4px);
+  }
+  .blog-item:hover .bi-title {
+    color: var(--c-action-600);
+  }
+  .bi-date {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--c-ink-400);
+    margin-bottom: 12px;
+  }
+  .bi-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: clamp(24px, 3vw, 32px);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    color: var(--c-ink-900);
+    margin: 0 0 10px;
+    transition: color 0.15s;
+  }
+  .bi-desc {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--c-ink-700);
+    margin: 0;
+  }
+
+  .blog-empty {
+    text-align: center;
+    padding: 56px 24px 80px;
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-size: 18px;
+    color: var(--c-ink-500);
+  }
+</style>
+
+<section class="blog-hero">
+  <div class="blog-eyebrow">Blog</div>
+  <h1 class="blog-title">Letters about letters.</h1>
+  <p class="blog-sub">
+    Notes from the team behind Dear User. Why we built it, what we're learning, and the odd technical deep-dive.
+  </p>
+</section>
+
+<section class="blog-list">
+  {posts.length === 0 ? (
+    <p class="blog-empty">First post coming soon.</p>
+  ) : (
+    posts.map((post) => (
+      <a class="blog-item" href={`/blog/${post.id}/`}>
+        <div class="bi-date">{formatDate(post.data.pubDate)}</div>
+        <h2 class="bi-title">{post.data.title}</h2>
+        <p class="bi-desc">{post.data.description}</p>
+      </a>
+    ))
+  )}
+</section>
+
+</Layout>

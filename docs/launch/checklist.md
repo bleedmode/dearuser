@@ -7,7 +7,7 @@
 - [x] Feedback channel: MCP tool + dashboard modal + `/feedback` page + Supabase `du_feedback` inbox
 - [x] Semantic rule conflict detector (local-only heuristic, no LLM)
 - [x] Credential/secrets scanner — 12 categories
-- [x] Score calibration against 2,895 public CLAUDE.md files
+- [x] Score calibration: 988 public Claude Code setups with substrate + 2,895 standalone CLAUDE.md files (two studies)
 - [x] Landing page revision — share + secrets highlighted, install button with analytics hook
 - [x] README, docs/install.md, docs/privacy.md, CONTRIBUTING.md
 - [x] Vercel Analytics + PostHog EU (cookieless — `persistence: 'memory'`)

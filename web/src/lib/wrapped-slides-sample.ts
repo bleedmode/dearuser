@@ -41,8 +41,8 @@ export const DEMO_WRAPPED: WrappedSlidesInput = {
         id: 'percentile',
         value: 'Top 3%',
         label: 'Where you rank',
-        narrative: 'Your setup beats 2,808 of 2,895 public CLAUDE.md files we benchmarked — top 3% territory.',
-        detail: 'Score 87 — corpus median is 18.',
+        narrative: 'Your setup beats 958 of 988 public Claude Code setups we benchmarked — top 3% territory.',
+        detail: 'Score 87 — corpus median is 32.',
       },
       {
         id: 'corrections',
