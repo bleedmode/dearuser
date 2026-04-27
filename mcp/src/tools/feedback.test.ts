@@ -43,11 +43,11 @@ describe('feedback tool', () => {
     });
 
     expect(result.ok).toBe(true);
-    expect(result.id).toBe('row-1');
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     const call = fetchMock.mock.calls[0];
     expect(call[0]).toBe('https://example.supabase.co/rest/v1/du_feedback');
+    expect(call[1].headers.Prefer).toBe('return=minimal');
     const body = bodyOf(call);
     expect(body.message).toBe('scores feel low');
     expect(body.context).toBe('collab');

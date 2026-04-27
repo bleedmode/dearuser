@@ -61,11 +61,12 @@ const SUPABASE_ANON_KEY =
 const FEEDBACK_ENDPOINT = `${SUPABASE_URL}/rest/v1/du_feedback`;
 
 /**
- * Post a feedback row to Supabase. Returns the inserted row id on success.
+ * Post a feedback row to Supabase.
  *
- * We use `Prefer: return=representation` so Supabase echoes the inserted row
- * back (ID, created_at) — handy for the confirmation message without a round
- * trip to SELECT.
+ * We use `Prefer: return=minimal` because the table's RLS policy is
+ * INSERT-only for anon — `return=representation` would require a SELECT
+ * permission we deliberately don't grant. The MCP client doesn't actually
+ * need the id back; "ok: true" is enough confirmation.
  */
 export async function sendFeedback(
   options: FeedbackOptions,
@@ -132,7 +133,7 @@ export async function sendFeedback(
         'Content-Type': 'application/json',
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        Prefer: 'return=representation',
+        Prefer: 'return=minimal',
       },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(8000),
@@ -152,10 +153,8 @@ export async function sendFeedback(
       };
     }
 
-    const rows = (await res.json().catch(() => [])) as Array<{ id?: string }>;
     return {
       ok: true,
-      id: rows[0]?.id,
       sent: {
         message: payload.message,
         context: payload.context,
