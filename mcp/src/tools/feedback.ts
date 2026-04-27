@@ -101,7 +101,7 @@ export async function sendFeedback(
     rating,
     email,
     source: 'mcp',
-    user_agent: `dearuser-mcp node/${process.version}`,
+    user_agent: `@poisedhq/dearuser-mcp node/${process.version}`,
   };
 
   if (!SUPABASE_ANON_KEY) {

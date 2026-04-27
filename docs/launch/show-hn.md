@@ -28,7 +28,7 @@ Everything runs locally. SQLite at `~/.dearuser/dearuser.db`. No cloud required,
 
 Install:
 ```
-claude mcp add dearuser -- npx dearuser-mcp
+claude mcp add dearuser -- npx @poisedhq/dearuser-mcp
 ```
 
 Then ask your agent: "run a Dear User audit".

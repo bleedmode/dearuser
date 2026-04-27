@@ -13,7 +13,7 @@ Run a collaboration analysis using the Dear User MCP server.
 1. Try calling `mcp__dearuser__collab` with default parameters (no arguments needed — global scope, text format).
 2. **If the tool is not available** (first turn of session — MCP tools load lazily), use this Bash fallback:
    ```
-   npx -y -p dearuser-mcp dearuser-run collab '{"format":"text"}' 2>/dev/null
+   npx -y -p @poisedhq/dearuser-mcp dearuser-run collab '{"format":"text"}' 2>/dev/null
    ```
 3. Output the ENTIRE returned report as your response text — do NOT summarize, shorten, or add commentary.
 4. After the report, offer to implement any recommendation marked "Actionable".

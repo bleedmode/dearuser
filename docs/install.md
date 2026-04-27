@@ -2,7 +2,7 @@
 
 Dear User is an **MCP server** — Model Context Protocol is the plugin system Claude Code, Claude Desktop and other AI clients use to add tools. You install it once per client.
 
-No global npm install needed. The command below fetches the `dearuser-mcp` package via `npx` and wires it up.
+No global npm install needed. The command below fetches the `@poisedhq/dearuser-mcp` package via `npx` and wires it up.
 
 ## Prerequisites
 
@@ -17,7 +17,7 @@ If you don't have Node, install it from [nodejs.org](https://nodejs.org) or via 
 ## Claude Code (CLI)
 
 ```bash
-claude mcp add dearuser -- npx dearuser-mcp
+claude mcp add dearuser -- npx @poisedhq/dearuser-mcp
 ```
 
 That's it. Open any project with Claude Code and ask:
@@ -29,7 +29,7 @@ Analyze my collaboration with Claude
 Optional — install the slash commands (`/dearuser-collab`, `/dearuser-security`, `/dearuser-health`, `/dearuser-onboard`, `/dearuser-wrapped`, `/dearuser-history`, `/dearuser-help`, `/dearuser-feedback`):
 
 ```bash
-npx -p dearuser-mcp dearuser-install-skills
+npx -p @poisedhq/dearuser-mcp dearuser-install-skills
 ```
 
 Restart Claude Code for slash commands to appear.
@@ -44,7 +44,7 @@ Restart Claude Code for slash commands to appear.
 {
   "dearuser": {
     "command": "npx",
-    "args": ["dearuser-mcp"]
+    "args": ["@poisedhq/dearuser-mcp"]
   }
 }
 ```
@@ -64,7 +64,7 @@ Add (or merge into existing `mcpServers`):
   "mcpServers": {
     "dearuser": {
       "command": "npx",
-      "args": ["dearuser-mcp"]
+      "args": ["@poisedhq/dearuser-mcp"]
     }
   }
 }
@@ -81,7 +81,7 @@ Create or edit `.cursor/mcp.json` in your project root:
   "mcpServers": {
     "dearuser": {
       "command": "npx",
-      "args": ["dearuser-mcp"]
+      "args": ["@poisedhq/dearuser-mcp"]
     }
   }
 }
@@ -96,7 +96,7 @@ Edit `~/.codeium/windsurf/mcp_config.json`:
   "mcpServers": {
     "dearuser": {
       "command": "npx",
-      "args": ["dearuser-mcp"]
+      "args": ["@poisedhq/dearuser-mcp"]
     }
   }
 }
@@ -110,7 +110,7 @@ Open the Cline MCP settings panel and add:
 {
   "dearuser": {
     "command": "npx",
-    "args": ["dearuser-mcp"]
+    "args": ["@poisedhq/dearuser-mcp"]
   }
 }
 ```
@@ -125,7 +125,7 @@ Edit Zed's `settings.json`:
     "dearuser": {
       "command": {
         "path": "npx",
-        "args": ["dearuser-mcp"]
+        "args": ["@poisedhq/dearuser-mcp"]
       }
     }
   }
@@ -137,7 +137,7 @@ Edit Zed's `settings.json`:
 Dear User ships a read-only localhost dashboard that reads from `~/.dearuser/dearuser.db`. Launch it with:
 
 ```bash
-npx -p dearuser-mcp dearuser-dashboard
+npx -p @poisedhq/dearuser-mcp dearuser-dashboard
 ```
 
 It starts on `http://localhost:7700` (or the next open port up to 7709).
@@ -152,15 +152,15 @@ See [`setup/README.md`](setup/README.md) for per-platform guides.
 
 **`command not found: claude`** — you don't have Claude Code's CLI installed. Install from [claude.com/code](https://claude.com/code), or use the Claude Desktop instructions above.
 
-**`npx dearuser-mcp` hangs** — first run downloads the package; can take 30-60s on slow connections. Subsequent runs are instant (npx caches).
+**`npx @poisedhq/dearuser-mcp` hangs** — first run downloads the package; can take 30-60s on slow connections. Subsequent runs are instant (npx caches).
 
 **Tools don't appear in the client** — restart the client after adding the MCP server. Claude Code picks up new servers on launch.
 
-**"No module found: better-sqlite3"** — your Node version may be too old, or your npm cache is corrupt. Try `node --version` (need 18+) and `npx --yes dearuser-mcp` to force a fresh fetch.
+**"No module found: better-sqlite3"** — your Node version may be too old, or your npm cache is corrupt. Try `node --version` (need 18+) and `npx --yes @poisedhq/dearuser-mcp` to force a fresh fetch.
 
 **Permission errors writing to `~/.dearuser/`** — Dear User stores its local DB there. Make sure your home folder is writable: `mkdir -p ~/.dearuser && chmod 700 ~/.dearuser`.
 
-**Slash commands don't appear** — run `npx -p dearuser-mcp dearuser-install-skills`, then restart the client. Slash commands live in `~/.claude/skills/` and are loaded at startup.
+**Slash commands don't appear** — run `npx -p @poisedhq/dearuser-mcp dearuser-install-skills`, then restart the client. Slash commands live in `~/.claude/skills/` and are loaded at startup.
 
 **Dashboard won't start / port 7700 taken** — something else is using the port. Dear User probes 7700-7709. Free one of them, or check `lsof -ti:7700` (macOS/Linux) to see what's holding it.
 

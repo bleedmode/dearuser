@@ -13,11 +13,11 @@ Kør et strukturelt sundhedstjek med Dear User MCP serveren. Giver en 0-100 scor
 1. Prøv at kalde `mcp__dearuser__health` med default parametre (ingen argumenter — global scope, alle fund).
 2. **Hvis tool'et ikke er tilgængeligt** (første turn i session — MCP tools loader lazy), brug Bash-fallback:
    ```
-   npx -y -p dearuser-mcp dearuser-run health 2>/dev/null
+   npx -y -p @poisedhq/dearuser-mcp dearuser-run health 2>/dev/null
    ```
 3. Output HELE rapporten som dit svar — summér ikke, forkort ikke, tilføj ikke kommentarer i rapport-delen.
 
-Hvis brugeren spørger om en specifik finding-type, send `focus` med relevant værdi (orphan, overlap, closure, substrate, mcp_refs, backup, stale_schedule). Bash: `npx -y -p dearuser-mcp dearuser-run health '{"focus":"orphan"}' 2>/dev/null`
+Hvis brugeren spørger om en specifik finding-type, send `focus` med relevant værdi (orphan, overlap, closure, substrate, mcp_refs, backup, stale_schedule). Bash: `npx -y -p @poisedhq/dearuser-mcp dearuser-run health '{"focus":"orphan"}' 2>/dev/null`
 
 ## Efter rapporten
 

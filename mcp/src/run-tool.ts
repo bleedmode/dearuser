@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Direct tool invocation — bypasses MCP deferred loading.
-// Shipped as the `dearuser-run` bin so skills can `npx -y dearuser-mcp run <tool>`
+// Shipped as the `dearuser-run` bin so skills can `npx -y @poisedhq/dearuser-mcp run <tool>`
 // without hardcoded paths. Also used as a fallback in skill SKILL.md files
 // when mcp__dearuser__* tools haven't loaded yet on turn 1 of a session.
 //
