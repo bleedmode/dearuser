@@ -315,10 +315,115 @@ const siteSchema = {
     .du-footer-bottom { flex-direction: column; align-items: flex-start; gap: 12px; }
   }
 
-  /* Hide mobile nav labels at narrow widths, keep toggles visible */
+  /* Mobile drawer toggle button — hidden on desktop */
+  .du-mobile-toggle {
+    display: none;
+    background: transparent;
+    border: 0;
+    padding: 6px;
+    margin: -6px;
+    cursor: pointer;
+    color: var(--c-ink-700);
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: background-color 0.15s, color 0.15s;
+  }
+  .du-mobile-toggle:hover { color: var(--c-ink-900); background: var(--c-paper-100); }
+  .du-mobile-toggle:focus-visible { outline: 2px solid var(--c-action-600); outline-offset: 2px; }
+
+  /* Drawer + backdrop — only reachable via mobile hamburger */
+  .du-drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    z-index: 40;
+  }
+  .du-drawer-backdrop.is-open {
+    opacity: 1;
+    visibility: visible;
+  }
+  .du-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 280px;
+    max-width: 82vw;
+    background: var(--c-paper-50);
+    border-left: 1px solid var(--c-paper-200);
+    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.08);
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    visibility: hidden;
+  }
+  .du-drawer.is-open {
+    transform: translateX(0);
+    visibility: visible;
+  }
+  .du-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--c-paper-200);
+  }
+  .du-drawer-title {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--c-ink-400);
+  }
+  .du-drawer-close {
+    background: transparent;
+    border: 0;
+    padding: 6px;
+    margin: -6px;
+    cursor: pointer;
+    color: var(--c-ink-500);
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.15s, background-color 0.15s;
+  }
+  .du-drawer-close:hover { color: var(--c-ink-900); background: var(--c-paper-100); }
+  .du-drawer-nav {
+    display: flex;
+    flex-direction: column;
+    padding: 12px 8px;
+    gap: 2px;
+  }
+  .du-drawer-nav a {
+    display: block;
+    padding: 14px 16px;
+    font-size: 15px;
+    color: var(--c-ink-700);
+    text-decoration: none;
+    border-radius: 8px;
+    transition: background-color 0.15s, color 0.15s;
+  }
+  .du-drawer-nav a:hover, .du-drawer-nav a.active {
+    background: var(--c-paper-100);
+    color: var(--c-ink-900);
+  }
+  .du-drawer-nav .du-drawer-sep {
+    height: 1px;
+    background: var(--c-paper-200);
+    margin: 8px 16px;
+  }
+
+  /* On mobile: swap horizontal nav links for hamburger; keep toggles in topbar */
   @media (max-width: 640px) {
     .du-nav a { display: none; }
     .du-nav { gap: 14px; }
+    .du-mobile-toggle { display: inline-flex; }
   }
 </style>
 </head>
@@ -358,9 +463,43 @@ const siteSchema = {
           <svg id="du-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
           <svg id="du-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
+        <button id="du-mobile-toggle" class="du-mobile-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="du-drawer">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
       </nav>
     </div>
   </header>
+
+  <div id="du-drawer-backdrop" class="du-drawer-backdrop" aria-hidden="true"></div>
+  <aside id="du-drawer" class="du-drawer" aria-hidden="true" aria-label="Site menu">
+    <div class="du-drawer-header">
+      <span class="du-drawer-title">
+        <span class="lang-da">Menu</span><span class="lang-en">Menu</span>
+      </span>
+      <button id="du-drawer-close" class="du-drawer-close" aria-label="Close menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <nav class="du-drawer-nav" aria-label="Mobile navigation">
+      <a href="/#features">
+        <span class="lang-da">Funktioner</span><span class="lang-en">Features</span>
+      </a>
+      <a href="/example" class={active === 'example' ? 'active' : ''}>
+        <span class="lang-da">Eksempel</span><span class="lang-en">Example</span>
+      </a>
+      <a href="/demo" class={active === 'demo' ? 'active' : ''}>
+        <span class="lang-da">Samarbejdet i tal</span><span class="lang-en">Wrapped</span>
+      </a>
+      <a href="/blog" class={active === 'blog' ? 'active' : ''}>
+        <span class="lang-da">Blog</span><span class="lang-en">Blog</span>
+      </a>
+      <a href="https://github.com/bleedmode/dearuser" target="_blank" rel="noopener">GitHub</a>
+      <span class="du-drawer-sep" aria-hidden="true"></span>
+      <a href="/feedback" class={active === 'feedback' ? 'active' : ''} data-open-feedback aria-label="Send feedback">
+        <span class="lang-da">Feedback</span><span class="lang-en">Feedback</span>
+      </a>
+    </nav>
+  </aside>
 
   <slot />
 
@@ -431,6 +570,12 @@ const siteSchema = {
             <li><a href="/feedback">
               <span class="lang-da">Feedback</span><span class="lang-en">Feedback</span>
             </a></li>
+            <li><a href="https://github.com/bleedmode/dearuser/discussions" target="_blank" rel="noopener">
+              <span class="lang-da">Diskussioner på GitHub</span><span class="lang-en">GitHub Discussions</span>
+            </a></li>
+            <li><a href="https://github.com/bleedmode/dearuser" target="_blank" rel="noopener">
+              GitHub
+            </a></li>
           </ul>
         </div>
       </div>
@@ -496,6 +641,49 @@ const siteSchema = {
           html.setAttribute('lang', next);
           localStorage.setItem('dearuser-lang', next);
           syncLang();
+        });
+
+        // Mobile drawer: hamburger toggle, backdrop click, ESC, link click
+        var drawer = document.getElementById('du-drawer');
+        var backdrop = document.getElementById('du-drawer-backdrop');
+        var mobileToggle = document.getElementById('du-mobile-toggle');
+        var drawerClose = document.getElementById('du-drawer-close');
+        function setDrawerOpen(open) {
+          if (!drawer || !backdrop || !mobileToggle) return;
+          if (open) {
+            drawer.classList.add('is-open');
+            backdrop.classList.add('is-open');
+            mobileToggle.setAttribute('aria-expanded', 'true');
+            drawer.setAttribute('aria-hidden', 'false');
+            backdrop.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+          } else {
+            drawer.classList.remove('is-open');
+            backdrop.classList.remove('is-open');
+            mobileToggle.setAttribute('aria-expanded', 'false');
+            drawer.setAttribute('aria-hidden', 'true');
+            backdrop.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+          }
+        }
+        if (mobileToggle) mobileToggle.addEventListener('click', function () {
+          setDrawerOpen(!drawer.classList.contains('is-open'));
+        });
+        if (drawerClose) drawerClose.addEventListener('click', function () { setDrawerOpen(false); });
+        if (backdrop) backdrop.addEventListener('click', function () { setDrawerOpen(false); });
+        if (drawer) drawer.addEventListener('click', function (e) {
+          var link = e.target && e.target.closest ? e.target.closest('a') : null;
+          if (link) setDrawerOpen(false);
+        });
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && drawer && drawer.classList.contains('is-open')) {
+            setDrawerOpen(false);
+          }
+        });
+        // Reset drawer state when crossing back to desktop width
+        var mq = window.matchMedia('(min-width: 641px)');
+        mq.addEventListener('change', function (e) {
+          if (e.matches) setDrawerOpen(false);
         });
 
         // Scroll-spy: toggle the Features nav link only when the
