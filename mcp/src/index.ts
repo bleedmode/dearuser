@@ -691,9 +691,10 @@ server.tool(
 
 Behavior:
 - POSTs your message to the Dear User feedback inbox (Supabase) over HTTPS.
-- Respects the fact that Dear User otherwise runs locally — this is the one place we deliberately send data out, because you explicitly asked us to hear you.
+- Respects Dear User's local-first guarantee — this is the one place data leaves the machine.
 - Email is only attached when opt_in_followup=true AND an email is provided.
-- No retries, no queueing — if the network fails, you get a clear message and the payload is logged locally for the founder to recover manually.
+- No retries — if the network fails, you get a clear message and the payload is logged locally.
+- For public questions/ideas, point to GitHub Discussions: https://github.com/bleedmode/dearuser/discussions
 
 What this tool does NOT do:
 - Does NOT send anything automatically — the agent must have called this tool with an explicit message from the user.

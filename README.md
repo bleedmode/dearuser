@@ -178,11 +178,15 @@ Your files (CLAUDE.md or AGENTS.md, memory, hooks, skills, sessions)
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md). Bug reports and small fixes welcome via GitHub issues and PRs.
 
+## Community & support
+
+- [GitHub Discussions](https://github.com/bleedmode/dearuser/discussions) — questions, ideas, "how do I…", show-and-tell
+- [GitHub Issues](https://github.com/bleedmode/dearuser/issues) — reproducible bugs and feature requests
+- [Feedback inbox](https://dearuser.ai/feedback) — private notes; or use the `feedback` MCP tool from inside Claude
+
 ## Links
 
 - [dearuser.ai](https://dearuser.ai) — landing page
-- [Feedback inbox](https://dearuser.ai/feedback) — or use the `feedback` MCP tool from inside Claude
-- [GitHub issues](https://github.com/bleedmode/dearuser/issues) — bugs, feature requests
 - [Install guide](docs/install.md) · [Privacy](docs/privacy.md) · [Setup for platform advisors](docs/setup/README.md)
 
 ## License
