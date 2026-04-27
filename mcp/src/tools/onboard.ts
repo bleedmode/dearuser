@@ -353,18 +353,18 @@ function stepAutonomy(state: OnboardState, answer: string): OnboardResult {
   return {
     step: 'autonomy',
     teaching: {
-      da: `Jeg kan foreslå en fast rytme — fx et dagligt brief, en ugentlig opsummering, eller en hook der reagerer når noget specifikt sker. Dit svar former hvilken scheduled task jeg foreslår efter onboarding. Du beslutter selv om du vil oprette den — jeg laver ingen automation uden dit klik.`,
-      en: `I can suggest a rhythm — a daily brief, a weekly summary, or a hook that fires when something specific happens. Your answer shapes which scheduled task I'll suggest after onboarding. You decide whether to create it — I don't set up any automation without your click.`,
+      da: `Det fortæller mig noget om din arbejdsrytme — ikke noget jeg sætter automation op for. Når du vil have et nyt brev, åbner du Claude Code og skriver /dearuser-collab.`,
+      en: `Tells me about your working rhythm — not something I'll automate for you. When you want a new letter, open Claude Code and run /dearuser-collab.`,
     },
     question: {
-      da: 'Skal jeg køre noget automatisk for dig?',
-      en: 'Should I run anything automatically for you?',
+      da: 'Hvor ofte vil du gerne tjekke ind på samarbejdet?',
+      en: 'How often do you want to check in on the collaboration?',
     },
     options: [
-      { da: 'Et dagligt brief', en: 'A daily briefing' },
-      { da: 'En ugentlig opsummering', en: 'A weekly summary' },
+      { da: 'Hver dag', en: 'Every day' },
+      { da: 'Hver uge', en: 'Every week' },
       { da: 'Når noget bestemt sker', en: 'When something specific happens' },
-      { da: 'Ikke noget automatisk — jeg spørger selv', en: 'Nothing automatic — I\'ll ask when I need you' },
+      { da: 'Kun når jeg selv beder om det', en: 'Only when I ask for it' },
     ],
     nextStep: 'cadence',
     state: encodeState(state),
