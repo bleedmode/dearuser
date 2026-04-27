@@ -13,6 +13,6 @@ Show what Dear User can do using the Dear User MCP server.
 1. Try calling `mcp__dearuser__help` with no arguments.
 2. **If the tool is not available** (first turn of session — MCP tools load lazily), use this Bash fallback:
    ```
-   npx -y -p dearuser-mcp dearuser-run help 2>/dev/null
+   npx -y -p @poisedhq/dearuser-mcp dearuser-run help 2>/dev/null
    ```
 3. Output the returned text EXACTLY as your response — do NOT summarize, re-wrap, or add commentary.

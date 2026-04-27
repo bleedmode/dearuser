@@ -657,7 +657,7 @@ import Layout from '../layouts/Layout.astro';
   <div class="hero-actions">
     <div class="install" id="install-cta" data-analytics="install-copy" title="Click to copy">
       <span class="prompt">$</span>
-      <span class="cmd">claude mcp add dearuser -- npx dearuser-mcp</span>
+      <span class="cmd">claude mcp add dearuser -- npx @poisedhq/dearuser-mcp</span>
       <span class="copy" id="copy-label">
         <span class="lang-da">Kopiér</span><span class="lang-en">Copy</span>
       </span>
@@ -672,7 +672,7 @@ import Layout from '../layouts/Layout.astro';
 <script is:inline>
   var cta = document.getElementById('install-cta');
   var label = document.getElementById('copy-label');
-  var cmd = 'claude mcp add dearuser -- npx dearuser-mcp';
+  var cmd = 'claude mcp add dearuser -- npx @poisedhq/dearuser-mcp';
   if (cta) {
     cta.addEventListener('click', function () {
       if (!navigator.clipboard) return;
@@ -894,7 +894,7 @@ import Layout from '../layouts/Layout.astro';
         <span class="lang-da">Registrér Dear User i Claude Code. Ingen konti, ingen cloud.</span>
         <span class="lang-en">Register Dear User in Claude Code. No accounts, no cloud.</span>
       </p>
-      <code>claude mcp add dearuser -- npx dearuser-mcp</code>
+      <code>claude mcp add dearuser -- npx @poisedhq/dearuser-mcp</code>
     </div>
     <div class="step">
       <div class="step-num">02 — <span class="lang-da">Tun samtalen</span><span class="lang-en">Onboard</span></div>

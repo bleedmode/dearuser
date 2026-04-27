@@ -22,11 +22,11 @@ Scope kan snævre ind: `"collab"`, `"health"`, `"security"`, eller `"all"` (defa
 1. Prøv `mcp__dearuser__history` med relevante parametre.
 2. **Hvis tool'et ikke er tilgængeligt** (første turn i session — MCP tools loader lazy), brug Bash-fallback:
    ```
-   npx -y -p dearuser-mcp dearuser-run history 2>/dev/null
+   npx -y -p @poisedhq/dearuser-mcp dearuser-run history 2>/dev/null
    ```
    Med parametre (JSON):
    ```
-   npx -y -p dearuser-mcp dearuser-run history '{"format":"trend","scope":"security"}' 2>/dev/null
+   npx -y -p @poisedhq/dearuser-mcp dearuser-run history '{"format":"trend","scope":"security"}' 2>/dev/null
    ```
 3. Output HELE rapporten som dit svar — summér ikke, forkort ikke.
 

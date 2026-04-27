@@ -5,7 +5,7 @@
 // package). Never touches skills outside the dearuser-* namespace.
 //
 // Usage: dearuser-install-skills
-// Or:    npx -p dearuser-mcp dearuser-install-skills
+// Or:    npx -p @poisedhq/dearuser-mcp dearuser-install-skills
 //
 // Shipped as a separate bin rather than npm postinstall because:
 // (a) postinstall running in CI / dependency scans is surprising,

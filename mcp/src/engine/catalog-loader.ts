@@ -3,7 +3,7 @@
 // Architecture: the catalog is data, not code. This lets us keep Dear User
 // "a learning product" — new MCP servers and tools surface in the catalog
 // within hours of being researched, without users having to run
-// `npm update dearuser-mcp`.
+// `npm update @poisedhq/dearuser-mcp`.
 //
 // Load priority (newest usable wins):
 //   1. Fresh cache at ~/.dearuser/catalog-cache.json (within TTL)

@@ -30,7 +30,7 @@ One command. No global installs, no build steps.
 <summary><strong>Claude Code (CLI)</strong></summary>
 
 ```bash
-claude mcp add dearuser -- npx dearuser-mcp
+claude mcp add dearuser -- npx @poisedhq/dearuser-mcp
 ```
 </details>
 
@@ -43,7 +43,7 @@ Open settings, go to MCP Servers, click "Add Server", and enter:
 {
   "dearuser": {
     "command": "npx",
-    "args": ["dearuser-mcp"]
+    "args": ["@poisedhq/dearuser-mcp"]
   }
 }
 ```
@@ -61,7 +61,7 @@ Add to your Claude Desktop config file:
   "mcpServers": {
     "dearuser": {
       "command": "npx",
-      "args": ["dearuser-mcp"]
+      "args": ["@poisedhq/dearuser-mcp"]
     }
   }
 }
@@ -78,7 +78,7 @@ Add to `.cursor/mcp.json` in your project root:
   "mcpServers": {
     "dearuser": {
       "command": "npx",
-      "args": ["dearuser-mcp"]
+      "args": ["@poisedhq/dearuser-mcp"]
     }
   }
 }
@@ -95,7 +95,7 @@ Add to `~/.codeium/windsurf/mcp_config.json`:
   "mcpServers": {
     "dearuser": {
       "command": "npx",
-      "args": ["dearuser-mcp"]
+      "args": ["@poisedhq/dearuser-mcp"]
     }
   }
 }
@@ -111,7 +111,7 @@ Open Cline MCP settings and add:
 {
   "dearuser": {
     "command": "npx",
-    "args": ["dearuser-mcp"]
+    "args": ["@poisedhq/dearuser-mcp"]
   }
 }
 ```
@@ -128,7 +128,7 @@ Add to Zed `settings.json`:
     "dearuser": {
       "command": {
         "path": "npx",
-        "args": ["dearuser-mcp"]
+        "args": ["@poisedhq/dearuser-mcp"]
       }
     }
   }
@@ -167,7 +167,7 @@ Full report in under 10 seconds: persona, score, friction patterns, and specific
 Dear User ships with 8 slash commands. Install them to `~/.claude/skills/` with:
 
 ```bash
-npx -p dearuser-mcp dearuser-install-skills
+npx -p @poisedhq/dearuser-mcp dearuser-install-skills
 ```
 
 Then restart Claude Code. Available commands: `/dearuser-collab`, `/dearuser-health`, `/dearuser-security`, `/dearuser-onboard`, `/dearuser-wrapped`, `/dearuser-history`, `/dearuser-help`, `/dearuser-feedback`.

@@ -17,7 +17,7 @@ Send the user's message to the Dear User founder inbox.
    jq -Rn --arg msg "$(cat <<'END_OF_DU_MSG'
 <the user's text — verbatim, any content, no escaping>
 END_OF_DU_MSG
-)" '{message:$msg}' | npx -y -p dearuser-mcp dearuser-run feedback -
+)" '{message:$msg}' | npx -y -p @poisedhq/dearuser-mcp dearuser-run feedback -
    ```
    The `<<'END_OF_DU_MSG'` (quoted heredoc marker) prevents bash from interpreting any character in the message — apostrophes, `$`, backticks, backslashes all pass through literally. `jq` then produces safe JSON and pipes it to `dearuser-run -` which reads from stdin.
    If the command prints to stderr or exits non-zero, show that output to the user — the message was NOT sent.

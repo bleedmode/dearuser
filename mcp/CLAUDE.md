@@ -1,4 +1,4 @@
-# Dear User (dearuser-mcp)
+# Dear User (@poisedhq/dearuser-mcp)
 
 ## Hvad er det
 Open source MCP server der hjælper mennesker og AI-agenter med at forstå hinanden bedre. Analyserer samarbejdet, identificerer problemer, leverer konkret kode/config — ikke råd.
@@ -8,7 +8,7 @@ Open source MCP server der hjælper mennesker og AI-agenter med at forstå hinan
 - **Dear User Collab** = collaboration-analyse (mcp__dearuser__collab)
 - **Dear User Health** = system-sundhed (mcp__dearuser__health)
 - **Dear User Wrapped** = viral feature / shareable stats (mcp__dearuser__wrapped)
-- npm pakke: `dearuser-mcp`
+- npm pakke: `@poisedhq/dearuser-mcp`
 - GitHub: `bleedmode/dearuser` (monorepo med mcp/ + web/)
 - Web: `dearuser.ai`
 

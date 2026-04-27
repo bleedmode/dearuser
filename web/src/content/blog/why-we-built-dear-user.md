@@ -60,7 +60,7 @@ Three scores at the top. A handful of findings underneath. Recommendations you c
 If you want to try it:
 
 ```bash
-claude mcp add dearuser -- npx dearuser-mcp
+claude mcp add dearuser -- npx @poisedhq/dearuser-mcp
 ```
 
 Then, in any Claude Code session, just ask:

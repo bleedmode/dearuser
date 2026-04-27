@@ -1,6 +1,9 @@
 {
-  "name": "dearuser-mcp",
+  "name": "@poisedhq/dearuser-mcp",
   "version": "1.0.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "Dear User — helps humans and AI agents understand each other better",
   "type": "module",
   "bin": {

@@ -13,7 +13,7 @@
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
-      "identifier": "dearuser-mcp",
+      "identifier": "@poisedhq/dearuser-mcp",
       "version": "1.0.0",
       "runtimeHint": "npx",
       "transport": {

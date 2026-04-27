@@ -4,7 +4,7 @@
 
 Dear User is an open-source tool that audits your Claude Code setup and tells you exactly what to fix. It scores your collaboration, finds leaked secrets and config conflicts, and checks system health — all locally, nothing uploaded unless you explicitly share your Wrapped card.
 
-> `claude mcp add dearuser -- npx dearuser-mcp`
+> `claude mcp add dearuser -- npx @poisedhq/dearuser-mcp`
 >
 > Then ask Claude: *"Analyze my collaboration with Claude"*
 
@@ -43,7 +43,7 @@ One command per client. Full guide: [`docs/install.md`](docs/install.md).
 **Claude Code (CLI)**
 
 ```bash
-claude mcp add dearuser -- npx dearuser-mcp
+claude mcp add dearuser -- npx @poisedhq/dearuser-mcp
 ```
 
 **Claude Desktop** — add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
@@ -53,7 +53,7 @@ claude mcp add dearuser -- npx dearuser-mcp
   "mcpServers": {
     "dearuser": {
       "command": "npx",
-      "args": ["dearuser-mcp"]
+      "args": ["@poisedhq/dearuser-mcp"]
     }
   }
 }
@@ -64,7 +64,7 @@ claude mcp add dearuser -- npx dearuser-mcp
 Optional: install the slash commands (see [Commands](#commands) for the full list) so you can type `/dearuser-collab` instead of asking in prose:
 
 ```bash
-npx -p dearuser-mcp dearuser-install-skills
+npx -p @poisedhq/dearuser-mcp dearuser-install-skills
 ```
 
 ## Your first 5 minutes
@@ -169,7 +169,7 @@ Your files (CLAUDE.md or AGENTS.md, memory, hooks, skills, sessions)
 
 ## Repository layout
 
-- [`mcp/`](mcp/) — `dearuser-mcp` npm package (the MCP server). See [`mcp/README.md`](mcp/README.md) for development notes.
+- [`mcp/`](mcp/) — `@poisedhq/dearuser-mcp` npm package (the MCP server). See [`mcp/README.md`](mcp/README.md) for development notes.
 - [`web/`](web/) — `dearuser.ai` landing + share-report pages (Astro).
 - [`docs/`](docs/) — install guide, privacy doc, per-platform setup (Supabase/GitHub/Vercel for the optional `security` platform advisors).
 - [`research/`](research/) — calibration data + architecture notes we're willing to share.
