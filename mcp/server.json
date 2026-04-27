@@ -1,0 +1,24 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.bleedmode/dearuser",
+  "title": "Dear User",
+  "description": "Collaboration scoring, security audit, and health check for Claude (Code, Desktop, IDE). Reads your CLAUDE.md, hooks, skills, and scheduled tasks. Writes you a letter. Local-only — no API keys, no data leaves your machine.",
+  "version": "1.0.0",
+  "websiteUrl": "https://dearuser.ai",
+  "repository": {
+    "url": "https://github.com/bleedmode/dearuser",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "dearuser-mcp",
+      "version": "1.0.0",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
