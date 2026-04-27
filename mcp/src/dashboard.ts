@@ -167,7 +167,7 @@ function renderProfileAvatar(activeNav: string): string {
 
 function page(title: string, body: string, activeNav: 'oversigt' | 'kørsler' | 'forbedringer' | 'profil' | 'wrapped' = 'oversigt'): string {
   return `<!DOCTYPE html>
-<html lang="da">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -277,8 +277,6 @@ function page(title: string, body: string, activeNav: 'oversigt' | 'kørsler' | 
     font-feature-settings: 'ss01';
   }
   /* Language toggle — hide the non-active version */
-  [data-lang="da"] .lang-en { display: none; }
-  [data-lang="en"] .lang-da { display: none; }
   main, header { position: relative; z-index: 1; }
   .letter-prose h1, .letter-prose h2, .letter-prose h3 { font-family: var(--font-serif, Georgia, 'Times New Roman', serif); font-weight: 500; color: var(--c-ink-900); letter-spacing: -0.01em; }
   .letter-prose h1 { font-size: 1.75rem; margin: 1.5rem 0 0.75rem; line-height: 1.25; }
@@ -309,18 +307,15 @@ function page(title: string, body: string, activeNav: 'oversigt' | 'kørsler' | 
       </a>
       <nav class="flex items-center gap-6 text-[11px] uppercase tracking-[0.15em]">
         <a href="/historik" class="${activeNav === 'kørsler' ? 'text-ink-900' : 'text-ink-400 hover:text-ink-900'} transition">
-          <span class="lang-da">Breve</span><span class="lang-en">Letters</span>
+          Letters
         </a>
         <a href="/forbedringer" class="${activeNav === 'forbedringer' ? 'text-ink-900' : 'text-ink-400 hover:text-ink-900'} transition">
-          <span class="lang-da">Anbefalinger</span><span class="lang-en">Recommendations</span>
+          Recommendations
         </a>
         <a href="/wrapped" class="${activeNav === 'wrapped' ? 'text-ink-900' : 'text-ink-400 hover:text-ink-900'} transition">
-          <span class="lang-da">Wrapped</span><span class="lang-en">Wrapped</span>
+          Wrapped
         </a>
         <span class="w-px h-4 bg-paper-200"></span>
-        <button id="lang-toggle" aria-label="Switch language" class="text-ink-400 hover:text-ink-900 transition">
-          <span id="lang-label">EN</span>
-        </button>
         <button id="theme-toggle" aria-label="Toggle theme" class="text-ink-400 hover:text-ink-900 transition flex items-center">
           <svg id="sun-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
           <svg id="moon-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -340,12 +335,6 @@ ${body}
       var theme = savedTheme || (prefersDark ? 'dark' : 'light');
       if (theme === 'dark') html.setAttribute('data-theme', 'dark');
 
-      var savedLang = localStorage.getItem('dearuser-lang');
-      var systemDa = (navigator.language || '').toLowerCase().startsWith('da');
-      var lang = savedLang || (systemDa ? 'da' : 'en');
-      html.setAttribute('data-lang', lang);
-      html.setAttribute('lang', lang);
-
       function updateIcons() {
         var isDark = html.getAttribute('data-theme') === 'dark';
         var sun = document.getElementById('sun-icon');
@@ -353,14 +342,9 @@ ${body}
         if (sun) sun.style.display = isDark ? 'none' : 'block';
         if (moon) moon.style.display = isDark ? 'block' : 'none';
       }
-      function updateLangLabel() {
-        var label = document.getElementById('lang-label');
-        if (label) label.textContent = html.getAttribute('data-lang') === 'da' ? 'EN' : 'DA';
-      }
 
       document.addEventListener('DOMContentLoaded', function() {
         updateIcons();
-        updateLangLabel();
 
         var themeBtn = document.getElementById('theme-toggle');
         if (themeBtn) themeBtn.addEventListener('click', function() {
@@ -368,16 +352,6 @@ ${body}
           if (isDark) { html.removeAttribute('data-theme'); localStorage.setItem('dearuser-theme', 'light'); }
           else { html.setAttribute('data-theme', 'dark'); localStorage.setItem('dearuser-theme', 'dark'); }
           updateIcons();
-        });
-
-        var langBtn = document.getElementById('lang-toggle');
-        if (langBtn) langBtn.addEventListener('click', function() {
-          var current = html.getAttribute('data-lang');
-          var next = current === 'da' ? 'en' : 'da';
-          html.setAttribute('data-lang', next);
-          html.setAttribute('lang', next);
-          localStorage.setItem('dearuser-lang', next);
-          updateLangLabel();
         });
       });
     })();
@@ -393,12 +367,12 @@ function escapeHtml(s: string): string {
 // Bilingual helper — emits both language variants; CSS hides the inactive one.
 // Inputs are HTML-escaped before rendering, so callers pass plain text.
 function t(da: string, en: string): string {
-  return `<span class="lang-da">${escapeHtml(da)}</span><span class="lang-en">${escapeHtml(en)}</span>`;
+  return `${escapeHtml(en)}`;
 }
 
 // Same as `t()` but for callers that want to embed pre-escaped/HTML content.
 function tHtml(da: string, en: string): string {
-  return `<span class="lang-da">${da}</span><span class="lang-en">${en}</span>`;
+  return `${en}`;
 }
 
 // Coerce a string-or-LocalizedString into bilingual form. Strings become
@@ -462,11 +436,11 @@ function renderLanding(): string {
     return page('', `
       <section>
         <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-10">
-          <span class="lang-da">${escapeHtml(greeting())},</span><span class="lang-en">${escapeHtml(greetingEn())},</span>
+          ${escapeHtml(greetingEn())},
         </h1>
         <p class="font-serif text-2xl text-ink-700 leading-snug max-w-xl">
-          <span class="lang-da">Jeg har ikke hørt fra dig endnu. Gå tilbage til Claude Code og bed mig om at <span class="italic">lave min første rapport</span> — så sender jeg et brev her til dig.</span>
-          <span class="lang-en">I haven't heard from you yet. Go back to Claude Code and ask me to <span class="italic">write my first report</span> — and I'll send a letter back here.</span>
+          
+          I haven't heard from you yet. Go back to Claude Code and ask me to <span class="italic">write my first report</span> — and I'll send a letter back here.
         </p>
       </section>
     `, 'oversigt');
@@ -480,8 +454,8 @@ function renderLanding(): string {
     score: number | null, reportId?: string,
     toolHintDa?: string, toolHintEn?: string
   ): string => {
-    const labelSpan = `<span class="lang-da">${escapeHtml(labelDa)}</span><span class="lang-en">${escapeHtml(labelEn)}</span>`;
-    const hintSpan = `<span class="lang-da">${escapeHtml(hintDa)}</span><span class="lang-en">${escapeHtml(hintEn)}</span>`;
+    const labelSpan = `${escapeHtml(labelEn)}`;
+    const hintSpan = `${escapeHtml(hintEn)}`;
     if (score === null) {
       return `
         <div class="rounded-xl p-5 -mx-5 border border-dashed border-paper-200">
@@ -491,8 +465,8 @@ function renderLanding(): string {
           </div>
           <div class="font-serif text-5xl text-ink-300 leading-none mb-4">—</div>
           <p class="text-sm text-ink-400 leading-relaxed">
-            <span class="lang-da">Bed mig om <span class="italic text-ink-500">${escapeHtml(toolHintDa || labelDa)}</span></span>
-            <span class="lang-en">Ask me to <span class="italic text-ink-500">${escapeHtml(toolHintEn || labelEn)}</span></span>
+            
+            Ask me to <span class="italic text-ink-500">${escapeHtml(toolHintEn || labelEn)}</span>
           </p>
         </div>
       `;
@@ -508,7 +482,7 @@ function renderLanding(): string {
             <span class="w-1.5 h-1.5 rounded-full ${dot}"></span>
             <span class="text-[11px] uppercase tracking-[0.15em] text-ink-500">${labelSpan}</span>
           </div>
-          ${needsAttention ? `<span class="text-[10px] uppercase tracking-wider bg-action-100 text-action-600 px-1.5 py-0.5 rounded"><span class="lang-da">Tjek</span><span class="lang-en">Check</span></span>` : ''}
+          ${needsAttention ? `<span class="text-[10px] uppercase tracking-wider bg-action-100 text-action-600 px-1.5 py-0.5 rounded">Check</span>` : ''}
         </div>
         <div class="font-serif text-6xl ${color} leading-none mb-4">${score}</div>
         <div class="flex items-center justify-between gap-3">
@@ -608,8 +582,8 @@ function renderLanding(): string {
   const pendingBlock = pending.length > 0 ? `
     <section class="mt-24 pt-10 border-t border-paper-200">
       <h2 class="mb-6 text-[11px] uppercase tracking-[0.15em] text-action-600">
-        <span class="lang-da">${pendingCount} forslag venter</span>
-        <span class="lang-en">${pendingCount} suggestion${pendingCount === 1 ? '' : 's'} waiting</span>
+        
+        ${pendingCount} suggestion${pendingCount === 1 ? '' : 's'} waiting
       </h2>
       <ul class="divide-y divide-paper-200">
         ${pending.map(p => {
@@ -623,14 +597,14 @@ function renderLanding(): string {
                 ${f.summary ? `<div class="text-sm text-ink-500 leading-relaxed ml-3.5">${t(f.summary.da, f.summary.en)}</div>` : ''}
               </div>
               <a href="/forbedringer#${escapeHtml(p.id)}" class="flex-shrink-0 text-sm text-ink-700 hover:text-action-600 transition whitespace-nowrap">
-                <span class="lang-da">Læs mere →</span><span class="lang-en">Read more →</span>
+                Read more →
               </a>
             </li>
           `;
         }).join('')}
       </ul>
       <a href="/forbedringer" class="inline-block mt-6 text-sm font-medium text-action-600 hover:text-action-600 transition">
-        <span class="lang-da">Se alle forslag →</span><span class="lang-en">See all suggestions →</span>
+        See all suggestions →
       </a>
     </section>
   ` : '';
@@ -643,7 +617,7 @@ function renderLanding(): string {
     <div class="flex items-center gap-3 mb-12 pb-4 border-b border-paper-200 text-[11px] uppercase tracking-[0.15em]">
       <span class="w-1.5 h-1.5 rounded-full bg-action-600"></span>
       <span class="text-ink-500">
-        <span class="lang-da">${escapeHtml(dateStrDa)}</span><span class="lang-en">${escapeHtml(dateStrEn)}</span>
+        ${escapeHtml(dateStrEn)}
       </span>
     </div>
   `;
@@ -652,10 +626,10 @@ function renderLanding(): string {
     ${actionStrip}
     <section>
       <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">
-        <span class="lang-da">${escapeHtml(greeting())},</span><span class="lang-en">${escapeHtml(greetingEn())},</span>
+        ${escapeHtml(greetingEn())},
       </h1>
       <p class="font-serif text-2xl text-ink-700 leading-snug max-w-xl">
-        <span class="lang-da">${escapeHtml(narrativeDa)}</span><span class="lang-en">${escapeHtml(narrativeEn)}</span>
+        ${escapeHtml(narrativeEn)}
       </p>
     </section>
     ${scoreSection}
@@ -677,11 +651,11 @@ function letterSignature(): string {
   return `
     <footer class="mt-24">
       <p class="font-serif text-lg text-ink-700 leading-relaxed max-w-xl mb-8">
-        <span class="lang-da">Tak fordi jeg får lov at holde øje med dit setup${addressedDa}. Det her er mellem os to — ingen data rejser ud af din computer.</span>
-        <span class="lang-en">Thanks for letting me keep an eye on your setup${addressedEn}. This is just between us — no data leaves your computer.</span>
+        
+        Thanks for letting me keep an eye on your setup${addressedEn}. This is just between us — no data leaves your computer.
       </p>
       <p class="text-ink-700 italic mb-3">
-        <span class="lang-da">Med venlig hilsen,</span><span class="lang-en">Yours,</span>
+        Yours,
       </p>
       <p class="text-ink-900">${signature()}</p>
     </footer>
@@ -705,7 +679,7 @@ function pageDateStrip(): string {
     <div class="flex items-center gap-3 mb-12 pb-4 border-b border-paper-200 text-[11px] uppercase tracking-[0.15em]">
       <span class="w-1.5 h-1.5 rounded-full bg-action-600"></span>
       <span class="text-ink-500">
-        <span class="lang-da">${escapeHtml(dateStrDa)}</span><span class="lang-en">${escapeHtml(dateStrEn)}</span>
+        ${escapeHtml(dateStrEn)}
       </span>
     </div>
   `;
@@ -724,11 +698,11 @@ function renderHistorik(): string {
       ${actionStrip}
       <section>
         <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">
-          <span class="lang-da">Ingen breve endnu</span><span class="lang-en">No letters yet</span>
+          No letters yet
         </h1>
         <p class="font-serif text-2xl text-ink-700 leading-snug max-w-xl">
-          <span class="lang-da">Åbn Claude Code og bed mig lave den første rapport. Alle mine breve ender her.</span>
-          <span class="lang-en">Open Claude Code and ask me to write the first report. All my letters land here.</span>
+          
+          Open Claude Code and ask me to write the first report. All my letters land here.
         </p>
       </section>
       ${letterSignature()}
@@ -778,7 +752,7 @@ function renderHistorik(): string {
               <div class="flex items-center gap-2 mb-1">
                 <span class="w-1.5 h-1.5 rounded-full ${dot}"></span>
                 <h3 class="font-serif text-xl text-ink-900 leading-snug group-hover:text-action-600 transition">
-                  <span class="lang-da">${escapeHtml(subjectDa)}</span><span class="lang-en">${escapeHtml(subjectEn)}</span>
+                  ${escapeHtml(subjectEn)}
                 </h3>
               </div>
               ${r.summary ? `<p class="text-sm text-ink-500 leading-relaxed ml-3.5 truncate">${escapeHtml(r.summary)}</p>` : ''}
@@ -826,18 +800,18 @@ function renderHistorik(): string {
       <div class="flex items-center gap-2 pb-6 mb-8 border-b border-dashed border-paper-300 text-[11px] uppercase tracking-[0.15em]">
         <span class="w-1.5 h-1.5 rounded-full bg-action-600"></span>
         <span class="text-ink-500">
-          <span class="lang-da">Seneste brev · ${escapeHtml(timeAgo(featured.started_at))}</span>
-          <span class="lang-en">Latest letter · ${escapeHtml(timeAgoEn(featured.started_at))}</span>
+          
+          Latest letter · ${escapeHtml(timeAgoEn(featured.started_at))}
         </span>
       </div>
       <div class="flex items-center gap-8">
         ${scoreArc}
         <div class="flex-1 min-w-0">
           <h2 class="font-serif text-3xl text-ink-900 leading-tight mb-2 group-hover:text-action-600 transition">
-            <span class="lang-da">${escapeHtml(featuredSubjectDa)}</span><span class="lang-en">${escapeHtml(featuredSubjectEn)}</span>
+            ${escapeHtml(featuredSubjectEn)}
           </h2>
           <div class="mt-5 text-sm font-medium text-action-600">
-            <span class="lang-da">Læs hele brevet →</span><span class="lang-en">Read the full letter →</span>
+            Read the full letter →
           </div>
         </div>
       </div>
@@ -862,7 +836,7 @@ function renderHistorik(): string {
     .map(k => `
       <section class="mt-10 first:mt-0">
         <h2 class="mb-2 text-[11px] uppercase tracking-[0.15em] text-ink-500">
-          <span class="lang-da">${bucketLabel[k].da}</span><span class="lang-en">${bucketLabel[k].en}</span>
+          ${bucketLabel[k].en}
         </h2>
         <ul class="divide-y divide-paper-200">
           ${olderBuckets[k].map(renderRow).join('')}
@@ -872,7 +846,7 @@ function renderHistorik(): string {
 
   const archiveHeader = olderRuns.length > 0 ? `
     <h2 class="text-[11px] uppercase tracking-[0.15em] text-ink-500 mb-6">
-      <span class="lang-da">Tidligere breve</span><span class="lang-en">Earlier letters</span>
+      Earlier letters
     </h2>
   ` : '';
 
@@ -880,11 +854,11 @@ function renderHistorik(): string {
     ${actionStrip}
     <section>
       <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">
-        <span class="lang-da">Breve</span><span class="lang-en">Letters</span>
+        Letters
       </h1>
       <p class="font-serif text-2xl text-ink-700 leading-snug max-w-xl">
-        <span class="lang-da">Hvert brev jeg har sendt dig — nyeste først.</span>
-        <span class="lang-en">Every letter I've sent you — newest first.</span>
+        
+        Every letter I've sent you — newest first.
       </p>
     </section>
     <div class="mt-16">
@@ -966,7 +940,7 @@ function renderLetterShareControls(): string {
   return `
     <div class="flex flex-col items-end gap-2">
       <button id="share-letter-btn" data-state="idle" class="text-[11px] uppercase tracking-[0.15em] text-ink-500 hover:text-accent-600 transition border border-paper-200 rounded-md px-3 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
-        <span class="lang-da">${L.idleDa}</span><span class="lang-en">${L.idleEn}</span>
+        ${L.idleEn}
       </button>
       <div id="share-letter-feedback" class="text-[11px] text-ink-500 max-w-xs text-right hidden"></div>
     </div>
@@ -987,14 +961,14 @@ function renderLetterShareScript(runId: string): string {
 
         function setBtnLabel(da, en) {
           btn.innerHTML =
-            '<span class="lang-da">' + da + '</span>' +
-            '<span class="lang-en">' + en + '</span>';
+            '' +
+            '' + en + '';
         }
         function showFeedback(da, en, isError) {
           feedback.classList.remove('hidden');
           feedback.innerHTML =
-            '<span class="lang-da">' + da + '</span>' +
-            '<span class="lang-en">' + en + '</span>';
+            '' +
+            '' + en + '';
           feedback.className = 'text-[11px] max-w-xs text-right ' + (isError ? 'text-red-600' : 'text-ink-500');
         }
         function hideFeedback() {
@@ -2260,8 +2234,7 @@ function renderOnboardForm(result: OnboardResult, error?: LocalizedString): stri
       <div id="du-chips" class="mb-8 flex flex-wrap gap-2">
         ${result.options.map(opt => `
           <button type="button"
-            data-opt-da="${escapeHtml(opt.da)}"
-            data-opt-en="${escapeHtml(opt.en)}"
+            data-opt="${escapeHtml(opt.en)}"
             data-selected="false"
             class="du-chip text-sm bg-paper-100 border border-paper-300 rounded-full px-3 py-1 text-ink-700 transition hover:bg-accent-100 hover:border-accent-600">
             ${t(opt.da, opt.en)}
@@ -2274,16 +2247,14 @@ function renderOnboardForm(result: OnboardResult, error?: LocalizedString): stri
           // and the chips are parsed at script-execution time. The earlier
           // version queried #answer eagerly and bailed silently when the
           // form rendered after the chip script — clicks did nothing.
-          var currentLang = function() { return document.documentElement.getAttribute('data-lang') || 'da'; };
           var getTextarea = function() { return document.getElementById('answer'); };
           var syncValue = function() {
             var el = getTextarea();
             if (!el) return;
-            var lang = currentLang();
             var selected = [];
             document.querySelectorAll('#du-chips .du-chip').forEach(function(chip) {
               if (chip.dataset.selected === 'true') {
-                selected.push(chip.getAttribute('data-opt-' + lang) || '');
+                selected.push(chip.getAttribute('data-opt') || '');
               }
             });
             el.value = selected.join(', ');
@@ -2300,10 +2271,6 @@ function renderOnboardForm(result: OnboardResult, error?: LocalizedString): stri
             syncValue();
             var el = getTextarea();
             if (el) el.focus();
-          });
-          // Language toggle should re-sync labels in the textarea.
-          new MutationObserver(syncValue).observe(document.documentElement, {
-            attributes: true, attributeFilter: ['data-lang']
           });
         })();
       </script>
@@ -2343,9 +2310,7 @@ function renderOnboardForm(result: OnboardResult, error?: LocalizedString): stri
             autocorrect="on"
             spellcheck="true"
             class="letter-lines"
-            data-ph-da="skriv her"
-            data-ph-en="write here"
-            placeholder=""
+            placeholder="write here"
             autofocus
           ></textarea>
         </div>
@@ -2353,15 +2318,6 @@ function renderOnboardForm(result: OnboardResult, error?: LocalizedString): stri
           (function() {
             var el = document.getElementById('answer');
             if (!el) return;
-            // Keep placeholder in sync with active language.
-            var applyPh = function() {
-              var lang = document.documentElement.getAttribute('data-lang') || 'da';
-              el.setAttribute('placeholder', el.getAttribute('data-ph-' + lang) || '');
-            };
-            applyPh();
-            document.addEventListener('DOMContentLoaded', applyPh);
-            var obs = new MutationObserver(applyPh);
-            obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-lang'] });
 
             // Auto-grow: as the user writes, new ruled lines appear beneath.
             var grow = function() {
@@ -2549,14 +2505,9 @@ function renderOnboardDone(result: OnboardResult): string {
       <div class="flex items-stretch gap-2">
         <pre class="flex-1 font-serif italic text-base leading-relaxed text-ink-900 bg-paper-100 border border-paper-200 rounded-lg p-3 whitespace-pre-wrap">${t(promptDa, promptEn)}</pre>
         <button type="button"
-          onclick="(function(btn){ var lang = document.documentElement.getAttribute('data-lang') || 'da'; var txt = btn.getAttribute('data-txt-' + lang); navigator.clipboard.writeText(txt).then(function(){ btn.textContent = btn.getAttribute('data-done-' + lang); setTimeout(function(){ btn.textContent = btn.getAttribute('data-copy-' + lang); }, 1500); }); })(this);"
-          data-txt-da="${escapeHtml(promptDa)}"
-          data-txt-en="${escapeHtml(promptEn)}"
-          data-copy-da="Kopiér"
-          data-copy-en="Copy"
-          data-done-da="Kopieret"
-          data-done-en="Copied"
-          class="bg-accent-600 hover:bg-accent-500 text-white font-medium text-sm px-4 rounded-lg transition">Kopiér</button>
+          onclick="(function(btn){ var txt = btn.getAttribute('data-txt'); navigator.clipboard.writeText(txt).then(function(){ btn.textContent = 'Copied'; setTimeout(function(){ btn.textContent = 'Copy'; }, 1500); }); })(this);"
+          data-txt="${escapeHtml(promptEn)}"
+          class="bg-accent-600 hover:bg-accent-500 text-white font-medium text-sm px-4 rounded-lg transition">Copy</button>
       </div>
     </div>
   `;
@@ -2645,11 +2596,11 @@ function renderWrappedPage(): string {
     return page('Wrapped', `
       <section class="max-w-xl mx-auto text-center py-16">
         <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-6">
-          <span class="lang-da">Intet Wrapped endnu</span><span class="lang-en">No Wrapped yet</span>
+          No Wrapped yet
         </h1>
         <p class="font-serif text-xl text-ink-700 leading-snug mb-8">
-          <span class="lang-da">Åbn Claude Code og bed mig lave dit første Wrapped — et delbart snapshot af din collaboration.</span>
-          <span class="lang-en">Open Claude Code and ask me to make your first Wrapped — a shareable snapshot of your collaboration.</span>
+          
+          Open Claude Code and ask me to make your first Wrapped — a shareable snapshot of your collaboration.
         </p>
         <code class="inline-block bg-paper-100 border border-paper-200 rounded-lg px-4 py-3 font-mono text-sm text-ink-900">dearuser wrapped</code>
       </section>
@@ -2662,7 +2613,7 @@ function renderWrappedPage(): string {
   } catch {
     return page('Wrapped', `
       <section class="max-w-xl mx-auto text-center py-16">
-        <p class="text-ink-500"><span class="lang-da">Kunne ikke læse dit seneste Wrapped.</span><span class="lang-en">Could not read your latest Wrapped.</span></p>
+        <p class="text-ink-500">Could not read your latest Wrapped.</p>
       </section>
     `, 'wrapped');
   }
@@ -2722,7 +2673,7 @@ function renderWrappedPage(): string {
       <div class="font-mono text-xs uppercase tracking-wider text-ink-400">${t('Seneste Wrapped', 'Latest Wrapped')} · ${t(formatLetterDate(latest.started_at), formatLetterDateEn(latest.started_at))}</div>
       <div class="flex flex-col items-end gap-2">
         <button id="share-wrapped-btn" data-state="idle" class="text-[11px] uppercase tracking-[0.15em] text-ink-500 hover:text-accent-600 transition border border-paper-200 rounded-md px-3 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
-          <span class="lang-da">${shareLabels.idleDa}</span><span class="lang-en">${shareLabels.idleEn}</span>
+          ${shareLabels.idleEn}
         </button>
         <div id="share-wrapped-feedback" class="text-[11px] text-ink-500 max-w-xs text-right hidden"></div>
       </div>
@@ -2748,14 +2699,14 @@ function renderWrappedPage(): string {
 
         function setBtnLabel(da, en) {
           btn.innerHTML =
-            '<span class="lang-da">' + da + '</span>' +
-            '<span class="lang-en">' + en + '</span>';
+            '' +
+            '' + en + '';
         }
         function showFeedback(da, en, isError) {
           feedback.classList.remove('hidden');
           feedback.innerHTML =
-            '<span class="lang-da">' + da + '</span>' +
-            '<span class="lang-en">' + en + '</span>';
+            '' +
+            '' + en + '';
           feedback.className = 'text-[11px] max-w-xs text-right ' + (isError ? 'text-red-600' : 'text-ink-500');
         }
         function hideFeedback() {

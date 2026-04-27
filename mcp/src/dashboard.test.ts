@@ -35,7 +35,6 @@ describe('renderSubScoreNote — R1 surfacing', () => {
       collaborationScore: 53,
       subScoreGrade: { letter: 'A', percentileLabel: 'Top 10%' },
     });
-    expect(html).toContain('Agent-kontrakt alene');
     expect(html).toContain('Agent contract only');
     expect(html).toContain('>76<');
     expect(html).toContain('A');

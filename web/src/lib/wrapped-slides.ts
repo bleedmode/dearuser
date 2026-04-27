@@ -183,18 +183,18 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
   slides.push(`
     <section class="du-slide du-slide-intro visible" data-du-slide>
       <div class="du-slide-eyebrow">
-        <span class="lang-da">Dit AI-samarbejde · ${h(year)}</span><span class="lang-en">Your AI collaboration · ${h(year)}</span>
+        Your AI collaboration · ${h(year)}
       </div>
       <h1 class="du-slide-h1">
-        <span class="lang-da">${greetingDa}.</span>
-        <span class="lang-en">${greetingEn}.</span>
+        
+        ${greetingEn}.
       </h1>
       <p class="du-slide-subtitle">
-        <span class="lang-da">En scrolltur gennem et halvt års arbejde med din agent.</span>
-        <span class="lang-en">A scroll-through of six months of work with your agent.</span>
+        
+        A scroll-through of six months of work with your agent.
       </p>
       <div class="du-scroll-hint">
-        <span class="lang-da">Scroll ↓</span><span class="lang-en">Scroll ↓</span>
+        Scroll ↓
       </div>
     </section>
   `);
@@ -212,14 +212,14 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
     slides.push(`
       <section class="du-slide du-slide-score" data-du-slide>
         <div class="du-slide-eyebrow">
-          <span class="lang-da">Din score</span><span class="lang-en">Your score</span>
+          Your score
         </div>
         <div class="du-slide-big-number" data-du-count="${h(score)}">0</div>
         <div class="du-slide-score-sub">
-          <span class="lang-da">ud af 100</span><span class="lang-en">out of 100</span>
+          out of 100
         </div>
         <p class="du-slide-score-caption">
-          <span class="lang-da">${h(caption.da)}</span><span class="lang-en">${h(caption.en)}</span>
+          ${h(caption.en)}
         </p>
       </section>
     `);
@@ -249,23 +249,23 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
     slides.push(`
       <section class="du-slide" data-du-slide>
         <div class="du-slide-eyebrow">
-          <span class="lang-da">Dig og mig</span><span class="lang-en">You and me</span>
+          You and me
         </div>
         ${pairHtml}
-        ${setupArchetypeName ? `<div class="du-slide-setup-style"><span class="lang-da">Setup-stil</span><span class="lang-en">Setup style</span> · ${h(setupArchetypeName)}</div>` : ''}
+        ${setupArchetypeName ? `<div class="du-slide-setup-style">Setup style · ${h(setupArchetypeName)}</div>` : ''}
       </section>
     `);
   } else if (archetype.name) {
     slides.push(`
       <section class="du-slide" data-du-slide>
         <div class="du-slide-eyebrow">
-          <span class="lang-da">Mød din agent</span><span class="lang-en">Meet your agent</span>
+          Meet your agent
         </div>
         <div class="du-slide-agent-card">
           <h2 class="du-slide-agent-name">${h(archetype.name)}</h2>
           ${archetype.description ? `<p class="du-slide-agent-description">${h(archetype.description)}</p>` : ''}
         </div>
-        ${setupArchetypeName ? `<div class="du-slide-setup-style"><span class="lang-da">Setup-stil</span><span class="lang-en">Setup style</span> · ${h(setupArchetypeName)}</div>` : ''}
+        ${setupArchetypeName ? `<div class="du-slide-setup-style">Setup style · ${h(setupArchetypeName)}</div>` : ''}
       </section>
     `);
   }
@@ -276,18 +276,18 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
     slides.push(`
       <section class="du-slide" data-du-slide>
         <div class="du-slide-eyebrow">
-          <span class="lang-da">Autonomi-fordeling</span><span class="lang-en">Autonomy split</span>
+          Autonomy split
         </div>
         <p class="du-slide-big-label" style="margin-top:0;">
-          <span class="lang-da">Hvor meget frihed har din agent?</span>
-          <span class="lang-en">How much freedom does your agent have?</span>
+          
+          How much freedom does your agent have?
         </p>
         <div class="du-slide-bars">
           ${splits.map(s => `
             <div class="du-slide-bar-row">
               <div class="du-slide-bar-head">
                 <span>
-                  <span class="lang-da">${h(s.labelDa)}</span><span class="lang-en">${h(s.labelEn)}</span>
+                  ${h(s.labelEn)}
                 </span>
                 <span class="du-slide-bar-pct">${s.pct} %</span>
               </div>
@@ -304,7 +304,7 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
     slides.push(`
       <section class="du-slide" data-du-slide>
         <div class="du-slide-eyebrow">
-          <span class="lang-da">Hvor du står</span><span class="lang-en">Where you rank</span>
+          Where you rank
         </div>
         <div class="du-slide-big-number good">${h(percentileMoment.value || '')}</div>
         <p class="du-slide-big-label">${h(stripMd(percentileMoment.narrative || ''))}</p>
@@ -318,7 +318,7 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
     slides.push(`
       <section class="du-slide" data-du-slide>
         <div class="du-slide-eyebrow muted">
-          <span class="lang-da">Rettelser</span><span class="lang-en">Corrections</span>
+          Corrections
         </div>
         <div class="du-slide-big-number" data-du-count="${h(correctionsMoment.value || '0')}">0</div>
         <p class="du-slide-big-label">${h(stripMd(correctionsMoment.narrative || ''))}</p>
@@ -331,7 +331,7 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
     slides.push(`
       <section class="du-slide" data-du-slide>
         <div class="du-slide-eyebrow muted">
-          <span class="lang-da">Ubrugte skills</span><span class="lang-en">Dead skills</span>
+          Dead skills
         </div>
         <div class="du-slide-big-number bad" data-du-count="${h(deadSkillMoment.value || '0')}">0</div>
         <p class="du-slide-big-label">${h(stripMd(deadSkillMoment.narrative || ''))}</p>
@@ -345,7 +345,7 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
     slides.push(`
       <section class="du-slide" data-du-slide>
         <div class="du-slide-eyebrow">
-          <span class="lang-da">Din længste regel</span><span class="lang-en">Your longest rule</span>
+          Your longest rule
         </div>
         <div class="du-slide-big-number ink">${h(biggestRuleMoment.value || '')}</div>
         <p class="du-slide-big-label">${h(stripMd(biggestRuleMoment.narrative || ''))}</p>
@@ -360,18 +360,18 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
     slides.push(`
       <section class="du-slide" data-du-slide>
         <div class="du-slide-eyebrow">
-          <span class="lang-da">Systemet du har bygget</span><span class="lang-en">The system you built</span>
+          The system you built
         </div>
         <p class="du-slide-big-label" style="margin-top:0;">
-          <span class="lang-da">Din agent eksekverer ikke bare — den kører et lille OS.</span>
-          <span class="lang-en">Your agent doesn't just execute — it runs a small OS.</span>
+          
+          Your agent doesn't just execute — it runs a small OS.
         </p>
         <div class="du-slide-system-grid">
           ${gridCells.map(c => `
             <div class="du-slide-system-card">
               <div class="du-slide-system-num" data-du-count="${h(c.value)}">0</div>
               <div class="du-slide-system-label">
-                <span class="lang-da">${h(c.labelDa)}</span><span class="lang-en">${h(c.labelEn)}</span>
+                ${h(c.labelEn)}
               </div>
             </div>
           `).join('')}
@@ -385,8 +385,8 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
     slides.push(`
       <section class="du-slide" data-du-slide>
         <div class="du-slide-eyebrow">
-          <span class="lang-da">Din agents største lære</span>
-          <span class="lang-en">Your agent's #1 lesson</span>
+          
+          Your agent's #1 lesson
         </div>
         <div class="du-slide-quote">${h(stripMd(lesson.quote))}</div>
         ${lesson.context ? `<div class="du-slide-quote-attr">— ${h(stripMd(lesson.context))}</div>` : ''}
@@ -407,16 +407,16 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
   slides.push(`
     <section class="du-slide du-slide-outro" data-du-slide>
       <div class="du-slide-eyebrow">
-        <span class="lang-da">Tak for i år</span><span class="lang-en">That's your year</span>
+        That's your year
       </div>
       <h2 class="du-slide-outro-h2">
-        <span class="lang-da">${h(ctaDa)}</span>
-        <span class="lang-en">${h(ctaEn)}</span>
+        
+        ${h(ctaEn)}
       </h2>
       ${ctaLink ? `
         <a class="du-slide-cta-btn" href="https://dearuser.ai/">
-          <span class="lang-da">Audit dit eget setup →</span>
-          <span class="lang-en">Audit your own setup →</span>
+          
+          Audit your own setup →
         </a>
       ` : ''}
       <div class="du-slide-end-cta">

@@ -41,25 +41,23 @@ const SUPABASE_ANON_KEY =
     {mode === 'modal' && (
       <div class="du-fb-head">
         <h2 id="du-fb-title" class="du-fb-title">
-          <span class="lang-da">Send feedback</span><span class="lang-en">Send feedback</span>
+          Send feedback
         </h2>
         <button type="button" class="du-fb-close" id="du-feedback-close" aria-label="Luk">×</button>
       </div>
 
       <p class="du-fb-intro">
-        <span class="lang-da">
-          Hvad virker, hvad virker ikke? Skriv det direkte til os — vi læser det hele.
-        </span>
-        <span class="lang-en">
+        
+        
           What's working, what's not? Drop us a line — we read every one.
-        </span>
+        
       </p>
     )}
 
     <form class="du-fb-form" id="du-feedback-form" novalidate>
       <label class="du-fb-field">
         <span class="du-fb-label">
-          <span class="lang-da">Din besked</span><span class="lang-en">Your message</span>
+          Your message
         </span>
         <textarea
           name="message"
@@ -71,14 +69,14 @@ const SUPABASE_ANON_KEY =
           aria-describedby="du-fb-msg-hint"
         ></textarea>
         <span id="du-fb-msg-hint" class="du-fb-hint">
-          <span class="lang-da">Max 4000 tegn.</span><span class="lang-en">Max 4000 characters.</span>
+          Max 4000 characters.
         </span>
       </label>
 
       <label class="du-fb-field">
         <span class="du-fb-label">
-          <span class="lang-da">Hvad handler det om?</span>
-          <span class="lang-en">What's it about?</span>
+          
+          What's it about?
         </span>
         <select name="context" class="du-fb-select" id="du-fb-context">
           <option value="general" selected={defaultContext === 'general'}>General feedback</option>
@@ -92,8 +90,8 @@ const SUPABASE_ANON_KEY =
 
       <fieldset class="du-fb-rating" id="du-fb-rating-field">
         <legend class="du-fb-label">
-          <span class="lang-da">Hvor tilfreds er du? (valgfrit)</span>
-          <span class="lang-en">How satisfied are you? (optional)</span>
+          
+          How satisfied are you? (optional)
         </legend>
         <div class="du-fb-stars" role="radiogroup">
           {[1, 2, 3, 4, 5].map((n) => (
@@ -108,15 +106,15 @@ const SUPABASE_ANON_KEY =
 
       <label class="du-fb-field">
         <span class="du-fb-label">
-          <span class="lang-da">Email (valgfrit — hvis du vil have svar)</span>
-          <span class="lang-en">Email (optional — if you want a reply)</span>
+          
+          Email (optional — if you want a reply)
         </span>
         <input type="email" name="email" autocomplete="email" />
       </label>
 
       <div class="du-fb-actions">
         <button type="submit" class="du-fb-submit">
-          <span class="lang-da">Send</span><span class="lang-en">Send</span>
+          Send
         </button>
         <span class="du-fb-status" id="du-feedback-status" aria-live="polite"></span>
       </div>
@@ -124,19 +122,17 @@ const SUPABASE_ANON_KEY =
 
     <div class="du-fb-thanks" id="du-feedback-thanks" hidden>
       <h3>
-        <span class="lang-da">Tak!</span><span class="lang-en">Thanks!</span>
+        Thanks!
       </h3>
       <p>
-        <span class="lang-da">
-          Din feedback er modtaget. Vi læser alt selv — intet bot-filter.
-        </span>
-        <span class="lang-en">
+        
+        
           Your feedback just landed in our inbox. A human reads every one.
-        </span>
+        
       </p>
       {mode === 'modal' && (
         <button type="button" class="du-fb-submit" id="du-feedback-done">
-          <span class="lang-da">Luk</span><span class="lang-en">Close</span>
+          Close
         </button>
       )}
     </div>

@@ -125,10 +125,6 @@ const siteSchema = {
   }
   a { color: inherit; }
 
-  /* Language toggle — hide inactive variant */
-  html[data-lang="da"] .lang-en { display: none; }
-  html[data-lang="en"] .lang-da { display: none; }
-  html:not([data-lang]) .lang-da { display: none; }
 
   /* Shared primitives */
   .du-container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
@@ -443,25 +439,22 @@ const siteSchema = {
       </a>
       <nav class="du-nav">
         <a href="/#features" data-nav="features">
-          <span class="lang-da">Funktioner</span><span class="lang-en">Features</span>
+          Features
         </a>
         <a href="/example" class={active === 'example' ? 'active' : ''}>
-          <span class="lang-da">Eksempel</span><span class="lang-en">Example</span>
+          Example
         </a>
         <a href="/demo" class={active === 'demo' ? 'active' : ''}>
-          <span class="lang-da">Samarbejdet i tal</span><span class="lang-en">Wrapped</span>
+          Wrapped
         </a>
         <a href="/blog" class={active === 'blog' ? 'active' : ''}>
-          <span class="lang-da">Blog</span><span class="lang-en">Blog</span>
+          Blog
         </a>
         <a href="https://github.com/bleedmode/dearuser" target="_blank" rel="noopener">GitHub</a>
         <a href="/feedback" class={`${active === 'feedback' ? 'active' : ''}`} data-open-feedback aria-label="Send feedback">
-          <span class="lang-da">Feedback</span><span class="lang-en">Feedback</span>
+          Feedback
         </a>
         <span class="du-nav-sep" aria-hidden="true"></span>
-        <button id="du-lang-toggle" class="du-nav-btn" aria-label="Switch language">
-          <span id="du-lang-label">EN</span>
-        </button>
         <button id="du-theme-toggle" class="du-nav-btn" aria-label="Toggle theme">
           <svg id="du-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
           <svg id="du-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -477,7 +470,7 @@ const siteSchema = {
   <aside id="du-drawer" class="du-drawer" aria-hidden="true" aria-label="Site menu">
     <div class="du-drawer-header">
       <span class="du-drawer-title">
-        <span class="lang-da">Menu</span><span class="lang-en">Menu</span>
+        Menu
       </span>
       <button id="du-drawer-close" class="du-drawer-close" aria-label="Close menu">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -485,21 +478,21 @@ const siteSchema = {
     </div>
     <nav class="du-drawer-nav" aria-label="Mobile navigation">
       <a href="/#features">
-        <span class="lang-da">Funktioner</span><span class="lang-en">Features</span>
+        Features
       </a>
       <a href="/example" class={active === 'example' ? 'active' : ''}>
-        <span class="lang-da">Eksempel</span><span class="lang-en">Example</span>
+        Example
       </a>
       <a href="/demo" class={active === 'demo' ? 'active' : ''}>
-        <span class="lang-da">Samarbejdet i tal</span><span class="lang-en">Wrapped</span>
+        Wrapped
       </a>
       <a href="/blog" class={active === 'blog' ? 'active' : ''}>
-        <span class="lang-da">Blog</span><span class="lang-en">Blog</span>
+        Blog
       </a>
       <a href="https://github.com/bleedmode/dearuser" target="_blank" rel="noopener">GitHub</a>
       <span class="du-drawer-sep" aria-hidden="true"></span>
       <a href="/feedback" class={active === 'feedback' ? 'active' : ''} data-open-feedback aria-label="Send feedback">
-        <span class="lang-da">Feedback</span><span class="lang-en">Feedback</span>
+        Feedback
       </a>
     </nav>
   </aside>
@@ -534,47 +527,47 @@ const siteSchema = {
             <span class="du-footer-logo-name">Dear User</span>
           </a>
           <p class="du-footer-tagline">
-            <span class="lang-da">Forstå hvordan du og din AI-agent faktisk arbejder sammen — i et brev du kan læse på to minutter.</span>
-            <span class="lang-en">Understand how you and your AI agent actually work together — in a letter you can read in two minutes.</span>
+            
+            Understand how you and your AI agent actually work together — in a letter you can read in two minutes.
           </p>
         </div>
 
         <div class="du-footer-col">
           <h4 class="du-footer-col-title">
-            <span class="lang-da">Produkt</span><span class="lang-en">Product</span>
+            Product
           </h4>
           <ul>
             <li><a href="/#install">
-              <span class="lang-da">Kom i gang</span><span class="lang-en">Get started</span>
+              Get started
             </a></li>
             <li><a href="/#features">
-              <span class="lang-da">Funktioner</span><span class="lang-en">Features</span>
+              Features
             </a></li>
             <li><a href="/example">
-              <span class="lang-da">Eksempel-brev</span><span class="lang-en">Example letter</span>
+              Example letter
             </a></li>
             <li><a href="/demo">
-              <span class="lang-da">Samarbejdet i tal</span><span class="lang-en">Wrapped</span>
+              Wrapped
             </a></li>
             <li><a href="/blog">
-              <span class="lang-da">Blog</span><span class="lang-en">Blog</span>
+              Blog
             </a></li>
           </ul>
         </div>
 
         <div class="du-footer-col">
           <h4 class="du-footer-col-title">
-            <span class="lang-da">Kontakt</span><span class="lang-en">Contact</span>
+            Contact
           </h4>
           <ul>
             <li><a href="/contact">
-              <span class="lang-da">Skriv til os</span><span class="lang-en">Write to us</span>
+              Write to us
             </a></li>
             <li><a href="/feedback">
-              <span class="lang-da">Feedback</span><span class="lang-en">Feedback</span>
+              Feedback
             </a></li>
             <li><a href="https://github.com/bleedmode/dearuser/discussions" target="_blank" rel="noopener">
-              <span class="lang-da">Diskussioner på GitHub</span><span class="lang-en">GitHub Discussions</span>
+              GitHub Discussions
             </a></li>
             <li><a href="https://github.com/bleedmode/dearuser" target="_blank" rel="noopener">
               GitHub
@@ -590,12 +583,12 @@ const siteSchema = {
         <span>© 2026 Dear User</span>
         <span class="du-footer-sep" aria-hidden="true">·</span>
         <a href="/privacy" style="color: var(--c-ink-500); text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='var(--c-action-600)'" onmouseout="this.style.color='var(--c-ink-500)'">
-          <span class="lang-da">Privatliv</span><span class="lang-en">Privacy</span>
+          Privacy
         </a>
         <span class="du-footer-sep" aria-hidden="true">·</span>
         <span class="du-footer-made">
-          <span class="lang-da">Privacy-first — ingen cookies, ingen cross-session tracking.</span>
-          <span class="lang-en">Privacy-first — no cookies, no cross-session tracking.</span>
+          
+          Privacy-first — no cookies, no cross-session tracking.
         </span>
       </div>
     </div>
@@ -609,12 +602,6 @@ const siteSchema = {
       var theme = savedTheme || (prefersDark ? 'dark' : 'light');
       if (theme === 'dark') html.setAttribute('data-theme', 'dark');
 
-      var savedLang = localStorage.getItem('dearuser-lang');
-      var systemDa = (navigator.language || '').toLowerCase().indexOf('da') === 0;
-      var lang = savedLang || (systemDa ? 'da' : 'en');
-      html.setAttribute('data-lang', lang);
-      html.setAttribute('lang', lang);
-
       function syncIcons() {
         var isDark = html.getAttribute('data-theme') === 'dark';
         var sun = document.getElementById('du-sun');
@@ -622,14 +609,9 @@ const siteSchema = {
         if (sun) sun.style.display = isDark ? 'none' : 'block';
         if (moon) moon.style.display = isDark ? 'block' : 'none';
       }
-      function syncLang() {
-        var label = document.getElementById('du-lang-label');
-        if (label) label.textContent = html.getAttribute('data-lang') === 'da' ? 'EN' : 'DA';
-      }
 
       document.addEventListener('DOMContentLoaded', function () {
         syncIcons();
-        syncLang();
 
         var t = document.getElementById('du-theme-toggle');
         if (t) t.addEventListener('click', function () {
@@ -637,16 +619,6 @@ const siteSchema = {
           if (isDark) { html.removeAttribute('data-theme'); localStorage.setItem('dearuser-theme', 'light'); }
           else { html.setAttribute('data-theme', 'dark'); localStorage.setItem('dearuser-theme', 'dark'); }
           syncIcons();
-        });
-
-        var l = document.getElementById('du-lang-toggle');
-        if (l) l.addEventListener('click', function () {
-          var current = html.getAttribute('data-lang');
-          var next = current === 'da' ? 'en' : 'da';
-          html.setAttribute('data-lang', next);
-          html.setAttribute('lang', next);
-          localStorage.setItem('dearuser-lang', next);
-          syncLang();
         });
 
         // Mobile drawer: hamburger toggle, backdrop click, ESC, link click

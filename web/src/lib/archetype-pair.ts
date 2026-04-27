@@ -35,10 +35,9 @@ export interface ArchetypePairInput {
   me: ArchetypeCardInput;
   /** Render variant. "default" = dashboard/share. "slide" = larger for Wrapped. */
   variant?: 'default' | 'slide';
-  /** Language the output should render in. Defaults to bilingual (both langs
-   *  wrapped in .lang-da / .lang-en spans for CSS-toggled pages). If set to
-   *  'en' or 'da', only that language is emitted — used by the public share
-   *  page which is English-only. */
+  /** Language the output should render in. v1 is English-only; the 'bi'
+   *  default falls through to English. The 'da' branch is kept for the
+   *  Phase-2 i18n cutover. */
   lang?: 'bi' | 'da' | 'en';
 }
 
@@ -61,14 +60,13 @@ function h(s: unknown): string {
 }
 
 /**
- * Render a bilingual string. In 'bi' mode returns both languages wrapped in
- * `.lang-da` / `.lang-en` spans; the host page toggles display via CSS. In
- * single-language mode returns only the requested string.
+ * Render a string. v1 is English-only; 'bi' (the default) and 'en' both
+ * return the English variant. 'da' is preserved for Phase-2 i18n.
  */
 function bi(s: { da: string; en: string }, lang: 'bi' | 'da' | 'en'): string {
   if (lang === 'da') return h(s.da);
   if (lang === 'en') return h(s.en);
-  return `<span class="lang-da">${h(s.da)}</span><span class="lang-en">${h(s.en)}</span>`;
+  return `${h(s.en)}`;
 }
 
 // ============================================================================

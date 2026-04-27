@@ -644,18 +644,18 @@ import Layout from '../layouts/Layout.astro';
 <!-- Hero ------------------------------------------------------------- -->
 <section class="hero">
   <div class="hero-eyebrow">
-    <span class="lang-da">Din AI-samarbejdspartner</span>
-    <span class="lang-en">Your AI collaboration partner</span>
+    
+    Your AI collaboration partner
   </div>
   <h1>
-    <span class="lang-da">Kære bruger,<br/>hvordan går samarbejdet med din <span class="accent">agent?</span></span>
-    <span class="lang-en">Dear User,<br/>how's the collaboration with your <span class="accent">agent?</span></span>
+    
+    Dear User,<br/>how's the collaboration with your <span class="accent">agent?</span>
   </h1>
 
   <div class="hero-sub">
     <p>
-      <span class="lang-da">I år vil du bruge flere timer med din AI-agent end med de fleste mennesker i dit liv. Dear User er bygget til at få det bedste ud af de timer.</span>
-      <span class="lang-en">This year, you'll spend more hours with your AI agent than with most people in your life. Dear User was built to make the most of those hours.</span>
+      
+      This year, you'll spend more hours with your AI agent than with most people in your life. Dear User was built to make the most of those hours.
     </p>
   </div>
 
@@ -664,16 +664,16 @@ import Layout from '../layouts/Layout.astro';
       <span class="prompt">$</span>
       <span class="cmd">claude mcp add --scope user dearuser -- npx @poisedhq/dearuser-mcp</span>
       <span class="copy" id="copy-label">
-        <span class="lang-da">Kopiér</span><span class="lang-en">Copy</span>
+        Copy
       </span>
     </div>
     <p class="hero-restart-hint">
-      <span class="lang-da">Genstart Claude Code bagefter, så værktøjerne dukker op.</span>
-      <span class="lang-en">Restart Claude Code afterwards so the tools appear.</span>
+      
+      Restart Claude Code afterwards so the tools appear.
     </p>
     <a href="/example" class="hero-example-link">
-      <span class="lang-da">Eller se et eksempel →</span>
-      <span class="lang-en">Or see an example →</span>
+      
+      Or see an example →
     </a>
   </div>
 </section>
@@ -688,7 +688,7 @@ import Layout from '../layouts/Layout.astro';
       navigator.clipboard.writeText(cmd).then(function () {
         if (!label) return;
         var html = label.innerHTML;
-        label.innerHTML = '<span class="lang-da">Kopieret</span><span class="lang-en">Copied</span>';
+        label.innerHTML = 'Copied';
         setTimeout(function () { label.innerHTML = html; }, 1600);
       }).catch(function () {});
     });
@@ -699,15 +699,15 @@ import Layout from '../layouts/Layout.astro';
 <section class="features-section" id="features">
   <div class="section-head">
     <div class="section-eyebrow">
-      <span class="lang-da">Det får du</span><span class="lang-en">What you get</span>
+      What you get
     </div>
     <h2 class="section-title">
-      <span class="lang-da">Dear User hjælper mennesker og AI-agenter med at forstå hinanden bedre.</span>
-      <span class="lang-en">Dear User helps humans and AI agents understand each other better.</span>
+      
+      Dear User helps humans and AI agents understand each other better.
     </h2>
     <p class="section-sub">
-      <span class="lang-da">Vi læser din opsætning som en ny kollega der faktisk er opmærksom — og skriver tilbage om hvor du gentager dig selv, hvor der er nøgler på afveje, og hvor din opsætning stille driver fra hinanden.</span>
-      <span class="lang-en">We read your setup like a new colleague who actually pays attention — then write back about where you're repeating yourself, where keys are leaking, and where your setup is quietly drifting apart.</span>
+      
+      We read your setup like a new colleague who actually pays attention — then write back about where you're repeating yourself, where keys are leaking, and where your setup is quietly drifting apart.
     </p>
   </div>
 
@@ -715,20 +715,20 @@ import Layout from '../layouts/Layout.astro';
     <!-- Collab -->
     <div class="feature">
       <span class="feature-badge">
-        <span class="lang-da">Samarbejde</span><span class="lang-en">Collab</span>
+        Collab
       </span>
       <h3>
-        <span class="lang-da">Hvordan I arbejder sammen.</span>
-        <span class="lang-en">How you two work together.</span>
+        
+        How you two work together.
       </h3>
       <p>
-        <span class="lang-da">En score for samarbejdet, din agents "arketype" og konkrete forslag — ikke bare "overvej bedre instruktioner".</span>
-        <span class="lang-en">A score for your collaboration, your agent's "archetype", and concrete suggestions — not just "consider better instructions".</span>
+        
+        A score for your collaboration, your agent's "archetype", and concrete suggestions — not just "consider better instructions".
       </p>
       <ul>
-        <li><span class="lang-da">Fanger mønstre: rettelser du gør igen og igen</span><span class="lang-en">Catches patterns: corrections you make over and over</span></li>
-        <li><span class="lang-da">Forslag med kode-snippets klar til paste</span><span class="lang-en">Suggestions with code snippets ready to paste</span></li>
-        <li><span class="lang-da">Fortæller hvor din opsætning er stærk</span><span class="lang-en">Tells you where your setup is strong</span></li>
+        <li>Catches patterns: corrections you make over and over</li>
+        <li>Suggestions with code snippets ready to paste</li>
+        <li>Tells you where your setup is strong</li>
       </ul>
       <span class="feature-cmd"><span class="fn">mcp__dearuser__collab</span></span>
     </div>
@@ -736,20 +736,20 @@ import Layout from '../layouts/Layout.astro';
     <!-- Security — emphasize secrets -->
     <div class="feature">
       <span class="feature-badge">
-        <span class="lang-da">Sikkerhed</span><span class="lang-en">Security</span>
+        Security
       </span>
       <h3>
-        <span class="lang-da">Leder efter nøgler du har glemt.</span>
-        <span class="lang-en">Looks for keys you forgot.</span>
+        
+        Looks for keys you forgot.
       </h3>
       <p>
-        <span class="lang-da">Scanner dine Claude-filer for lækkede API-nøgler (OpenAI, Anthropic, GitHub, AWS, Stripe og 8 andre typer) og samler signaler fra de platforme du allerede bruger.</span>
-        <span class="lang-en">Scans your Claude files for leaked API keys (OpenAI, Anthropic, GitHub, AWS, Stripe and 8 other types) and pulls signals from the platforms you already use.</span>
+        
+        Scans your Claude files for leaked API keys (OpenAI, Anthropic, GitHub, AWS, Stripe and 8 other types) and pulls signals from the platforms you already use.
       </p>
       <ul>
-        <li><span class="lang-da">12 typer hemmeligheder fanget i instruktioner, memory, hooks og skills</span><span class="lang-en">12 secret types caught in instructions, memory, hooks and skills</span></li>
-        <li><span class="lang-da">Henter advarsler fra GitHub, Supabase, npm og Vercel — når du har tokens opsat</span><span class="lang-en">Pulls warnings from GitHub, Supabase, npm and Vercel — when you've set up tokens</span></li>
-        <li><span class="lang-da">Fanger regler der modsiger hinanden (fx "force-push aldrig" + en hook der gør det)</span><span class="lang-en">Catches rules that contradict each other (e.g. "never force-push" + a hook that does)</span></li>
+        <li>12 secret types caught in instructions, memory, hooks and skills</li>
+        <li>Pulls warnings from GitHub, Supabase, npm and Vercel — when you've set up tokens</li>
+        <li>Catches rules that contradict each other (e.g. "never force-push" + a hook that does)</li>
       </ul>
       <span class="feature-cmd"><span class="fn">mcp__dearuser__security</span></span>
     </div>
@@ -757,20 +757,20 @@ import Layout from '../layouts/Layout.astro';
     <!-- Health -->
     <div class="feature">
       <span class="feature-badge">
-        <span class="lang-da">System-sundhed</span><span class="lang-en">Health</span>
+        Health
       </span>
       <h3>
-        <span class="lang-da">Hvad er gået i stykker?</span>
-        <span class="lang-en">What's quietly broken?</span>
+        
+        What's quietly broken?
       </h3>
       <p>
-        <span class="lang-da">Tegner et kort over din opsætning og finder de stille problemer: skills ingen kalder, jobs der skriver til filer ingen læser, regler der dublerer hinanden.</span>
-        <span class="lang-en">Draws a map of your setup and surfaces the silent issues: skills nothing calls, jobs writing to files nothing reads, rules that duplicate each other.</span>
+        
+        Draws a map of your setup and surfaces the silent issues: skills nothing calls, jobs writing to files nothing reads, rules that duplicate each other.
       </p>
       <ul>
-        <li><span class="lang-da">Finder "orphan jobs" — output der aldrig bliver brugt</span><span class="lang-en">Finds "orphan jobs" — output that's never consumed</span></li>
-        <li><span class="lang-da">Fanger overlap mellem skills, hooks og memory</span><span class="lang-en">Catches overlap between skills, hooks and memory</span></li>
-        <li><span class="lang-da">Advarer før din opsætning bryder stille ned</span><span class="lang-en">Warns before your setup breaks silently</span></li>
+        <li>Finds "orphan jobs" — output that's never consumed</li>
+        <li>Catches overlap between skills, hooks and memory</li>
+        <li>Warns before your setup breaks silently</li>
       </ul>
       <span class="feature-cmd"><span class="fn">mcp__dearuser__health</span></span>
     </div>
@@ -779,28 +779,28 @@ import Layout from '../layouts/Layout.astro';
   <!-- Also included — smaller row ---------------------------------- -->
   <div class="also">
     <div class="also-title">
-      <span class="lang-da">Plus tre til, med i pakken</span><span class="lang-en">Plus three more, included</span>
+      Plus three more, included
     </div>
     <div class="also-grid">
       <div class="also-item">
-        <h4><span class="lang-da">Opstart</span><span class="lang-en">Onboard</span></h4>
+        <h4>Onboard</h4>
         <p>
-          <span class="lang-da">En guidet samtale der hjælper dig med at skrive din første CLAUDE.md eller AGENTS.md.</span>
-          <span class="lang-en">A guided conversation that helps you write your first CLAUDE.md or AGENTS.md.</span>
+          
+          A guided conversation that helps you write your first CLAUDE.md or AGENTS.md.
         </p>
       </div>
       <div class="also-item">
-        <h4><span class="lang-da">Samarbejdet i tal</span><span class="lang-en">Wrapped</span></h4>
+        <h4>Wrapped</h4>
         <p>
-          <span class="lang-da">Spotify Wrapped-stil stats om hvordan du og din agent faktisk arbejder.</span>
-          <span class="lang-en">Spotify Wrapped-style stats on how you and your agent actually work.</span>
+          
+          Spotify Wrapped-style stats on how you and your agent actually work.
         </p>
       </div>
       <div class="also-item">
-        <h4><span class="lang-da">Historik</span><span class="lang-en">History</span></h4>
+        <h4>History</h4>
         <p>
-          <span class="lang-da">Se score-trenden over tid og hvad der blev bedre siden sidste scan.</span>
-          <span class="lang-en">See the score trend over time and what improved since last scan.</span>
+          
+          See the score trend over time and what improved since last scan.
         </p>
       </div>
     </div>
@@ -812,62 +812,62 @@ import Layout from '../layouts/Layout.astro';
   <div class="share-inner">
     <div class="share-copy">
       <div class="section-eyebrow">
-        <span class="lang-da">Hvad rapporten viser</span><span class="lang-en">What the report shows</span>
+        What the report shows
       </div>
       <h2>
-        <span class="lang-da">Tre scorer. Én ærlig samtale med din agent.</span>
-        <span class="lang-en">Three scores. One honest conversation with your agent.</span>
+        
+        Three scores. One honest conversation with your agent.
       </h2>
       <p>
-        <span class="lang-da">Samarbejds-rapporten læser din opsætning igennem og fortæller dig hvad der virker, hvad der undrer, og hvad der bør ændres. Ikke en check-liste — et brev, i din agents stemme.</span>
-        <span class="lang-en">The collab report reads your setup and tells you what's working, what puzzles it, and what should change. Not a checklist — a letter, in your agent's voice.</span>
+        
+        The collab report reads your setup and tells you what's working, what puzzles it, and what should change. Not a checklist — a letter, in your agent's voice.
       </p>
       <p>
-        <span class="lang-da">Tre scorer øverst: samarbejde, system-sundhed, sikkerhed. Så et par konkrete findings, og anbefalinger du kan handle på i morgen. Kør den ugentligt og se scoren flytte sig.</span>
-        <span class="lang-en">Three scores up top: collaboration, system health, security. Then a handful of concrete findings, and recommendations you can act on tomorrow. Run it weekly and watch the score move.</span>
+        
+        Three scores up top: collaboration, system health, security. Then a handful of concrete findings, and recommendations you can act on tomorrow. Run it weekly and watch the score move.
       </p>
       <a class="report-cta" href="/example">
-        <span class="lang-da">Se et eksempel-brev →</span>
-        <span class="lang-en">See an example letter →</span>
+        
+        See an example letter →
       </a>
     </div>
 
     <!-- Report excerpt card -->
     <div class="report-excerpt" aria-hidden="true">
       <div class="re-date">
-        <span class="lang-da">21. april 2026 · Samarbejds-rapport</span>
-        <span class="lang-en">21 April 2026 · Collaboration letter</span>
+        
+        21 April 2026 · Collaboration letter
       </div>
       <h3 class="re-greeting">
-        <span class="lang-da">Kære Sam,</span>
-        <span class="lang-en">Dear Sam,</span>
+        
+        Dear Sam,
       </h3>
       <div class="re-scores">
         <div class="re-score">
           <div class="re-score-label">
             <span class="re-dot good"></span>
-            <span class="lang-da">Samarbejde</span><span class="lang-en">Collaboration</span>
+            Collaboration
           </div>
           <div class="re-score-num good">87</div>
         </div>
         <div class="re-score">
           <div class="re-score-label">
             <span class="re-dot warn"></span>
-            <span class="lang-da">System-sundhed</span><span class="lang-en">System health</span>
+            System health
           </div>
           <div class="re-score-num warn">74</div>
         </div>
         <div class="re-score">
           <div class="re-score-label">
             <span class="re-dot good"></span>
-            <span class="lang-da">Sikkerhed</span><span class="lang-en">Security</span>
+            Security
           </div>
           <div class="re-score-num good">92</div>
         </div>
       </div>
       <p class="re-lede">
-        <span class="lang-da">Jeg har læst din opsætning igennem. Tre ting — én som gør mig glad, én som undrer mig, og én konkret ændring i morgen…</span>
-        <span class="lang-en">I read through your setup tonight. Three things — one that makes me glad, one I'm puzzled by, and one concrete change for tomorrow…</span>
+        
+        I read through your setup tonight. Three things — one that makes me glad, one I'm puzzled by, and one concrete change for tomorrow…
       </p>
     </div>
   </div>
@@ -876,12 +876,12 @@ import Layout from '../layouts/Layout.astro';
 <!-- Pull quote from an example letter -------------------------------- -->
 <section class="pullquote">
   <blockquote>
-    <span class="lang-da">"Du har rettet Claude om svarlængde fire-fem gange denne uge — altid 'hold det kort'. Skal jeg huske det for dig, så du ikke skal sige det igen?"</span>
-    <span class="lang-en">"You've corrected Claude about response length four or five times this week — always 'keep it shorter'. Want me to remember it for you, so you don't have to say it again?"</span>
+    
+    "You've corrected Claude about response length four or five times this week — always 'keep it shorter'. Want me to remember it for you, so you don't have to say it again?"
   </blockquote>
   <cite>
-    <span class="lang-da">Uddrag fra et samarbejds-brev</span>
-    <span class="lang-en">From a collab letter</span>
+    
+    From a collab letter
   </cite>
 </section>
 
@@ -889,48 +889,48 @@ import Layout from '../layouts/Layout.astro';
 <section class="how" id="install">
   <div class="section-head" style="text-align:center;">
     <div class="section-eyebrow">
-      <span class="lang-da">Kom i gang</span><span class="lang-en">Get started</span>
+      Get started
     </div>
     <h2 class="section-title">
-      <span class="lang-da">Tre skridt.</span><span class="lang-en">Three steps.</span>
+      Three steps.
     </h2>
   </div>
   <div class="steps">
     <div class="step">
-      <div class="step-num">01 — <span class="lang-da">Installér</span><span class="lang-en">Install</span></div>
-      <h4><span class="lang-da">Tilføj én linje</span><span class="lang-en">Add one line</span></h4>
+      <div class="step-num">01 — Install</div>
+      <h4>Add one line</h4>
       <p>
-        <span class="lang-da">Registrér Dear User i Claude Code. Ingen konti, ingen cloud.</span>
-        <span class="lang-en">Register Dear User in Claude Code. No accounts, no cloud.</span>
+        
+        Register Dear User in Claude Code. No accounts, no cloud.
       </p>
       <code>claude mcp add --scope user dearuser -- npx @poisedhq/dearuser-mcp</code>
       <p style="margin: 12px 0 0; font-size: 13px; color: var(--c-ink-500);">
-        <span class="lang-da">Genstart Claude Code så værktøjerne dukker op.</span>
-        <span class="lang-en">Restart Claude Code so the tools appear.</span>
+        
+        Restart Claude Code so the tools appear.
       </p>
     </div>
     <div class="step">
-      <div class="step-num">02 — <span class="lang-da">Tun samtalen</span><span class="lang-en">Onboard</span></div>
-      <h4><span class="lang-da">Svar på et par spørgsmål</span><span class="lang-en">Answer a few questions</span></h4>
+      <div class="step-num">02 — Onboard</div>
+      <h4>Answer a few questions</h4>
       <p>
-        <span class="lang-da">En kort, guidet samtale så vi ved hvordan du arbejder. Vi tuner scoring og anbefalinger til din opsætning.</span>
-        <span class="lang-en">A short, guided chat so we know how you work. We tune the scoring and recommendations to your setup.</span>
+        
+        A short, guided chat so we know how you work. We tune the scoring and recommendations to your setup.
       </p>
       <code>
-        <span class="lang-da">Kør dearuser onboard</span>
-        <span class="lang-en">Run dearuser onboard</span>
+        
+        Run dearuser onboard
       </code>
     </div>
     <div class="step">
-      <div class="step-num">03 — <span class="lang-da">Kør første scan</span><span class="lang-en">Run first scan</span></div>
-      <h4><span class="lang-da">Bed din agent</span><span class="lang-en">Ask your agent</span></h4>
+      <div class="step-num">03 — Run first scan</div>
+      <h4>Ask your agent</h4>
       <p>
-        <span class="lang-da">I en hvilken som helst Claude Code-session. Rapporten åbnes lokalt på <code style="background:none;padding:0;border:0;font-family:'Geist Mono',monospace;color:var(--c-action-600);">localhost:7700</code></span>
-        <span class="lang-en">In any Claude Code session. The report opens locally at <code style="background:none;padding:0;border:0;font-family:'Geist Mono',monospace;color:var(--c-action-600);">localhost:7700</code></span>
+        
+        In any Claude Code session. The report opens locally at <code style="background:none;padding:0;border:0;font-family:'Geist Mono',monospace;color:var(--c-action-600);">localhost:7700</code>
       </p>
       <code>
-        <span class="lang-da">Kør dearuser collab</span>
-        <span class="lang-en">Run dearuser collab</span>
+        
+        Run dearuser collab
       </code>
     </div>
   </div>
@@ -940,15 +940,15 @@ import Layout from '../layouts/Layout.astro';
 <section class="faq" id="faq">
   <div class="section-head" style="text-align:center;">
     <div class="section-eyebrow">
-      <span class="lang-da">Ærlig FAQ</span><span class="lang-en">Honest FAQ</span>
+      Honest FAQ
     </div>
     <h2 class="section-title">
-      <span class="lang-da">Spørgsmålene folk faktisk har.</span>
-      <span class="lang-en">The questions people actually ask.</span>
+      
+      The questions people actually ask.
     </h2>
     <p class="section-sub">
-      <span class="lang-da">Vi er pre-launch. Her er de ærlige svar — også når svaret er "vi ved det ikke endnu".</span>
-      <span class="lang-en">We're pre-launch. Here are the honest answers — including when the answer is "we don't know yet".</span>
+      
+      We're pre-launch. Here are the honest answers — including when the answer is "we don't know yet".
     </p>
   </div>
 
@@ -956,98 +956,98 @@ import Layout from '../layouts/Layout.astro';
     <details class="faq-item">
       <summary>
         <span>
-          <span class="lang-da">Hvordan er det anderledes end bare at bede Claude kigge på min opsætning?</span>
-          <span class="lang-en">How is this different from just asking Claude to look at my setup?</span>
+          
+          How is this different from just asking Claude to look at my setup?
         </span>
         <span class="faq-mark" aria-hidden="true">+</span>
       </summary>
       <p class="faq-answer">
-        <span class="lang-da">Claude kan bestemt scanne dine filer hvis du beder om det. Forskellen er hukommelse og sammenligning: Dear User gemmer hvert scan lokalt så du kan se trenden over tid, og trækker konkrete advarsler fra GitHub, Supabase og npm — ikke kun mønstergenkendelse i tekst. En samtale glemmer. En database husker.</span>
-        <span class="lang-en">Claude can definitely scan your files if you ask. The difference is memory and comparison: Dear User saves every scan locally so you can see the trend over time, and pulls real warnings from GitHub, Supabase and npm — not just pattern-matching in text. A conversation forgets. A database remembers.</span>
+        
+        Claude can definitely scan your files if you ask. The difference is memory and comparison: Dear User saves every scan locally so you can see the trend over time, and pulls real warnings from GitHub, Supabase and npm — not just pattern-matching in text. A conversation forgets. A database remembers.
       </p>
     </details>
 
     <details class="faq-item">
       <summary>
         <span>
-          <span class="lang-da">Forlader mine data maskinen?</span>
-          <span class="lang-en">Does my data leave my machine?</span>
+          
+          Does my data leave my machine?
         </span>
         <span class="faq-mark" aria-hidden="true">+</span>
       </summary>
       <p class="faq-answer">
-        <span class="lang-da">Nej. Scannerne kører 100% lokalt, og din database ligger i <code>~/.dearuser/dearuser.db</code>. De to undtagelser kræver et eksplicit klik fra dig: <em>del rapport</em> (uploader den rapport du vælger, aldrig din rå data) og <em>send feedback</em> (sender beskeden du selv skriver). Ingen baggrundsafsendelse, ingen telemetri.</span>
-        <span class="lang-en">No. The scanners run 100% locally, and your database lives at <code>~/.dearuser/dearuser.db</code>. The two exceptions require an explicit click from you: <em>share report</em> (uploads the report you choose, never raw data) and <em>send feedback</em> (sends the message you type). No background sync, no telemetry.</span>
+        
+        No. The scanners run 100% locally, and your database lives at <code>~/.dearuser/dearuser.db</code>. The two exceptions require an explicit click from you: <em>share report</em> (uploads the report you choose, never raw data) and <em>send feedback</em> (sends the message you type). No background sync, no telemetry.
       </p>
     </details>
 
     <details class="faq-item">
       <summary>
         <span>
-          <span class="lang-da">Hvorfor er det gratis? Hvad er haken?</span>
-          <span class="lang-en">Why is it free? What's the catch?</span>
+          
+          Why is it free? What's the catch?
         </span>
         <span class="faq-mark" aria-hidden="true">+</span>
       </summary>
       <p class="faq-answer">
-        <span class="lang-da">Ingen hake lige nu. Vi er pre-launch med tæt på nul brugere, og vi vil have dig til at prøve det og fortælle os hvad der ikke virker. En betalt tier kommer måske senere (team-features, monitoring, automatiske scans) — men kernen forbliver gratis og open source. Din data bliver aldrig produktet.</span>
-        <span class="lang-en">No catch right now. We're pre-launch with close to zero users, and we want you to try it and tell us what doesn't work. A paid tier may come later (team features, monitoring, auto-scans) — but the core stays free and open source. Your data will never be the product.</span>
+        
+        No catch right now. We're pre-launch with close to zero users, and we want you to try it and tell us what doesn't work. A paid tier may come later (team features, monitoring, auto-scans) — but the core stays free and open source. Your data will never be the product.
       </p>
     </details>
 
     <details class="faq-item">
       <summary>
         <span>
-          <span class="lang-da">Kan Dear User ændre min opsætning uden at spørge?</span>
-          <span class="lang-en">Can Dear User change my setup without asking?</span>
+          
+          Can Dear User change my setup without asking?
         </span>
         <span class="faq-mark" aria-hidden="true">+</span>
       </summary>
       <p class="faq-answer">
-        <span class="lang-da">Nej. Alle anbefalinger ligger som "pending" indtil du eksplicit siger ja via <code>implement_recommendation</code>. Dear User kan ikke skrive til dine filer, lave commits eller pushe noget på egen hånd. Du ser altid en reviewable diff først.</span>
-        <span class="lang-en">No. All recommendations sit as "pending" until you explicitly say yes via <code>implement_recommendation</code>. Dear User cannot write to your files, make commits, or push anything on its own. You always see a reviewable diff first.</span>
+        
+        No. All recommendations sit as "pending" until you explicitly say yes via <code>implement_recommendation</code>. Dear User cannot write to your files, make commits, or push anything on its own. You always see a reviewable diff first.
       </p>
     </details>
 
     <details class="faq-item">
       <summary>
         <span>
-          <span class="lang-da">Hvad hvis min score er lav? Skal jeg være bekymret?</span>
-          <span class="lang-en">What if my score is low? Should I worry?</span>
+          
+          What if my score is low? Should I worry?
         </span>
         <span class="faq-mark" aria-hidden="true">+</span>
       </summary>
       <p class="faq-answer">
-        <span class="lang-da">Nej. Første scan er ofte lav — det er normalt. Scoren er ikke sammenlignet med en "ideel opsætning" men med dig selv over tid. Lav score betyder bare at der er lavthængende frugt at plukke. De fleste mønstre retter sig selv efter én passende opdatering af din CLAUDE.md eller AGENTS.md.</span>
-        <span class="lang-en">No. First scan is often low — that's normal. The score isn't compared to an "ideal setup", it's compared to you over time. Low score just means there's low-hanging fruit to pick. Most patterns fix themselves after one solid CLAUDE.md or AGENTS.md update.</span>
+        
+        No. First scan is often low — that's normal. The score isn't compared to an "ideal setup", it's compared to you over time. Low score just means there's low-hanging fruit to pick. Most patterns fix themselves after one solid CLAUDE.md or AGENTS.md update.
       </p>
     </details>
 
     <details class="faq-item">
       <summary>
         <span>
-          <span class="lang-da">Virker det hvis jeg lige er startet med Claude Code?</span>
-          <span class="lang-en">Does it work if I'm brand new to Claude Code?</span>
+          
+          Does it work if I'm brand new to Claude Code?
         </span>
         <span class="faq-mark" aria-hidden="true">+</span>
       </summary>
       <p class="faq-answer">
-        <span class="lang-da">Ja. <code>onboard</code>-flowet er bygget præcis til dét — en guidet samtale der hjælper dig med at skrive din første agent-kontrakt (CLAUDE.md eller AGENTS.md). Du behøver ikke noget eksisterende setup for at starte. Jo mere du bygger op, jo mere har Dear User at sige — men dag ét er også dækket.</span>
-        <span class="lang-en">Yes. The <code>onboard</code> flow is built for exactly that — a guided conversation that helps you write your first agent contract (CLAUDE.md or AGENTS.md). You don't need any existing setup to start. The more you build up, the more Dear User has to say — but day one is covered too.</span>
+        
+        Yes. The <code>onboard</code> flow is built for exactly that — a guided conversation that helps you write your first agent contract (CLAUDE.md or AGENTS.md). You don't need any existing setup to start. The more you build up, the more Dear User has to say — but day one is covered too.
       </p>
     </details>
 
     <details class="faq-item">
       <summary>
         <span>
-          <span class="lang-da">Hvor mange brugere har I?</span>
-          <span class="lang-en">How many users do you have?</span>
+          
+          How many users do you have?
         </span>
         <span class="faq-mark" aria-hidden="true">+</span>
       </summary>
       <p class="faq-answer">
-        <span class="lang-da">Tæt på nul ved launch. Vi byggede Dear User fordi vi selv brugte 4+ timer om dagen med Claude Code og ville vide hvordan det gik. Forvent rough edges i uge 1. Feedback bliver læst personligt — dit input former produktet, ikke en support-kø.</span>
-        <span class="lang-en">Close to zero at launch. We built Dear User because we were spending 4+ hours a day with Claude Code ourselves and wanted to know how it was going. Expect rough edges in week 1. Feedback gets read personally — your input shapes the product, not a support queue.</span>
+        
+        Close to zero at launch. We built Dear User because we were spending 4+ hours a day with Claude Code ourselves and wanted to know how it was going. Expect rough edges in week 1. Feedback gets read personally — your input shapes the product, not a support queue.
       </p>
     </details>
   </div>
