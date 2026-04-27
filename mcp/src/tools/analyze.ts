@@ -747,24 +747,24 @@ function formatToolRecs(report: AnalysisReport, isDetailed = false): string[] {
   const toolRecs = report.toolRecs;
 
   if (toolRecs.length > 0) {
-    lines.push('', '## Værktøjer jeg kan anbefale', '');
-    lines.push('*Disse værktøjer adresserer konkrete ting jeg fandt i dit setup. Jeg kan installere de fleste for dig — sig bare hvilke du vil have.*', '');
+    lines.push('', '## Tools I can recommend', '');
+    lines.push('*These tools address specific things I found in your setup. I can install most of them for you — just tell me which.*', '');
     for (const tool of toolRecs.slice(0, 5)) {
-      const typeLabel = tool.type === 'mcp_server' ? 'MCP-server'
-        : tool.type === 'hook' ? 'Automatisk tjek'
-        : tool.type === 'github_repo' ? 'GitHub-projekt'
+      const typeLabel = tool.type === 'mcp_server' ? 'MCP server'
+        : tool.type === 'hook' ? 'Automated check'
+        : tool.type === 'github_repo' ? 'GitHub project'
         : 'Skill';
       const starsStr = tool.stars ? ` · ${(tool.stars / 1000).toFixed(0)}K⭐` : '';
       const f = friendlyLabel(tool.name);
       lines.push(`### ${en(f.title) || tool.name} [${typeLabel}${starsStr}]`);
       const summary = en(f.summary);
       if (summary) {
-        lines.push('**Hvad er det:** ' + summary);
+        lines.push('**What is it:** ' + summary);
       } else {
         lines.push(tool.userFriendlyDescription || tool.description);
       }
       const benefit = en(f.benefit);
-      if (benefit) lines.push('**Hvad bliver bedre:** ' + benefit);
+      if (benefit) lines.push('**What gets better:** ' + benefit);
 
       const category = toolSolvesCategory(tool.solves);
       if (category && report.scoreCeiling) {
@@ -1131,13 +1131,12 @@ export function formatAnalyzeReport(report: AnalysisReport, format: AnalyzeForma
     lines.push(...formatFeedbackLoop(report));
   }
 
-  // Tool recommendations and onboarding gaps — in both formats
+  // Tool recommendations only. Onboarding-gaps and JIT-next-steps used to
+  // live here too, but each duplicated content already in the recs section
+  // (every onboarding question maps 1:1 to a gap rec; "what to do next"
+  // re-listed the top 3 recs). Dropped 2026-04-27 to cut report length in
+  // half without losing information.
   lines.push(...formatToolRecs(report, isDetailed));
-  lines.push(...formatOnboardingGaps(report));
-
-  // JIT "What to do next" — archetype-filtered top 3 distilled from all
-  // the preceding sections. Closes the report with one clear action list.
-  lines.push(...formatJitNextSteps(report));
 
   lines.push(...firstRunWelcome());
   lines.push(...feedbackFooter());

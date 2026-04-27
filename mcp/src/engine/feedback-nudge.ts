@@ -15,14 +15,14 @@ import { join } from 'path';
 const CONFIG_DIR = join(homedir(), '.dearuser');
 const CONFIG_PATH = join(CONFIG_DIR, 'config.json');
 
-const FOOTER_LINE = `Fortæl os hvad du tænker: \`dearuser feedback "..."\``;
+const FOOTER_LINE = `Tell us what you think: \`dearuser feedback "..."\``;
 
 const WELCOME_LINES = [
   ``,
   `---`,
   ``,
-  `**Tak for install.** Dine data bliver på din maskine.`,
-  `Feedback til os? \`dearuser feedback "..."\``,
+  `**Thanks for installing.** Your data stays on your machine.`,
+  `Feedback for us? \`dearuser feedback "..."\``,
 ] as const;
 
 interface NudgeState {

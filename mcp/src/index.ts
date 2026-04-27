@@ -86,9 +86,9 @@ function buildActionMenu(): string | null {
 
     const hintFor = (r: any): string => {
       switch (r.action_type) {
-        case 'settings_merge':  return 'sætter det op automatisk';
-        case 'claude_md_append': return 'tilføjer reglen til CLAUDE.md';
-        case 'shell_exec':      return 'kører installations-kommandoen';
+        case 'settings_merge':  return 'I\'ll set it up automatically';
+        case 'claude_md_append': return 'I\'ll add the rule to CLAUDE.md';
+        case 'shell_exec':      return 'I\'ll run the install command';
         default: return '';
       }
     };
@@ -97,7 +97,7 @@ function buildActionMenu(): string | null {
       '',
       '---',
       '',
-      '## Hvad vil du gøre nu?',
+      '## What would you like to do?',
       '',
       '[AGENT INSTRUCTION: Use the AskUserQuestion tool with the options below so the user gets a native clickable menu. If AskUserQuestion is not available, present the numbered list as-is and accept a digit or short phrase as the answer. When the user picks an option, call `mcp__dearuser__implement_recommendation` with the matching `recommendation_id`. For "spring over" / "drop" answers, call `mcp__dearuser__dismiss_recommendation`.]',
       '',
@@ -110,15 +110,15 @@ function buildActionMenu(): string | null {
       const summary = f.summary?.en ?? f.summary?.da ?? '';
       const benefit = f.benefit?.en ?? f.benefit?.da ?? '';
       lines.push(`${i + 1}. **${title}**`);
-      if (summary) lines.push(`   _Hvad er det:_ ${summary}`);
-      if (benefit) lines.push(`   _Hvad bliver bedre:_ ${benefit}`);
-      if (autoHint) lines.push(`   _(jeg ${autoHint} for dig)_`);
+      if (summary) lines.push(`   _What is it:_ ${summary}`);
+      if (benefit) lines.push(`   _What gets better:_ ${benefit}`);
+      if (autoHint) lines.push(`   _(${autoHint} for you)_`);
       lines.push(`   \`recommendation_id: ${r.id}\``);
       lines.push('');
     });
 
-    lines.push(`${actionable.length + 1}. **Tag dem alle** — implementér 1-${actionable.length} på én gang`);
-    lines.push(`${actionable.length + 2}. **Spring over for nu** — kom tilbage senere`);
+    lines.push(`${actionable.length + 1}. **Take all of them** — implement 1-${actionable.length} at once`);
+    lines.push(`${actionable.length + 2}. **Skip for now** — come back later`);
 
     return lines.join('\n');
   } catch {
