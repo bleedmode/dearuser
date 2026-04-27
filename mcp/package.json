@@ -1,6 +1,6 @@
 {
   "name": "@poisedhq/dearuser-mcp",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "mcpName": "io.github.bleedmode/dearuser",
   "publishConfig": {
     "access": "public"
@@ -30,6 +30,7 @@
     "dist",
     "skills",
     "data",
+    "migrations",
     "README.md"
   ],
   "keywords": [

@@ -20,7 +20,7 @@ If you don't have Node, install it from [nodejs.org](https://nodejs.org) or via 
 claude mcp add --scope user dearuser -- npx @poisedhq/dearuser-mcp
 ```
 
-That's it. Open any project with Claude Code and ask:
+Restart Claude Code afterwards so the tools appear, then open any project with Claude Code and ask:
 
 ```
 Analyze my collaboration with Claude

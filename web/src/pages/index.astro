@@ -63,6 +63,11 @@ import Layout from '../layouts/Layout.astro';
     color: var(--c-ink-900);
     border-color: var(--c-ink-500);
   }
+  .hero-restart-hint {
+    margin: 0;
+    color: var(--c-ink-500);
+    font-size: 13px;
+  }
 
   /* Install block --------------------------------------------------- */
   .install {
@@ -662,6 +667,10 @@ import Layout from '../layouts/Layout.astro';
         <span class="lang-da">Kopiér</span><span class="lang-en">Copy</span>
       </span>
     </div>
+    <p class="hero-restart-hint">
+      <span class="lang-da">Genstart Claude Code bagefter, så værktøjerne dukker op.</span>
+      <span class="lang-en">Restart Claude Code afterwards so the tools appear.</span>
+    </p>
     <a href="/example" class="hero-example-link">
       <span class="lang-da">Eller se et eksempel →</span>
       <span class="lang-en">Or see an example →</span>
@@ -895,6 +904,10 @@ import Layout from '../layouts/Layout.astro';
         <span class="lang-en">Register Dear User in Claude Code. No accounts, no cloud.</span>
       </p>
       <code>claude mcp add --scope user dearuser -- npx @poisedhq/dearuser-mcp</code>
+      <p style="margin: 12px 0 0; font-size: 13px; color: var(--c-ink-500);">
+        <span class="lang-da">Genstart Claude Code så værktøjerne dukker op.</span>
+        <span class="lang-en">Restart Claude Code so the tools appear.</span>
+      </p>
     </div>
     <div class="step">
       <div class="step-num">02 — <span class="lang-da">Tun samtalen</span><span class="lang-en">Onboard</span></div>
