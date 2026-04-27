@@ -4,7 +4,7 @@
 
 Dear User is an open-source tool that audits your Claude Code setup and tells you exactly what to fix. It scores your collaboration, finds leaked secrets and config conflicts, and checks system health — all locally, nothing uploaded unless you explicitly share your Wrapped card.
 
-> `claude mcp add dearuser -- npx @poisedhq/dearuser-mcp`
+> `claude mcp add --scope user dearuser -- npx @poisedhq/dearuser-mcp`
 >
 > Then ask Claude: *"Analyze my collaboration with Claude"*
 
@@ -43,7 +43,7 @@ One command per client. Full guide: [`docs/install.md`](docs/install.md).
 **Claude Code (CLI)**
 
 ```bash
-claude mcp add dearuser -- npx @poisedhq/dearuser-mcp
+claude mcp add --scope user dearuser -- npx @poisedhq/dearuser-mcp
 ```
 
 **Claude Desktop** — add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
