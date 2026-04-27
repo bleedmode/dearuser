@@ -16,56 +16,11 @@ export function detectPreferenceMismatches(
 ): Recommendation[] {
   const out: Recommendation[] = [];
 
-  // --- Cadence mismatch ----------------------------------------------------
-  // Daily/weekly cadence needs scheduled tasks (or hooks for event-driven).
-  // If the user wants automation but we see none, that's the gap.
-  if (prefs.cadence === 'daily' && scan.scheduledTasksCount === 0) {
-    out.push({
-      priority: 'recommended',
-      audience: 'both',
-      title: 'You want a daily overview, but nothing runs automatically',
-      description: `You told me you want me to work for you every day, but you have no scheduled tasks set up. That means every morning starts with you asking — which defeats the point of a daily cadence.`,
-      evidence: [
-        { kind: 'quote', source: 'your onboarding answer', excerpt: 'Daily cadence' },
-        { kind: 'missing', source: 'scheduled-tasks', excerpt: 'No scheduled tasks found on disk' },
-      ],
-      placementHint: 'Ask your agent: "Set up a scheduled task that runs every morning and gives me a briefing on [your focus area]."',
-      textBlock: '',
-      actionType: 'manual',
-    });
-  }
-
-  if (prefs.cadence === 'weekly' && scan.scheduledTasksCount === 0) {
-    out.push({
-      priority: 'nice_to_have',
-      audience: 'both',
-      title: 'You want a weekly check-in, but nothing runs automatically',
-      description: `You asked for a weekly rhythm, but there are no scheduled tasks. A weekly wrap-up needs a trigger — otherwise it only happens when you remember to ask.`,
-      evidence: [
-        { kind: 'quote', source: 'your onboarding answer', excerpt: 'Weekly cadence' },
-        { kind: 'missing', source: 'scheduled-tasks', excerpt: 'No scheduled tasks found on disk' },
-      ],
-      placementHint: 'Ask your agent: "Set up a scheduled task that runs every Friday afternoon and summarises my week."',
-      textBlock: '',
-      actionType: 'manual',
-    });
-  }
-
-  if (prefs.cadence === 'event' && scan.hooksCount === 0) {
-    out.push({
-      priority: 'recommended',
-      audience: 'both',
-      title: 'You want event-driven work, but you have no hooks',
-      description: `You told me you want your agent to react when something happens. That's what hooks do — without them, nothing will fire on events.`,
-      evidence: [
-        { kind: 'quote', source: 'your onboarding answer', excerpt: 'Event-driven cadence' },
-        { kind: 'missing', source: 'hooks', excerpt: 'No hooks configured' },
-      ],
-      placementHint: 'Ask your agent to set up a hook for the trigger you care about (e.g. "every time a PR merges" or "every time a test fails").',
-      textBlock: '',
-      actionType: 'manual',
-    });
-  }
+  // Cadence used to fire "you want X but nothing runs automatically" recs,
+  // dropped 2026-04-27: we don't deliver auto-routines (cloud routines can't
+  // reach local MCP, scheduled-tasks isn't a public package). The cadence
+  // signal still feeds archetype detection. Autonomy + audience checks below
+  // remain — they're about CLAUDE.md / hooks, which we can deliver.
 
   // --- Autonomy mismatch ---------------------------------------------------
   // Auto-execute needs guardrails — hooks or explicit protections — or it's
