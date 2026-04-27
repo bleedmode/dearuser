@@ -240,6 +240,7 @@ const ogImage = row
       moments={Array.isArray((report as any).wrapped?.moments) ? (report as any).wrapped.moments : undefined}
       setupArchetypeName={(report as any).archetype?.nameEn || null}
     />
+    <p class="share-consent-note">Generated on their machine. Shared deliberately.</p>
   </section>
 )}
 
@@ -404,6 +405,17 @@ const ogImage = row
   .report-wrap { padding: 48px 0 24px; }
   .report-wrap-wrapped { padding: 0; }
   .report-wrap-wrapped .du-warning-banner { margin: 16px auto; }
+  .share-consent-note {
+    text-align: center;
+    margin: 24px auto 32px;
+    padding: 0 24px;
+    color: var(--c-ink-500);
+    font-size: 13px;
+    line-height: 1.5;
+    font-family: 'Geist Mono', monospace;
+    letter-spacing: 0.01em;
+    max-width: 520px;
+  }
   .report-inner {
     max-width: 720px;
     margin: 0 auto;
