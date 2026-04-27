@@ -944,6 +944,10 @@ function checkDeadCommandRefs(content: string, file: string): LintFinding[] {
   for (const { line, text } of indexedLines(content)) {
     for (const match of text.matchAll(cmdPattern)) {
       const cmd = match[1].split(/\s/)[0]; // first word = executable
+      // Slash commands like `/dearuser-collab` aren't file paths — they're
+      // resolved by Claude Code against ~/.claude/skills/. Skip them; the
+      // dead-path check would false-positive against them.
+      if (/^\/[a-z][\w-]*$/.test(cmd)) continue;
       const expanded = cmd.replace(/^~/, homedir());
       if (expanded.includes('*') || expanded.includes('{')) continue; // globs
       try {
