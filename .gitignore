@@ -7,4 +7,16 @@ dist/
 
 # Calibration v2 raw files (60MB, reproducible via fetch.mjs)
 research/calibration/2026-04-22-claude-md-corpus-v2/data/raw/[0-9]*.md
+
+# Calibration substrate-corpus raw files (12MB, reproducible via fetch.ts)
+research/calibration/2026-04-24-substrate-corpus/data/raw/
+research/calibration/2026-04-24-substrate-corpus/*.log
+
+# npm pack artifacts
+mcp/*.tgz
 .vercel
+
+# Calibration corpus data copied into mcp/data/ at build time (esbuild.config.js)
+# from research/calibration/. Generated artifact — sourced from the research
+# tree which is committed.
+mcp/data/

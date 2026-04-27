@@ -20,7 +20,7 @@ I built Dear User after spending months staring at a 500-line CLAUDE.md file, wo
 
 It's an open-source MCP server that reads your Claude Code setup — CLAUDE.md, memory, hooks, skills, scheduled tasks — and tells you what's broken, contradictory, or dangerously permissive. Three main tools:
 
-- **`collab`** scores how well your agent instructions actually work. It runs 50+ lint checks, detects semantic conflicts between rules, and benchmarks your setup against a corpus of 2,895 public CLAUDE.md files.
+- **`collab`** scores how well your agent instructions actually work. It runs 50+ lint checks, detects semantic conflicts between rules, and benchmarks your setup against two corpora: 988 public Claude Code setups with substrate committed (median 32/100) and 2,895 standalone CLAUDE.md files (median 18).
 - **`security`** scans for leaked credentials (12 categories: OpenAI, Anthropic, GitHub, AWS, Stripe, Slack, Google, Supabase, Vercel, private keys, env secrets, bearer tokens), prompt-injection surfaces in your hooks, and conflicts between CLAUDE.md rules and actual artefact behaviour. It also orchestrates platform advisors (Supabase RLS, npm audit, Vercel, GitHub Dependabot) if you give it tokens.
 - **`health`** finds orphan scheduled tasks, overlapping skills, missing closure loops, and other structural drift across your setup.
 
@@ -36,7 +36,7 @@ Then ask your agent: "run a Dear User audit".
 The interesting engineering bits I'd love feedback on:
 - Finding-ledger pattern with stable `finding_hash` — scans converge instead of duplicating.
 - Swiss-cheese quality gates on the semantic conflict detector (no LLM, no cloud — regex polarity + topic overlap + anchor gate).
-- Scoring calibrated against 2,895 public CLAUDE.md files; median score is 18/100 and that's actually healthy — the public corpus is dominated by repo onboarding docs, not agent contracts.
+- Scoring calibrated against two corpora: 988 public Claude Code setups with substrate committed (median 32, max 63) and 2,895 standalone CLAUDE.md files (median 18, max 60). The substrate corpus is the apples-to-apples benchmark for live blended scores; the CLAUDE.md-only corpus is the agent-contract baseline. Most setups have a lot of room to move up.
 
 What I'm NOT doing: session replay, autocapture, or any surveillance of how you use the product. Website analytics are cookieless. There's no tracking in the MCP tool or the dashboard. That's the whole point.
 

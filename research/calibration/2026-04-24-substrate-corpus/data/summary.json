@@ -1,0 +1,371 @@
+{
+  "corpusSize": 988,
+  "collab": {
+    "min": 9,
+    "max": 63,
+    "mean": 32,
+    "stdev": 11,
+    "p10": 18,
+    "p25": 24,
+    "median": 32,
+    "p75": 39,
+    "p90": 47,
+    "p95": 51,
+    "p99": 58,
+    "histogram": {
+      "0-9": 15,
+      "10-19": 113,
+      "20-29": 291,
+      "30-39": 333,
+      "40-49": 174,
+      "50-59": 56,
+      "60-69": 6,
+      "70-79": 0,
+      "80-89": 0,
+      "90-100": 0
+    }
+  },
+  "pure": {
+    "min": 7,
+    "max": 69,
+    "mean": 27,
+    "stdev": 11.7,
+    "p10": 13,
+    "p25": 18,
+    "median": 25,
+    "p75": 35,
+    "p90": 44,
+    "p95": 49,
+    "p99": 58,
+    "histogram": {
+      "0-9": 13,
+      "10-19": 275,
+      "20-29": 349,
+      "30-39": 194,
+      "40-49": 110,
+      "50-59": 37,
+      "60-69": 10,
+      "70-79": 0,
+      "80-89": 0,
+      "90-100": 0
+    }
+  },
+  "categoriesMean": {
+    "roleClarity": 10,
+    "communication": 25,
+    "autonomyBalance": 38,
+    "qualityStandards": 44,
+    "memoryHealth": 6,
+    "systemMaturity": 64,
+    "coverage": 32
+  },
+  "substrateStats": {
+    "hooks": {
+      "mean": 7.1,
+      "median": 0,
+      "max": 738,
+      "withAny": 409
+    },
+    "skills": {
+      "mean": 16.1,
+      "median": 1,
+      "max": 2220,
+      "withAny": 562
+    },
+    "commands": {
+      "mean": 15.6,
+      "median": 2,
+      "max": 684,
+      "withAny": 561
+    },
+    "scheduledTasks": {
+      "mean": 0,
+      "median": 0,
+      "max": 10,
+      "withAny": 4
+    },
+    "mcpServers": {
+      "mean": 1,
+      "median": 0,
+      "max": 37,
+      "withAny": 270
+    },
+    "memoryFiles": {
+      "mean": 1.1,
+      "median": 0,
+      "max": 168,
+      "withAny": 78
+    }
+  },
+  "redirects": 26,
+  "empty": 9,
+  "top10": [
+    {
+      "repo": "JosephOIbrahim/Comfy-Cozy",
+      "collab": 63,
+      "pure": 65,
+      "size": 17277,
+      "stars": 7,
+      "substrate": {
+        "hooks": 0,
+        "skills": 0,
+        "commands": 13,
+        "scheduledTasks": 0,
+        "mcpServers": 0,
+        "memoryFiles": 0,
+        "hasClaudeMd": true,
+        "claudeMdPath": "CLAUDE.md"
+      },
+      "substrateTotal": 13
+    },
+    {
+      "repo": "mamba-mental/agent-skill-manager",
+      "collab": 63,
+      "pure": 67,
+      "size": 10820,
+      "stars": 3,
+      "substrate": {
+        "hooks": 61,
+        "skills": 46,
+        "commands": 76,
+        "scheduledTasks": 0,
+        "mcpServers": 0,
+        "memoryFiles": 0,
+        "hasClaudeMd": true,
+        "claudeMdPath": ".claude/CLAUDE.md"
+      },
+      "substrateTotal": 183
+    },
+    {
+      "repo": "kimmeyh/spamfilter-multi",
+      "collab": 62,
+      "pure": 58,
+      "size": 37658,
+      "stars": 1,
+      "substrate": {
+        "hooks": 0,
+        "skills": 9,
+        "commands": 5,
+        "scheduledTasks": 0,
+        "mcpServers": 1,
+        "memoryFiles": 1,
+        "hasClaudeMd": true,
+        "claudeMdPath": "CLAUDE.md"
+      },
+      "substrateTotal": 16
+    },
+    {
+      "repo": "mjunaidca/taskforce",
+      "collab": 62,
+      "pure": 58,
+      "size": 25711,
+      "stars": 10,
+      "substrate": {
+        "hooks": 1,
+        "skills": 25,
+        "commands": 16,
+        "scheduledTasks": 0,
+        "mcpServers": 6,
+        "memoryFiles": 0,
+        "hasClaudeMd": true,
+        "claudeMdPath": "CLAUDE.md"
+      },
+      "substrateTotal": 48
+    },
+    {
+      "repo": "maksimtereshin/biz-assess-platform",
+      "collab": 61,
+      "pure": 53,
+      "size": 42082,
+      "stars": 0,
+      "substrate": {
+        "hooks": 5,
+        "skills": 15,
+        "commands": 7,
+        "scheduledTasks": 0,
+        "mcpServers": 0,
+        "memoryFiles": 0,
+        "hasClaudeMd": true,
+        "claudeMdPath": "CLAUDE.md"
+      },
+      "substrateTotal": 27
+    },
+    {
+      "repo": "CleanExpo/Synthex",
+      "collab": 60,
+      "pure": 51,
+      "size": 10662,
+      "stars": 1,
+      "substrate": {
+        "hooks": 19,
+        "skills": 43,
+        "commands": 9,
+        "scheduledTasks": 0,
+        "mcpServers": 0,
+        "memoryFiles": 8,
+        "hasClaudeMd": true,
+        "claudeMdPath": "CLAUDE.md"
+      },
+      "substrateTotal": 79
+    },
+    {
+      "repo": "modu-ai/moai-adk",
+      "collab": 59,
+      "pure": 60,
+      "size": 29664,
+      "stars": 944,
+      "substrate": {
+        "hooks": 53,
+        "skills": 48,
+        "commands": 19,
+        "scheduledTasks": 0,
+        "mcpServers": 3,
+        "memoryFiles": 0,
+        "hasClaudeMd": true,
+        "claudeMdPath": "CLAUDE.md"
+      },
+      "substrateTotal": 123
+    },
+    {
+      "repo": "UltravioletaDAO/execution-market",
+      "collab": 58,
+      "pure": 62,
+      "size": 37175,
+      "stars": 3,
+      "substrate": {
+        "hooks": 0,
+        "skills": 25,
+        "commands": 1,
+        "scheduledTasks": 0,
+        "mcpServers": 0,
+        "memoryFiles": 0,
+        "hasClaudeMd": true,
+        "claudeMdPath": "CLAUDE.md"
+      },
+      "substrateTotal": 26
+    },
+    {
+      "repo": "LongTermSupport/fedora-desktop",
+      "collab": 58,
+      "pure": 51,
+      "size": 25989,
+      "stars": 6,
+      "substrate": {
+        "hooks": 17,
+        "skills": 1,
+        "commands": 0,
+        "scheduledTasks": 0,
+        "mcpServers": 0,
+        "memoryFiles": 0,
+        "hasClaudeMd": true,
+        "claudeMdPath": "CLAUDE.md"
+      },
+      "substrateTotal": 18
+    },
+    {
+      "repo": "DavidROliverBA/ArchitectKB",
+      "collab": 58,
+      "pure": 56,
+      "size": 55849,
+      "stars": 43,
+      "substrate": {
+        "hooks": 17,
+        "skills": 98,
+        "commands": 0,
+        "scheduledTasks": 0,
+        "mcpServers": 0,
+        "memoryFiles": 0,
+        "hasClaudeMd": true,
+        "claudeMdPath": "CLAUDE.md"
+      },
+      "substrateTotal": 115
+    }
+  ],
+  "bottom5": [
+    {
+      "repo": "neondatabase/claude_astgrep",
+      "collab": 9,
+      "pure": 11,
+      "size": 65,
+      "stars": 20,
+      "substrate": {
+        "hooks": 0,
+        "skills": 0,
+        "commands": 1,
+        "scheduledTasks": 0,
+        "mcpServers": 0,
+        "memoryFiles": 0,
+        "hasClaudeMd": true,
+        "claudeMdPath": "CLAUDE.md"
+      }
+    },
+    {
+      "repo": "slop-o-meter/slop-o-meter",
+      "collab": 9,
+      "pure": 11,
+      "size": 9,
+      "stars": 9,
+      "substrate": {
+        "hooks": 0,
+        "skills": 1,
+        "commands": 0,
+        "scheduledTasks": 0,
+        "mcpServers": 0,
+        "memoryFiles": 0,
+        "hasClaudeMd": true,
+        "claudeMdPath": "CLAUDE.md"
+      }
+    },
+    {
+      "repo": "agentic-box/memora",
+      "collab": 9,
+      "pure": 11,
+      "size": 248,
+      "stars": 394,
+      "substrate": {
+        "hooks": 0,
+        "skills": 0,
+        "commands": 0,
+        "scheduledTasks": 0,
+        "mcpServers": 1,
+        "memoryFiles": 0,
+        "hasClaudeMd": true,
+        "claudeMdPath": "CLAUDE.md"
+      }
+    },
+    {
+      "repo": "qut-dmrc/buttermilk",
+      "collab": 9,
+      "pure": 11,
+      "size": 12,
+      "stars": 4,
+      "substrate": {
+        "hooks": 0,
+        "skills": 0,
+        "commands": 0,
+        "scheduledTasks": 0,
+        "mcpServers": 2,
+        "memoryFiles": 0,
+        "hasClaudeMd": true,
+        "claudeMdPath": ".clinerules/CLAUDE.md"
+      }
+    },
+    {
+      "repo": "kky42/codex-as-mcp",
+      "collab": 9,
+      "pure": 11,
+      "size": 10,
+      "stars": 156,
+      "substrate": {
+        "hooks": 0,
+        "skills": 0,
+        "commands": 0,
+        "scheduledTasks": 0,
+        "mcpServers": 1,
+        "memoryFiles": 0,
+        "hasClaudeMd": true,
+        "claudeMdPath": "CLAUDE.md"
+      }
+    }
+  ]
+}

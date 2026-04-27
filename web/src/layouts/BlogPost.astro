@@ -1,0 +1,207 @@
+---
+import Layout from './Layout.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  pubDate: Date;
+  updatedDate?: Date;
+  author: string;
+  minutesRead?: number;
+}
+
+const { title, description, pubDate, updatedDate, author, minutesRead } = Astro.props;
+
+function formatDate(d: Date) {
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+---
+<Layout title={`${title} — Dear User`} description={description} active="blog">
+
+<style>
+  .bp-hero {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 72px 24px 40px;
+    border-bottom: 1px solid var(--c-paper-200);
+  }
+  .bp-meta {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--c-ink-400);
+    margin-bottom: 22px;
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .bp-meta .sep {
+    color: var(--c-paper-300);
+  }
+  .bp-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(36px, 5.4vw, 60px);
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+    color: var(--c-ink-900);
+    margin: 0 0 20px;
+  }
+  .bp-desc {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 19px;
+    line-height: 1.55;
+    color: var(--c-ink-700);
+    margin: 0 0 12px;
+  }
+  .bp-author {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: var(--c-ink-500);
+    margin-top: 18px;
+  }
+
+  .bp-body {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 56px 24px 64px;
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 18px;
+    line-height: 1.7;
+    color: var(--c-ink-900);
+  }
+  .bp-body :global(p) {
+    margin: 0 0 22px;
+  }
+  .bp-body :global(h2) {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 28px;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+    margin: 48px 0 18px;
+    color: var(--c-ink-900);
+  }
+  .bp-body :global(h3) {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+    margin: 36px 0 14px;
+    color: var(--c-ink-900);
+  }
+  .bp-body :global(a) {
+    color: var(--c-action-600);
+    text-decoration: none;
+    border-bottom: 1px solid var(--c-accent-100);
+    transition: border-color 0.15s;
+  }
+  .bp-body :global(a:hover) {
+    border-color: var(--c-action-600);
+  }
+  .bp-body :global(ul), .bp-body :global(ol) {
+    margin: 0 0 24px;
+    padding-left: 24px;
+  }
+  .bp-body :global(li) {
+    margin-bottom: 8px;
+  }
+  .bp-body :global(blockquote) {
+    border-left: 3px solid var(--c-action-600);
+    margin: 28px 0;
+    padding: 4px 0 4px 22px;
+    color: var(--c-ink-700);
+    font-style: italic;
+  }
+  .bp-body :global(code) {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 15px;
+    background: var(--c-paper-100);
+    border: 1px solid var(--c-paper-200);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--c-ink-900);
+  }
+  .bp-body :global(pre) {
+    background: var(--c-paper-100);
+    border: 1px solid var(--c-paper-200);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    margin: 24px 0;
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .bp-body :global(pre code) {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    font-size: inherit;
+  }
+  .bp-body :global(hr) {
+    border: 0;
+    border-top: 1px solid var(--c-paper-200);
+    margin: 40px 0;
+  }
+  .bp-body :global(strong) {
+    color: var(--c-ink-900);
+    font-weight: 500;
+  }
+
+  .bp-foot {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 32px 24px 72px;
+    border-top: 1px solid var(--c-paper-200);
+    font-family: 'Geist', system-ui, sans-serif;
+    font-size: 14px;
+    color: var(--c-ink-500);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .bp-foot a {
+    color: var(--c-action-600);
+    text-decoration: none;
+  }
+  .bp-foot a:hover {
+    text-decoration: underline;
+  }
+</style>
+
+<article>
+  <header class="bp-hero">
+    <div class="bp-meta">
+      <time datetime={pubDate.toISOString()}>{formatDate(pubDate)}</time>
+      {minutesRead && <>
+        <span class="sep">·</span>
+        <span>{minutesRead} min read</span>
+      </>}
+      {updatedDate && <>
+        <span class="sep">·</span>
+        <span>Updated {formatDate(updatedDate)}</span>
+      </>}
+    </div>
+    <h1 class="bp-title">{title}</h1>
+    <p class="bp-desc">{description}</p>
+    <div class="bp-author">By {author}</div>
+  </header>
+
+  <div class="bp-body">
+    <slot />
+  </div>
+
+  <div class="bp-foot">
+    <a href="/blog">← All posts</a>
+    <a href="https://github.com/bleedmode/dearuser" target="_blank" rel="noopener">Dear User on GitHub →</a>
+  </div>
+</article>
+
+</Layout>

@@ -220,9 +220,10 @@ export interface WrappedMoment {
 }
 
 /**
- * Percentile rank vs the 2,895-file CLAUDE.md corpus (calibration study v2,
- * 2026-04-22). Only populated when we can read the corpus file and the
- * user's score differs meaningfully from the baseline.
+ * Percentile rank vs the 988-repo substrate corpus (calibration study
+ * 2026-04-24) when shipped, otherwise the 2,895-file CLAUDE.md-only corpus
+ * (calibration study v2, 2026-04-22). Only populated when we can read the
+ * corpus file and the user's score differs meaningfully from the baseline.
  */
 export interface WrappedPercentile {
   /** User's blended collab score. */

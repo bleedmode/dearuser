@@ -24,8 +24,12 @@ import type {
 } from '../types.js';
 
 // ---------------------------------------------------------------------------
-// Percentile vs corpus — 1000+ public CLAUDE.md files (v2 calibration study
-// 2026-04-22). See research/calibration/2026-04-22-claude-md-corpus-v2/.
+// Percentile vs corpus — 988 public Claude Code setups with substrate
+// committed (calibration study 2026-04-24). See
+// research/calibration/2026-04-24-substrate-corpus/. This is the
+// apples-to-apples benchmark for live blended scores. The earlier
+// CLAUDE.md-only corpus (n=2,895) lives at 2026-04-22-claude-md-corpus-v2/
+// and is used as a fallback when substrate corpus isn't shipped.
 // ---------------------------------------------------------------------------
 
 /**
@@ -34,13 +38,18 @@ import type {
  * calibration data (too much weight), so this returns null there and the
  * moment is skipped. That's fine — the feature degrades gracefully.
  *
- * Prefers v2 (1000+ files) if present; falls back to v1 (50 files) for
- * back-compat when this module is copied into an environment that only has
- * the old corpus around.
+ * Prefers the substrate corpus (n=988, real apples-to-apples comparison
+ * for live scores). Falls back to the CLAUDE.md-only v2 corpus (n=2,895),
+ * then v1 (n=50), if substrate corpus isn't present.
  */
 function findCorpusFile(): string | null {
   const here = fileURLToPath(import.meta.url);
   const candidates = [
+    // npm-installed package layout (data/ ships alongside dist/).
+    'data/substrate-corpus-scores.jsonl',
+    'data/claude-md-corpus-v2-scores.jsonl',
+    // Repo dev layout (research/ tree).
+    'research/calibration/2026-04-24-substrate-corpus/data/scores.jsonl',
     'research/calibration/2026-04-22-claude-md-corpus-v2/data/scores.jsonl',
     'research/calibration/2026-04-22-claude-md-corpus/data/scores.jsonl',
   ];
@@ -156,8 +165,8 @@ function percentileMoment(pct: WrappedPercentile | null): WrappedMoment | null {
   // single one of 1000" is punchier than "higher than 100%".
   const beat = Math.round((pct.percentile / 100) * pct.corpusSize);
   const narrative = beat >= pct.corpusSize
-    ? `Your setup beats every single one of the ${pct.corpusSize.toLocaleString('en-US')} public CLAUDE.md files we benchmarked.`
-    : `Your setup beats ${beat.toLocaleString('en-US')} of ${pct.corpusSize.toLocaleString('en-US')} public CLAUDE.md files we benchmarked — top ${pct.topPercent}% territory.`;
+    ? `Your setup beats every single one of the ${pct.corpusSize.toLocaleString('en-US')} public Claude Code setups we benchmarked.`
+    : `Your setup beats ${beat.toLocaleString('en-US')} of ${pct.corpusSize.toLocaleString('en-US')} public Claude Code setups we benchmarked — top ${pct.topPercent}% territory.`;
   const median = corpusMedian();
   const detail = median !== null
     ? `Score ${pct.score} — corpus median is ${median}.`
