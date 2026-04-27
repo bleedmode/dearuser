@@ -284,30 +284,3 @@ export function detectPlatformStatus(): PlatformStatus[] {
   return statuses;
 }
 
-// ----------------------------------------------------------------------------
-// 6. Scheduled task — can't write this ourselves (scheduled-tasks is a
-// separate MCP owned by Claude Code). Return a ready-to-paste prompt so the
-// user sends one message to their agent instead of reading a tutorial.
-// ----------------------------------------------------------------------------
-export function buildScheduledTaskPrompt(state: OnboardState): LocalizedString | null {
-  if (!state.cadence || state.cadence === 'on-demand') return null;
-
-  switch (state.cadence) {
-    case 'daily':
-      return {
-        da: `Opret en scheduled task der hver morgen kl 9 kører /dearuser-collab og sender mig et brev om hvordan jeg og min agent arbejder sammen.`,
-        en: `Create a scheduled task that runs /dearuser-collab every morning at 9 am and sends me a letter about how my agent and I are working together.`,
-      };
-    case 'weekly':
-      return {
-        da: `Opret en scheduled task der hver fredag kl 16 kører /dearuser-collab og sender mig et ugentligt brev om samarbejdet.`,
-        en: `Create a scheduled task that runs /dearuser-collab every Friday at 4 pm and sends me a weekly letter about the collaboration.`,
-      };
-    case 'event':
-      return {
-        da: `Sæt et hook op så /dearuser-health kører hver gang jeg ændrer noget i ~/.claude/settings.json eller tilføjer en ny skill.`,
-        en: `Set up a hook so /dearuser-health runs every time I change ~/.claude/settings.json or add a new skill.`,
-      };
-  }
-  return null;
-}

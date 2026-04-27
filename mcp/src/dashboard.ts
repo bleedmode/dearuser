@@ -2587,16 +2587,6 @@ function renderOnboardDone(result: OnboardResult): string {
     `
     : '';
 
-  const scheduledBlock = result.scheduledPrompt
-    ? `
-      <div class="mb-12">
-        <h2 class="font-serif text-xl text-ink-900 mb-2">${t('Din rutine', 'Your routine')}</h2>
-        <p class="text-ink-500 text-sm mb-4">${t('Så du får automatiske breve i den rytme du ønskede.', 'So you get automatic letters at the rhythm you wanted.')}</p>
-        ${copyBlock(result.scheduledPrompt.da, result.scheduledPrompt.en, 'Send til din agent:', 'Send to your agent:')}
-      </div>
-    `
-    : '';
-
   const body = `
     <section class="max-w-2xl mx-auto">
       <p class="font-serif italic text-5xl md:text-6xl text-ink-900 leading-tight mb-8">
@@ -2612,7 +2602,6 @@ function renderOnboardDone(result: OnboardResult): string {
 
       ${installList}
       ${platformBlock}
-      ${scheduledBlock}
 
       <div class="mb-12">
         <h2 class="font-serif text-xl text-ink-900 mb-3">${t('Næste skridt', 'Next step')}</h2>

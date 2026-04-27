@@ -46,6 +46,8 @@ One command per client. Full guide: [`docs/install.md`](docs/install.md).
 claude mcp add --scope user dearuser -- npx @poisedhq/dearuser-mcp
 ```
 
+Restart Claude Code afterwards so the tools appear.
+
 **Claude Desktop** — add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json

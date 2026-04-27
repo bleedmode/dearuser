@@ -33,7 +33,6 @@ import {
   installProtectedFilesHook,
   ensureToolSearchAuto,
   detectPlatformStatus,
-  buildScheduledTaskPrompt,
 } from '../engine/onboard-install.js';
 import type { InstallStep, PlatformStatus } from '../engine/onboard-install.js';
 
@@ -109,8 +108,6 @@ export interface OnboardResult {
   installSteps?: InstallStep[];
   /** Platforms detected + their connection status. */
   platformStatus?: PlatformStatus[];
-  /** Copy-paste prompt for setting up the user's scheduled task. */
-  scheduledPrompt?: LocalizedString | null;
 }
 
 // ============================================================================
@@ -409,8 +406,7 @@ function stepPlan(state: OnboardState, _answer: string): OnboardResult {
   ];
 
   const platformStatus = detectPlatformStatus();
-  const scheduledPrompt = buildScheduledTaskPrompt(state);
-  const plan = renderCompletionMarkdown(state, installSteps, platformStatus, scheduledPrompt);
+  const plan = renderCompletionMarkdown(state, installSteps, platformStatus);
 
   return {
     step: 'plan',
@@ -423,7 +419,6 @@ function stepPlan(state: OnboardState, _answer: string): OnboardResult {
     plan,
     installSteps,
     platformStatus,
-    scheduledPrompt,
   };
 }
 
@@ -431,7 +426,6 @@ function renderCompletionMarkdown(
   state: OnboardState,
   steps: InstallStep[],
   platforms: PlatformStatus[],
-  schedPrompt: LocalizedString | null,
 ): string {
   const name = state.name || 'there';
   const lines: string[] = [];
@@ -452,10 +446,6 @@ function renderCompletionMarkdown(
         lines.push(`- ⚠ ${p.label} — send denne til din agent: *"${p.prompt.da}"*`);
       }
     }
-  }
-  if (schedPrompt) {
-    lines.push('');
-    lines.push(`**Rutine:** send denne til din agent: *"${schedPrompt.da}"*`);
   }
   lines.push('');
   lines.push('**Næste skridt:** åbn Claude Code og skriv `/dearuser-collab`. Så laver jeg mit første brev om hvordan du og din agent arbejder sammen.');
