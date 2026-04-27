@@ -23,6 +23,17 @@ Dashboard: `http://localhost:7700` — Config: `~/.dearuser/config.json`
 
 ## Lessons fra Dear User-udvikling
 
+### MCP tool descriptions har 2000-char hard cap (test-enforced)
+`mcp/src/tool-descriptions.test.ts` enforcer `length <= 2000` per tool. Flere af descriptions ligger få chars under grænsen — health-tool var 1998/2000 da vi ramte den 2026-04-27.
+
+**Why:** Anthropic-registry og MCP-clients viser fuld description; lang copy bliver upraktisk for både agent-discovery og humans. Test fanger drift.
+
+**How to apply:** før du tilføjer copy til en eksisterende tool description, mål nuværende length først:
+```bash
+node -e "const m = require('fs').readFileSync('src/index.ts','utf8').match(/server\.tool\(\s*'<name>',\s*\`([^\`]+)\`/); console.log(m[1].length)"
+```
+Hvis margin <50 chars: trim eksisterende inden du adderer. Foretrukne trim-targets er `Examples:` (lavt info-tab) og redundans i `Behavior` ↔ `What this tool does NOT do`.
+
 ### Ghost-process bug: kill -9 + verificér fri port før bind
 `kill` (SIGTERM) er ikke nok for stdio MCP-processer eller servere med signal-traps. Reload-scripts skal:
 1. `kill -9 $(lsof -ti :<port>)` for ALLE processer på alle relevante porte
