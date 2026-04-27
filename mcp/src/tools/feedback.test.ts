@@ -31,7 +31,7 @@ describe('feedback tool', () => {
 
   it('posts the expected payload to the Supabase REST endpoint', async () => {
     const fetchMock: any = vi.fn(async () =>
-      new Response(JSON.stringify([{ id: 'row-1' }]), { status: 201 }),
+      new Response('', { status: 201 }),
     );
     vi.stubGlobal('fetch', fetchMock);
 
@@ -43,7 +43,6 @@ describe('feedback tool', () => {
     });
 
     expect(result.ok).toBe(true);
-    expect(result.id).toBe('row-1');
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     const call = fetchMock.mock.calls[0];
@@ -55,6 +54,8 @@ describe('feedback tool', () => {
     expect(body.source).toBe('mcp');
     expect(body.email).toBeNull();
     expect(call[1].headers.apikey).toBe('anon-key-for-tests');
+    // Anon role only has INSERT, not SELECT — return=minimal avoids 42501
+    expect(call[1].headers.Prefer).toBe('return=minimal');
   });
 
   it('never attaches email unless opt_in_followup is true', async () => {
@@ -91,8 +92,11 @@ describe('feedback tool', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('degrades gracefully when no anon key is configured', async () => {
-    delete process.env.DEARUSER_FEEDBACK_SUPABASE_ANON_KEY;
+  it('degrades gracefully when anon key is explicitly empty (operator opt-out)', async () => {
+    // The hardcoded fallback in feedback.ts means feedback works out of the
+    // box for fresh installs. An operator who wants to disable the feedback
+    // channel sets the env var to "" — this test covers that path.
+    process.env.DEARUSER_FEEDBACK_SUPABASE_ANON_KEY = '';
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => { /* swallow */ });

@@ -52,11 +52,19 @@ export interface FeedbackResult {
 // Defaults point at the public Dear User Supabase project. Overridable via
 // env so a fork / dev environment can redirect to its own project without
 // editing code.
+//
+// The anon key is intentionally embedded — Supabase anon keys are designed
+// to live in client code and are only as powerful as the row-level-security
+// policies on the table. For `du_feedback` the only allowed operation is
+// INSERT (write-only), so a leaked anon key cannot read existing feedback
+// or modify other tables. Same key already ships inline in dearuser.ai's
+// feedback modal HTML — this just gives the MCP tool the same default.
 const SUPABASE_URL =
   process.env.DEARUSER_FEEDBACK_SUPABASE_URL ??
   'https://vrjohzzvncfbrzzceuik.supabase.co';
 const SUPABASE_ANON_KEY =
-  process.env.DEARUSER_FEEDBACK_SUPABASE_ANON_KEY ?? '';
+  process.env.DEARUSER_FEEDBACK_SUPABASE_ANON_KEY ??
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZyam9oenp2bmNmYnJ6emNldWlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTM5MjMsImV4cCI6MjA5MjQyOTkyM30.8KAA7arLDYO9vlMYRtsYjSYVBrVRHXStvuo9wolw_9o';
 
 const FEEDBACK_ENDPOINT = `${SUPABASE_URL}/rest/v1/du_feedback`;
 
@@ -132,7 +140,11 @@ export async function sendFeedback(
         'Content-Type': 'application/json',
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        Prefer: 'return=representation',
+        // `return=minimal` matches the web feedback modal — the anon role
+        // only has INSERT, not SELECT, so `return=representation` would
+        // try to read back the row and fail with 42501. We don't need the
+        // inserted id for the confirmation message anyway.
+        Prefer: 'return=minimal',
       },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(8000),
@@ -152,10 +164,8 @@ export async function sendFeedback(
       };
     }
 
-    const rows = (await res.json().catch(() => [])) as Array<{ id?: string }>;
     return {
       ok: true,
-      id: rows[0]?.id,
       sent: {
         message: payload.message,
         context: payload.context,
