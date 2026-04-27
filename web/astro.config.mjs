@@ -14,7 +14,9 @@ export default defineConfig({
     sitemap({
       // Skip dynamic /r/<token> share pages — tokens are unknown at build time
       // and each share URL is unique to its recipient, not general-audience content.
-      filter: (page) => !page.includes('/r/'),
+      // Skip /blog/ until launch (Tuesday 2026-04-28) — matches the manual
+      // sitemap.xml fix in #61. Remove the /blog/ exclusion when launching.
+      filter: (page) => !page.includes('/r/') && !page.includes('/blog'),
     }),
   ],
   adapter: vercel({
