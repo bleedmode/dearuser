@@ -701,12 +701,7 @@ What this tool does NOT do:
 - Does NOT read past feedback — it is write-only from this side. The founder reads the inbox directly in Supabase.
 - Does NOT upload anything about your setup, files, or reports. Only what you put in the message.
 
-Parameters:
-- "message" (required): 1–4000 characters of plain text — what you want us to know.
-- "context" (optional): "collab" | "security" | "health" | "wrapped" | "general". Use the tool name the user just ran so we can slice the inbox.
-- "rating" (optional): 1–5. Only include when the user gave a number, don't infer sentiment from text.
-- "opt_in_followup" + "email" (optional): attach only when the user explicitly said yes to a reply.
-- "format" (optional): "text" (default, Danish confirmation) or "json" (raw result for programmatic consumers).
+Context options: "collab" | "security" | "health" | "wrapped" | "general" — pick the tool the user just ran so the founder can slice the inbox.
 
 Length guidance: keep the confirmation you show the user short. If the user typed a one-liner, the reply can be one line.
 

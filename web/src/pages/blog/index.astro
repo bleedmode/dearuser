@@ -2,7 +2,11 @@
 import Layout from '../../layouts/Layout.astro';
 import { getCollection } from 'astro:content';
 
-const posts = (await getCollection('blog', ({ data }) => !data.draft))
+// Drafts are visible in dev (npm run dev) so we can preview them in
+// context, but never published to prod. Toggle `draft: false` in the
+// frontmatter when ready to publish.
+const includeDrafts = import.meta.env.DEV;
+const posts = (await getCollection('blog', ({ data }) => includeDrafts || !data.draft))
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
 function formatDate(d: Date) {
