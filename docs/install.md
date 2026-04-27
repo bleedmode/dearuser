@@ -17,7 +17,7 @@ If you don't have Node, install it from [nodejs.org](https://nodejs.org) or via 
 ## Claude Code (CLI)
 
 ```bash
-claude mcp add dearuser -- npx @poisedhq/dearuser-mcp
+claude mcp add --scope user dearuser -- npx @poisedhq/dearuser-mcp
 ```
 
 That's it. Open any project with Claude Code and ask:
