@@ -99,6 +99,10 @@ export interface OnboardResult {
   question: LocalizedString | null;
   /** Multiple-choice options, if applicable. Free-text answer when empty. */
   options: LocalizedString[];
+  /** When true, only one option may be selected at a time (radio-style).
+   *  Default false = chips are toggle-stacked (multi-select). Used for Q4
+   *  browser-pref where the two options are mutually exclusive. */
+  singleSelect?: boolean;
   /** Hint for the next step — the agent should pass this as `step` in the next call. */
   nextStep: OnboardStep | null;
   /** Opaque blob — pass back unchanged on the next call. */
@@ -196,12 +200,15 @@ function parseCadence(answer: string): OnboardState['cadence'] {
 /**
  * Parse the v4.2 browser-preference answer. Default is "yes, open" — that's
  * the existing behaviour pre-v4.2, so users who skip / give an unparseable
- * answer keep what they had. "no, terminal only" answers like "stay in
- * terminal", "don't open", "no browser" flip it off.
+ * answer keep what they had. The negative ("read in Claude Code") branch
+ * fires on any phrasing that signals "stay in the terminal" — Claude Code,
+ * no browser, terminal only, etc. — including the legacy v4.2 wording
+ * ("just save them") so saved-state blobs from earlier 1.0.10 sessions
+ * still parse correctly.
  */
 function parseAutoOpenBrowser(answer: string): boolean {
   const a = answer.toLowerCase();
-  if (/no.?browser|terminal.?only|don.?t.?open|stay.?in.?terminal|skip.?browser|ingen.?browser|kun.?terminal|åbn.?ikke|spring.?browser/.test(a)) return false;
+  if (/claude.?code|in.?claude|i.?claude|no.?browser|terminal.?only|don.?t.?open|stay.?in.?terminal|skip.?browser|ingen.?browser|kun.?terminal|åbn.?ikke|spring.?browser/.test(a)) return false;
   if (/save.?them|gem.?dem|self.?serve|i.?ll.?open|jeg.?åbner.?selv|when.?i.?want|når.?jeg.?vil/.test(a)) return false;
   return true;
 }
@@ -380,13 +387,14 @@ function stepAutonomy(state: OnboardState, answer: string): OnboardResult {
     step: 'autonomy',
     teaching: null,
     question: {
-      da: 'Hvordan vil du gerne læse dine breve?',
-      en: 'How would you like to read your letters?',
+      da: 'Hvor vil du læse dine breve?',
+      en: 'Where would you like to read your letters?',
     },
     options: [
-      { da: 'Åbn dem i min browser automatisk', en: 'Open them in my browser automatically' },
-      { da: 'Bare gem dem — jeg åbner selv når jeg vil', en: "Just save them — I'll open them when I want" },
+      { da: 'I min browser (åbnes automatisk)', en: 'In my browser (opens automatically)' },
+      { da: 'I Claude Code (ingen browser-vindue)', en: 'In Claude Code (no browser window)' },
     ],
+    singleSelect: true,
     nextStep: 'cadence',
     state: encodeState(state),
     done: false,
