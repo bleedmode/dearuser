@@ -30,7 +30,7 @@ One command. No global installs, no build steps.
 <summary><strong>Claude Code (CLI)</strong></summary>
 
 ```bash
-claude mcp add --scope user dearuser -- npx @poisedhq/dearuser-mcp
+claude mcp add --scope user dearuser -- npx -y @poisedhq/dearuser-mcp@latest
 ```
 
 Restart Claude Code afterwards so the tools appear.

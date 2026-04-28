@@ -52,7 +52,7 @@
 > Install:
 >
 > ```
-> claude mcp add --scope user dearuser -- npx @poisedhq/dearuser-mcp
+> claude mcp add --scope user dearuser -- npx -y @poisedhq/dearuser-mcp@latest
 > ```
 >
 > Feedback? `dearuser feedback "..."` lands in my inbox.
@@ -84,7 +84,7 @@ Medium-length post, slower tone:
 >
 > Local-first. Open source. Free. The only time anything leaves your machine is when you explicitly run `share_report` or `feedback`.
 >
-> Install: claude mcp add --scope user dearuser -- npx @poisedhq/dearuser-mcp
+> Install: claude mcp add --scope user dearuser -- npx -y @poisedhq/dearuser-mcp@latest
 > Repo: github.com/bleedmode/dearuser
 > Web: dearuser.ai
 >
@@ -107,7 +107,7 @@ Body (keep it short — Reddit doesn't reward length):
 > Everything stays on your machine. The only network calls are explicit: `share_report` (anonymized public link) and `feedback` (lands in my inbox).
 >
 > ```
-> claude mcp add --scope user dearuser -- npx @poisedhq/dearuser-mcp
+> claude mcp add --scope user dearuser -- npx -y @poisedhq/dearuser-mcp@latest
 > ```
 >
 > Repo: https://github.com/bleedmode/dearuser

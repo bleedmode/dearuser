@@ -421,7 +421,7 @@ export function renderWrappedSlides(input: WrappedSlidesInput): string {
       ` : ''}
       <div class="du-slide-end-cta">
         <span class="du-slide-prompt">$</span>
-        <span>claude mcp add --scope user dearuser -- npx @poisedhq/dearuser-mcp</span>
+        <span>claude mcp add --scope user dearuser -- npx -y @poisedhq/dearuser-mcp@latest</span>
       </div>
     </section>
   `);

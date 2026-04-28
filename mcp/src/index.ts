@@ -17,6 +17,7 @@ import { runShareReport } from './tools/share.js';
 import { sendFeedback, formatFeedbackResult } from './tools/feedback.js';
 import { insertAgentRun, updateRunDetails, updateRunJson, getRecommendationById, updateRecommendationStatus, getRecommendations } from './engine/db.js';
 import { reconcilePendingRecommendations } from './engine/reconcile-recommendations.js';
+import { refreshLatestVersion, getStaleVersionNotice } from './engine/version-check.js';
 import { implementClaudeMdAppend, implementSettingsMerge, prepareShellExec, prepareManual } from './engine/implementer.js';
 import { friendlyLabel } from './engine/friendly-labels.js';
 import { isFirstTime } from './engine/user-preferences.js';
@@ -159,8 +160,13 @@ function attachDashboardLink(
 ): string {
   // Build the action menu BEFORE we persist, so the dashboard /r/:id view
   // also carries the menu (useful if the user comes back to an old report).
+  // Also surface the npm-latest notice (when running version is stale) so
+  // the user finds out about new versions inside the tool output instead of
+  // having to remember to run `npm view` manually.
   const menu = buildActionMenu();
-  const composed = menu ? `${body}${menu}` : body;
+  const versionNotice = getStaleVersionNotice(PKG_VERSION);
+  const prefix = versionNotice ? `${versionNotice}\n` : '';
+  const composed = `${prefix}${menu ? `${body}${menu}` : body}`;
 
   if (agentRunId) {
     // Log failures to ~/.dearuser/dashboard.log instead of swallowing silently.
@@ -881,12 +887,20 @@ Example prompts that should trigger this tool:
   }
 );
 
+interface RunningDashboard {
+  url: string;
+  port: number;
+  pkgVersion: string | null; // null when probing a pre-pkgVersion dashboard
+  pid: number | null;        // null when probing a pre-pid dashboard
+}
+
 /**
- * Probe 7700..7709 for an existing Dear User dashboard. Returns the URL of
- * the first responder, or null if none. Used both to reuse a dashboard
- * another session/daemon started, and to confirm our detached spawn came up.
+ * Probe 7700..7709 for an existing Dear User dashboard. Returns metadata
+ * about the first responder so the MCP can decide whether to reuse it or
+ * kill+respawn (version mismatch). Used both to reuse a dashboard another
+ * session/daemon started, and to confirm our detached spawn came up.
  */
-async function findRunningDashboard(maxAttempts = 10): Promise<string | null> {
+async function findRunningDashboard(maxAttempts = 10): Promise<RunningDashboard | null> {
   for (let i = 0; i < maxAttempts; i++) {
     const port = 7700 + i;
     try {
@@ -895,7 +909,13 @@ async function findRunningDashboard(maxAttempts = 10): Promise<string | null> {
       });
       if (!res.ok) continue;
       const data = await res.json() as any;
-      if (data?.product === 'dearuser') return `http://localhost:${port}`;
+      if (data?.product !== 'dearuser') continue;
+      return {
+        url: `http://localhost:${port}`,
+        port,
+        pkgVersion: typeof data?.pkgVersion === 'string' ? data.pkgVersion : null,
+        pid: typeof data?.pid === 'number' ? data.pid : null,
+      };
     } catch { /* port empty or not us */ }
   }
   return null;
@@ -904,9 +924,9 @@ async function findRunningDashboard(maxAttempts = 10): Promise<string | null> {
 /**
  * Spawn the dashboard as a detached child process that survives the MCP
  * exit. Output is redirected to a log file in ~/.dearuser/. Returns the
- * URL once the child responds to /health, or null on failure.
+ * dashboard metadata once the child responds to /health, or null on failure.
  */
-async function spawnDetachedDashboard(): Promise<string | null> {
+async function spawnDetachedDashboard(): Promise<RunningDashboard | null> {
   const dashboardScript = join(__dirname, 'dashboard-standalone.js');
   if (!existsSync(dashboardScript)) {
     console.error(`[mcp] dashboard-standalone.js not found at ${dashboardScript}`);
@@ -935,10 +955,41 @@ async function spawnDetachedDashboard(): Promise<string | null> {
   // Wait up to 5 seconds for the child to bind a port and start responding.
   for (let i = 0; i < 20; i++) {
     await new Promise(r => setTimeout(r, 250));
-    const url = await findRunningDashboard();
-    if (url) return url;
+    const found = await findRunningDashboard();
+    if (found) return found;
   }
   return null;
+}
+
+/**
+ * Kill a running dashboard process. Used when the dashboard's package version
+ * doesn't match this MCP's — typically because an `npm install -g` /
+ * `npx clear-npx-cache` has shipped new MCP code while a yesterday-spawned
+ * dashboard keeps the port bound with stale code in memory.
+ *
+ * Sends SIGTERM first (gives Hono a chance to flush in-flight requests), then
+ * SIGKILL after 1.5s if the process is still around. Returns when the port is
+ * actually free so the caller can spawn a replacement without EADDRINUSE.
+ */
+async function killDashboard(pid: number, port: number): Promise<void> {
+  const isProcessAlive = (): boolean => {
+    try { process.kill(pid, 0); return true; } catch { return false; }
+  };
+  try { process.kill(pid, 'SIGTERM'); } catch { /* already gone */ }
+  for (let i = 0; i < 6; i++) {
+    await new Promise(r => setTimeout(r, 250));
+    if (!isProcessAlive()) return;
+  }
+  try { process.kill(pid, 'SIGKILL'); } catch { /* already gone */ }
+  // After SIGKILL, give the kernel a moment to reap the process and release
+  // the port. We use process.kill(pid, 0) instead of /health probing because
+  // a different dashboard could already be claiming the same port via fail-
+  // over — what we care about is "this specific PID is gone".
+  for (let i = 0; i < 8; i++) {
+    await new Promise(r => setTimeout(r, 250));
+    if (!isProcessAlive()) return;
+  }
+  void port; // port arg kept for future "wait until port is free" logic
 }
 
 // Start the server
@@ -951,15 +1002,36 @@ async function main() {
     // Step 1: Is a dashboard already running? (Could be a previous session's
     // detached spawn, a user-launched `node dist/dashboard-standalone.js`,
     // or a launchd/systemd unit.)
-    DASHBOARD_URL = await findRunningDashboard();
+    let dash = await findRunningDashboard();
 
-    // Step 2: None running — spawn one ourselves, detached, so it survives us.
-    if (!DASHBOARD_URL) {
-      DASHBOARD_URL = await spawnDetachedDashboard();
+    // Step 1b: Version-mismatch sweep. If the running dashboard ships from a
+    // different package version than this MCP, it's stale code in memory —
+    // kill it and respawn so the user actually gets the new behaviour
+    // without having to run `pkill` themselves. Pre-pkgVersion dashboards
+    // (older builds whose /health didn't include the field) are also
+    // treated as stale: we know they predate the field's introduction.
+    if (dash && dash.pkgVersion !== PKG_VERSION) {
+      console.error(`[mcp] dashboard version mismatch (running=${dash.pkgVersion ?? 'pre-1.0.8'}, mcp=${PKG_VERSION}) — restarting`);
+      if (dash.pid) await killDashboard(dash.pid, dash.port);
+      dash = null;
     }
+
+    // Step 2: None running (or just killed) — spawn one ourselves, detached.
+    if (!dash) {
+      dash = await spawnDetachedDashboard();
+    }
+
+    DASHBOARD_URL = dash?.url ?? null;
   } catch (err) {
     console.error('Dashboard setup skipped:', err instanceof Error ? err.message : err);
   }
+
+  // Fire-and-forget npm-latest probe. Result is cached in
+  // ~/.dearuser/version-check.json with 24h TTL; subsequent tool calls read
+  // the cache via getStaleVersionNotice() and prepend a hint when the
+  // running version is behind. Don't await — we never want a slow registry
+  // to delay MCP startup.
+  refreshLatestVersion().catch(() => { /* network failure is fine */ });
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
