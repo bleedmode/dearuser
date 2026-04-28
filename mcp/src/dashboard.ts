@@ -707,16 +707,47 @@ function renderHistorik(): string {
   const actionStrip = pageDateStrip();
 
   if (runs.length === 0) {
+    // Empty-state nudge — the "No letters yet" screen is the first thing a
+    // fresh user sees after onboarding finishes. Telling them generically
+    // to "ask me to write the first report" doesn't help — they have to
+    // know which of three reports to ask for. List the three commands
+    // explicitly with a one-line description so the next step is obvious
+    // even to a user who hasn't read the README.
     return page('My letters', `
       ${actionStrip}
       <section>
-        <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-8">
+        <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-6">
           No letters yet
         </h1>
-        <p class="font-serif text-2xl text-ink-700 leading-snug max-w-xl">
-          
-          Open Claude Code and ask me to write the first report. All my letters land here.
+        <p class="font-serif text-xl text-ink-700 leading-snug max-w-xl mb-12">
+          I write three kinds of letters. Open Claude Code and run one of these to get started.
         </p>
+
+        <div class="grid gap-5 max-w-2xl">
+          <div class="border border-paper-200 rounded-xl p-6 bg-paper-50">
+            <div class="font-serif text-2xl text-ink-900 mb-2">Collaboration check</div>
+            <p class="text-ink-700 mb-4 leading-relaxed">
+              How well you and your assistant work together. Persona, score, friction patterns, and the three changes that would lift your setup.
+            </p>
+            <code class="text-sm bg-paper-100 border border-paper-200 rounded px-2 py-1 text-ink-900">/dearuser-collab</code>
+          </div>
+
+          <div class="border border-paper-200 rounded-xl p-6 bg-paper-50">
+            <div class="font-serif text-2xl text-ink-900 mb-2">Security check</div>
+            <p class="text-ink-700 mb-4 leading-relaxed">
+              Leaked secrets in your config, prompt-injection surfaces, and rule conflicts between your instructions and what's actually wired up.
+            </p>
+            <code class="text-sm bg-paper-100 border border-paper-200 rounded px-2 py-1 text-ink-900">/dearuser-security</code>
+          </div>
+
+          <div class="border border-paper-200 rounded-xl p-6 bg-paper-50">
+            <div class="font-serif text-2xl text-ink-900 mb-2">System health</div>
+            <p class="text-ink-700 mb-4 leading-relaxed">
+              Whether your setup still hangs together — orphan jobs, scheduled tasks that have stopped firing, MCP servers nothing references, drift in your instructions.
+            </p>
+            <code class="text-sm bg-paper-100 border border-paper-200 rounded px-2 py-1 text-ink-900">/dearuser-health</code>
+          </div>
+        </div>
       </section>
       ${letterSignature()}
     `, 'kørsler');
