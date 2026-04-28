@@ -203,29 +203,29 @@ export function formatFeedbackResult(
 
   if (!result.ok) {
     const lines = [
-      `Tak — jeg fik ikke sendt din feedback afsted.`,
+      `Thanks — I couldn't send your feedback.`,
       ``,
-      result.error ?? 'Ukendt fejl.',
+      result.error ?? 'Unknown error.',
       ``,
-      `Din besked er ikke gået tabt — den blev logget lokalt så Jarl kan samle den op manuelt.`,
+      `Your message wasn't lost — it's logged locally so the founders can pick it up manually.`,
     ];
     return lines.join('\n');
   }
 
   const lines: string[] = [
-    `Tak — din feedback er modtaget.`,
+    `Thanks — your feedback was received.`,
     ``,
-    `**Hvad jeg sendte afsted:**`,
-    `- Besked: "${truncate(result.sent.message, 240)}"`,
-    `- Kontekst: ${result.sent.context}`,
+    `**What I sent:**`,
+    `- Message: "${truncate(result.sent.message, 240)}"`,
+    `- Context: ${result.sent.context}`,
   ];
   if (result.sent.rating !== null) {
     lines.push(`- Rating: ${result.sent.rating}/5`);
   }
   if (result.sent.email) {
-    lines.push(`- Email (til opfølgning): ${result.sent.email}`);
+    lines.push(`- Email (for follow-up): ${result.sent.email}`);
   }
-  lines.push(``, `Det er med i indbakken nu. Sæt pris på at du skrev.`);
+  lines.push(``, `It's in the inbox now. Appreciate you taking the time to write.`);
   return lines.join('\n');
 }
 
