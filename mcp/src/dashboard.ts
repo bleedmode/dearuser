@@ -2247,13 +2247,17 @@ function renderOnboardForm(result: OnboardResult, error?: LocalizedString): stri
     ? `<div class="font-serif text-xl md:text-2xl text-ink-700 leading-snug mb-10 max-w-xl whitespace-pre-wrap">${t(result.teaching.da, result.teaching.en)}</div>`
     : '';
 
-  // Chips are multi-select by default — toggle on click, append value to
-  // textarea (comma-separated). Handles multiple "I want X and Y" goals,
-  // multiple audiences, etc. Single-choice parsers (autonomy, cadence)
-  // still match fine because they regex-scan the combined string.
+  // Chips default to multi-select (toggle-stack, comma-separated). When the
+  // step sets singleSelect=true, behave as radio: clicking a chip clears
+  // every other chip on the same panel before flipping itself on. Used for
+  // Q4 (browser preference) where "auto-open" and "no browser" are mutually
+  // exclusive — multi-select on those produced an answer like "Open them in
+  // my browser automatically, Just save them" that the parser couldn't
+  // resolve and the user couldn't make sense of.
+  const singleSelectAttr = result.singleSelect ? 'data-single="true"' : '';
   const optionsChips = result.options.length > 0
     ? `
-      <div id="du-chips" class="mb-8 flex flex-wrap gap-2">
+      <div id="du-chips" ${singleSelectAttr} class="mb-8 flex flex-wrap gap-2">
         ${result.options.map(opt => `
           <button type="button"
             data-opt="${escapeHtml(opt.en)}"
@@ -2270,6 +2274,13 @@ function renderOnboardForm(result: OnboardResult, error?: LocalizedString): stri
           // version queried #answer eagerly and bailed silently when the
           // form rendered after the chip script — clicks did nothing.
           var getTextarea = function() { return document.getElementById('answer'); };
+          var chipPanel = function() { return document.getElementById('du-chips'); };
+          var setSelected = function(chip, on) {
+            chip.dataset.selected = on ? 'true' : 'false';
+            chip.classList.toggle('bg-accent-100', on);
+            chip.classList.toggle('border-accent-600', on);
+            chip.classList.toggle('text-ink-900', on);
+          };
           var syncValue = function() {
             var el = getTextarea();
             if (!el) return;
@@ -2285,11 +2296,18 @@ function renderOnboardForm(result: OnboardResult, error?: LocalizedString): stri
           document.addEventListener('click', function(e) {
             var chip = e.target && e.target.closest ? e.target.closest('#du-chips .du-chip') : null;
             if (!chip) return;
-            var isOn = chip.dataset.selected === 'true';
-            chip.dataset.selected = isOn ? 'false' : 'true';
-            chip.classList.toggle('bg-accent-100', !isOn);
-            chip.classList.toggle('border-accent-600', !isOn);
-            chip.classList.toggle('text-ink-900', !isOn);
+            var panel = chipPanel();
+            var isSingle = panel && panel.dataset.single === 'true';
+            var wasOn = chip.dataset.selected === 'true';
+            if (isSingle) {
+              // Clear all siblings, then turn this one on. A second click on
+              // the already-selected chip clears it (so "no answer" remains
+              // expressible — useful for the empty-submission re-prompt).
+              panel.querySelectorAll('.du-chip').forEach(function(c) { setSelected(c, false); });
+              setSelected(chip, !wasOn);
+            } else {
+              setSelected(chip, !wasOn);
+            }
             syncValue();
             var el = getTextarea();
             if (el) el.focus();
