@@ -24,7 +24,7 @@ import { isFirstTime } from './engine/user-preferences.js';
 import { existsSync, mkdirSync, openSync, readFileSync, appendFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 
 // Dashboard URL captured at MCP boot so we can include it as a CTA at the
 // bottom of long reports. Null means the dashboard didn't start (port busy,
@@ -971,6 +971,28 @@ async function spawnDetachedDashboard(): Promise<RunningDashboard | null> {
  * SIGKILL after 1.5s if the process is still around. Returns when the port is
  * actually free so the caller can spawn a replacement without EADDRINUSE.
  */
+/**
+ * Look up the PID listening on a TCP port. Uses `lsof -ti :<port>` because
+ * macOS + Linux both ship lsof; we don't want to add a Node-native dep just
+ * for this. Used as a fallback when a pre-1.0.8 dashboard's /health doesn't
+ * include the pid field — without this, the version-mismatch sweep would
+ * skip the kill, spawnDetachedDashboard's child would find the existing
+ * dashboard and reuse it, and the user keeps seeing yesterday's render code.
+ */
+function pidOnPort(port: number): number | null {
+  try {
+    const out = execSync(`lsof -ti :${port}`, {
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 1000,
+    }).toString().trim();
+    if (!out) return null;
+    const pid = parseInt(out.split('\n')[0], 10);
+    return Number.isFinite(pid) ? pid : null;
+  } catch {
+    return null;
+  }
+}
+
 async function killDashboard(pid: number, port: number): Promise<void> {
   const isProcessAlive = (): boolean => {
     try { process.kill(pid, 0); return true; } catch { return false; }
@@ -1011,8 +1033,20 @@ async function main() {
     // (older builds whose /health didn't include the field) are also
     // treated as stale: we know they predate the field's introduction.
     if (dash && dash.pkgVersion !== PKG_VERSION) {
-      console.error(`[mcp] dashboard version mismatch (running=${dash.pkgVersion ?? 'pre-1.0.8'}, mcp=${PKG_VERSION}) — restarting`);
-      if (dash.pid) await killDashboard(dash.pid, dash.port);
+      // Pre-1.0.8 dashboards don't return pid in /health, so fall back to
+      // looking it up via lsof on the port. Without this, the kill is
+      // silently skipped and the spawned replacement dashboard's
+      // startDashboard() finds the still-running old dashboard, reuses it,
+      // and we end up serving yesterday's code on yesterday's port.
+      const killPid = dash.pid ?? pidOnPort(dash.port);
+      console.error(`[mcp] dashboard version mismatch (running=${dash.pkgVersion ?? 'pre-1.0.8'}, mcp=${PKG_VERSION}, pid=${killPid ?? 'unknown'}) — restarting`);
+      if (killPid) {
+        await killDashboard(killPid, dash.port);
+        // Give the kernel a beat to release the port before spawnDetachedDashboard's
+        // child probes it — otherwise the child can race in, see the dying socket
+        // is still LISTEN'ing, and reuse the doomed dashboard.
+        await new Promise(r => setTimeout(r, 300));
+      }
       dash = null;
     }
 
