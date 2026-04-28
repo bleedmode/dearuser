@@ -66,10 +66,13 @@ export interface OnboardState {
   outcome: string | null;
   /** Q2 — how autonomous they want the agent. */
   autonomy: 'auto' | 'ask-risky' | 'ask-all' | null;
-  /** Q3 — how often the agent should work. */
+  /** Legacy v3/v4.0 field — kept on state for backwards compat with saved
+   *  state blobs. Not asked by v4.2 onboarding (see autoOpenBrowser). */
   cadence: 'daily' | 'weekly' | 'on-demand' | 'event' | null;
-  /** Q4 — who will see the output. */
+  /** v4.0 legacy — who will see the output. Not asked anymore. */
   audience: 'self' | 'team' | 'customers' | null;
+  /** Q4 (v4.2) — should completed reports auto-open in the user's browser? */
+  autoOpenBrowser: boolean | null;
   /** Raw history for auditability. */
   answers: Record<string, string>;
   /** Detected existing setup (populated on first call). */
@@ -122,6 +125,7 @@ function freshState(): OnboardState {
     autonomy: null,
     cadence: null,
     audience: null,
+    autoOpenBrowser: null,
     answers: {},
   };
 }
@@ -145,6 +149,7 @@ function decodeState(blob: string | undefined): OnboardState {
         autonomy: parsed.autonomy ?? null,
         cadence: parsed.cadence ?? null,
         audience: parsed.audience ?? null,
+        autoOpenBrowser: typeof parsed.autoOpenBrowser === 'boolean' ? parsed.autoOpenBrowser : null,
       };
     }
   } catch { /* fall through */ }
@@ -176,7 +181,9 @@ function parseAutonomy(answer: string): OnboardState['autonomy'] {
   return 'ask-risky';
 }
 
-/** Parse cadence answer. */
+/** Parse cadence answer. Kept for backwards compat with v3 state blobs;
+ *  v4.2 onboarding no longer asks for cadence — Q4 now collects browser
+ *  preference instead (see parseAutoOpenBrowser below). */
 function parseCadence(answer: string): OnboardState['cadence'] {
   const a = answer.toLowerCase();
   if (/daily|hver morgen|hver dag|every morning|each day|om morgenen|flere gange/.test(a)) return 'daily';
@@ -184,6 +191,19 @@ function parseCadence(answer: string): OnboardState['cadence'] {
   if (/when (?:something|it) happens|hver gang|event|trigger|når der sker/.test(a)) return 'event';
   if (/on.?demand|kun når|only when|when i ask|når jeg (?:beder|spørger)|en gang om/.test(a)) return 'on-demand';
   return 'on-demand';
+}
+
+/**
+ * Parse the v4.2 browser-preference answer. Default is "yes, open" — that's
+ * the existing behaviour pre-v4.2, so users who skip / give an unparseable
+ * answer keep what they had. "no, terminal only" answers like "stay in
+ * terminal", "don't open", "no browser" flip it off.
+ */
+function parseAutoOpenBrowser(answer: string): boolean {
+  const a = answer.toLowerCase();
+  if (/no.?browser|terminal.?only|don.?t.?open|stay.?in.?terminal|skip.?browser|ingen.?browser|kun.?terminal|åbn.?ikke|spring.?browser/.test(a)) return false;
+  if (/save.?them|gem.?dem|self.?serve|i.?ll.?open|jeg.?åbner.?selv|when.?i.?want|når.?jeg.?vil/.test(a)) return false;
+  return true;
 }
 
 /** Parse audience answer. */
@@ -350,21 +370,22 @@ function stepAutonomy(state: OnboardState, answer: string): OnboardResult {
   state.autonomy = parseAutonomy(answer);
   state.answers.autonomy = answer;
 
+  // Q4 (v4.2): browser preference. Replaces the v4.0/4.1 cadence question,
+  // which asked how often the user wanted to "check in on the collaboration"
+  // — we never wired the answer into anything actionable (no scheduled
+  // scans, no reminders), so it read as a meaningless multi-choice. The new
+  // Q4 controls auto-open behaviour, which the user actually feels every
+  // time they run a tool.
   return {
     step: 'autonomy',
-    teaching: {
-      da: `Det fortæller mig noget om din arbejdsrytme — ikke noget jeg sætter automation op for. Når du vil have et nyt brev, åbner du Claude Code og skriver /dearuser-collab.`,
-      en: `Tells me about your working rhythm — not something I'll automate for you. When you want a new letter, open Claude Code and run /dearuser-collab.`,
-    },
+    teaching: null,
     question: {
-      da: 'Hvor ofte vil du gerne tjekke ind på samarbejdet?',
-      en: 'How often do you want to check in on the collaboration?',
+      da: 'Hvordan vil du gerne læse dine breve?',
+      en: 'How would you like to read your letters?',
     },
     options: [
-      { da: 'Hver dag', en: 'Every day' },
-      { da: 'Hver uge', en: 'Every week' },
-      { da: 'Når noget bestemt sker', en: 'When something specific happens' },
-      { da: 'Kun når jeg selv beder om det', en: 'Only when I ask for it' },
+      { da: 'Åbn dem i min browser automatisk', en: 'Open them in my browser automatically' },
+      { da: 'Bare gem dem — jeg åbner selv når jeg vil', en: "Just save them — I'll open them when I want" },
     ],
     nextStep: 'cadence',
     state: encodeState(state),
@@ -374,10 +395,10 @@ function stepAutonomy(state: OnboardState, answer: string): OnboardResult {
 }
 
 /**
- * Step 3 (cadence): Save cadence, advance straight to plan. Audience was
- * dropped from v4.1 — it was the weakest signal in onboarding (mostly
- * redundant with outcome-text) and the only unique value (team/customers
- * mismatch warning) can be recovered from scan heuristics later.
+ * Step 3 (formerly "cadence", now collects browser preference in v4.2).
+ * Step name kept for backwards compat with old saved state blobs that
+ * pass `step: 'cadence'` after autonomy. Saves answer raw to
+ * answers.cadence so old configs migrate without losing audit trail.
  */
 function stepCadence(state: OnboardState, answer: string): OnboardResult {
   if (/skip|just.*template|spring over/i.test(answer)) {
@@ -385,7 +406,12 @@ function stepCadence(state: OnboardState, answer: string): OnboardResult {
     return stepPlan(state, 'skip');
   }
 
+  // Try cadence-style words first so old clients that resend their cached
+  // "Every day" / "Every week" answers still populate the legacy field for
+  // archetype detection. Always set autoOpenBrowser based on the new
+  // taxonomy — a cadence-style answer falls back to true (open browser).
   state.cadence = parseCadence(answer);
+  state.autoOpenBrowser = parseAutoOpenBrowser(answer);
   state.answers.cadence = answer;
 
   return stepPlan(state, answer);
@@ -470,6 +496,9 @@ function writeConfigTemplate(state: OnboardState): string | null {
     autonomy: state.autonomy,
     cadence: state.cadence,
     audience: state.audience,
+    // Only persist autoOpenBrowser when explicitly set by Q4 — null means
+    // "user hasn't been asked yet, fall back to default-true at read time".
+    autoOpenBrowser: state.autoOpenBrowser ?? undefined,
   };
 
   if (fs.existsSync(configPath)) {

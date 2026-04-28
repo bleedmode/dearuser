@@ -49,6 +49,15 @@ export interface UserPreferences {
    *  that self-use doesn't; surfaces as recommendations when missing. */
   audience?: 'self' | 'team' | 'customers' | null;
 
+  /** Q4 (v4.2 replacement for cadence) — when a tool finishes, do we auto-open
+   *  the report in the user's default browser? Default true for backwards
+   *  compat with users who already had the auto-open behaviour. Set false to
+   *  stay in the terminal — useful for users running headless or who just
+   *  don't want a browser tab popping up on every collab call. Read by
+   *  openInBrowser() in index.ts; the dashboard process is still spawned in
+   *  the background regardless, so URLs in the response remain clickable. */
+  autoOpenBrowser?: boolean;
+
   // --- Legacy (v3 onboarding, still readable but no longer asked) -----------
   // Kept so older config.json files don't lose data on upgrade.
   role?: 'coder' | 'occasional' | 'non_coder' | null;
