@@ -50,10 +50,15 @@ const TOKEN_ALPHABET =
   'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 export function generateToken(length = 10): string {
-  const bytes = randomBytes(length);
+  const alphabet = TOKEN_ALPHABET;
+  const max = 256 - (256 % alphabet.length);
   let out = '';
-  for (let i = 0; i < length; i++) {
-    out += TOKEN_ALPHABET[bytes[i] % TOKEN_ALPHABET.length];
+  while (out.length < length) {
+    for (const b of randomBytes(length)) {
+      if (b >= max) continue;
+      out += alphabet[b % alphabet.length];
+      if (out.length === length) break;
+    }
   }
   return out;
 }
