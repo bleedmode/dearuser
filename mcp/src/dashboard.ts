@@ -451,25 +451,46 @@ function renderLanding(): string {
         <h1 class="font-serif italic text-5xl text-ink-900 leading-tight mb-10">
           ${escapeHtml(greetingEn())},
         </h1>
-        <p class="font-serif text-2xl text-ink-700 leading-snug max-w-xl">
-          
-          I haven't heard from you yet. Go back to Claude Code and ask me to <span class="italic">write my first report</span> — and I'll send a letter back here.
+        <p class="font-serif text-xl text-ink-700 leading-snug max-w-xl mb-10">
+          I haven't heard from you yet. Run one of these commands in Claude Code and I'll send a letter back here.
         </p>
+        <div class="grid gap-3 max-w-2xl">
+          <div class="flex items-center gap-4 border border-paper-200 rounded-lg px-5 py-4">
+            <code class="text-sm bg-paper-100 border border-paper-200 rounded px-2 py-1 text-ink-900 whitespace-nowrap">/dearuser-collab</code>
+            <span class="text-ink-700 text-sm">How you and your assistant work together — score, friction, top fixes.</span>
+          </div>
+          <div class="flex items-center gap-4 border border-paper-200 rounded-lg px-5 py-4">
+            <code class="text-sm bg-paper-100 border border-paper-200 rounded px-2 py-1 text-ink-900 whitespace-nowrap">/dearuser-security</code>
+            <span class="text-ink-700 text-sm">Leaked secrets, prompt-injection surfaces, rule conflicts in your config.</span>
+          </div>
+          <div class="flex items-center gap-4 border border-paper-200 rounded-lg px-5 py-4">
+            <code class="text-sm bg-paper-100 border border-paper-200 rounded px-2 py-1 text-ink-900 whitespace-nowrap">/dearuser-health</code>
+            <span class="text-ink-700 text-sm">Whether your setup still hangs together — orphan jobs, drift, stopped tasks.</span>
+          </div>
+        </div>
       </section>
     `, 'oversigt');
   }
 
   // Score tile — clickable card with hover state and arrow, but kept airy.
   // Colored status dot signals "needs attention" without being a loud badge.
+  // The empty (score === null) variant shows the exact slash-command to run
+  // in Claude Code. Earlier copy said "Ask me to run a security check"
+  // which left users guessing whether "me" was Dear User or the agent —
+  // and what action to take. The literal command resolves both.
   const tile = (
     labelDa: string, labelEn: string,
     hintDa: string, hintEn: string,
     score: number | null, reportId?: string,
-    toolHintDa?: string, toolHintEn?: string
+    command?: string
   ): string => {
     const labelSpan = `${escapeHtml(labelEn)}`;
     const hintSpan = `${escapeHtml(hintEn)}`;
     if (score === null) {
+      const cmd = command ? escapeHtml(command) : '';
+      const cmdLine = cmd
+        ? `<p class="text-sm text-ink-500 leading-relaxed">In Claude Code, run <code class="bg-paper-100 border border-paper-200 rounded px-1.5 py-0.5 text-ink-900">${cmd}</code></p>`
+        : '';
       return `
         <div class="rounded-xl p-5 -mx-5 border border-dashed border-paper-200">
           <div class="flex items-center gap-2 mb-4">
@@ -477,10 +498,7 @@ function renderLanding(): string {
             <span class="text-[11px] uppercase tracking-[0.15em] text-ink-400">${labelSpan}</span>
           </div>
           <div class="font-serif text-5xl text-ink-300 leading-none mb-4">—</div>
-          <p class="text-sm text-ink-400 leading-relaxed">
-            
-            Ask me to <span class="italic text-ink-500">${escapeHtml(toolHintEn || labelEn)}</span>
-          </p>
+          ${cmdLine}
         </div>
       `;
     }
@@ -574,19 +592,19 @@ function renderLanding(): string {
         'Samarbejde', 'Collaboration',
         'Hvor godt vi arbejder sammen', 'How well we work together',
         scores.samarbejde, latest.analyze?.id,
-        'lav en samarbejds-rapport', 'run a collaboration report'
+        '/dearuser-collab'
       )}
       ${tile(
         'Sikkerhed', 'Security',
         'Om nogen kan misbruge din kode eller data', 'Whether anyone could misuse your code or data',
         scores.sikkerhed, latest.security?.id,
-        'kør sikkerhedstjek', 'run a security check'
+        '/dearuser-security'
       )}
       ${tile(
         'System-sundhed', 'System health',
         'Om dit setup stadig hænger sammen', 'Whether your setup still holds together',
         scores.systemSundhed, latest.systemHealth?.id,
-        'kør system-sundhed', 'run system health'
+        '/dearuser-health'
       )}
     </section>
   ` : '';
