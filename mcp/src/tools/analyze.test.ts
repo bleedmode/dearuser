@@ -6,46 +6,34 @@ import { homedir } from 'os';
 const report = runAnalysis(homedir(), { scope: 'global', includeGit: false });
 
 describe('formatAnalyzeReport', () => {
-  describe('text format (default, vibe coder)', () => {
+  describe('text format (default, compact)', () => {
+    // v1.0.12: text format is now compact (~10 lines): header + score line +
+    // one-line takeaway. Categories, lint findings, recommendations and tool
+    // catalog all moved to dashboard letter and the action menu prepended by
+    // attachDashboardLink. Rationale: MCP-protocol limitation means agents
+    // sometimes summarise long tool outputs — short outputs are agent-stable.
     const output = formatAnalyzeReport(report, 'text');
     const lines = output.split('\n');
 
-    it('starts with the report header', () => {
-      expect(lines[0]).toBe('# Dear User — Collaboration Analysis');
+    it('starts with the compact header', () => {
+      expect(lines[0]).toBe('# Dear User — Collaboration check');
     });
 
-    it('includes persona and score', () => {
-      expect(output).toContain('## You and me');
-      expect(output).toContain('## Collaboration Score:');
+    it('includes the score and grade on the subtitle line', () => {
+      expect(output).toMatch(/\*\*\d+\/100\*\* · Grade [A-F]/);
     });
 
-    it('uses plain-language category names', () => {
-      expect(output).toContain('**Who Does What**');
-      expect(output).toContain('**Independence**');
-      expect(output).toContain('**Quality Checks**');
-      expect(output).toContain('**Memory**');
-      expect(output).toContain('**Automation**');
-      expect(output).toContain('**Setup Completeness**');
+    it('includes a one-line takeaway', () => {
+      // Either a ceiling-based lift sentence or a "no obvious next step"
+      // fallback — both are short, single-paragraph statements.
+      const hasTakeaway = /actions below would lift|Small lift available|takes you to|You're at the top|No obvious next step/.test(output);
+      expect(hasTakeaway).toBe(true);
     });
 
-    it('does NOT use technical category names', () => {
-      expect(output).not.toContain('**Role Clarity**');
-      expect(output).not.toContain('**Autonomy Balance**');
-      expect(output).not.toContain('**Memory Health**');
-      expect(output).not.toContain('**System Maturity**');
-      expect(output).not.toContain('**Coverage**');
-    });
-
-    it('includes score bars', () => {
-      expect(output).toMatch(/[█░]+ \d+\/100/);
-    });
-
-    it('includes recommendations section', () => {
-      // At least one of these should exist
-      const hasRecs = output.includes('## 👤 For You') ||
-                      output.includes('## 🤖 For Your Agent') ||
-                      output.includes('## No action items');
-      expect(hasRecs).toBe(true);
+    it('does NOT include category breakdowns (moved to detailed)', () => {
+      expect(output).not.toContain('**Who Does What**');
+      expect(output).not.toContain('**Independence**');
+      expect(output).not.toContain('**Quality Checks**');
     });
 
     it('does NOT include detailed-only sections', () => {
@@ -53,6 +41,13 @@ describe('formatAnalyzeReport', () => {
       expect(output).not.toContain('## Session Patterns');
       expect(output).not.toContain('## Feedback Loop');
       expect(output).not.toContain('## 🛡️ Injection Surfaces');
+    });
+
+    it('stays under 25 lines (compact contract)', () => {
+      // Hard contract: terminal output must stay short so the agent has
+      // less surface to summarise. If new sections are added here, they
+      // belong in detailed format or in the action menu instead.
+      expect(lines.length).toBeLessThanOrEqual(25);
     });
   });
 
@@ -122,22 +117,21 @@ describe('formatAnalyzeReport', () => {
     const text = formatAnalyzeReport(report, 'text');
     const detailed = formatAnalyzeReport(report, 'detailed');
 
-    it('both text and detailed have the same score', () => {
-      const scoreRegex = /## Collaboration Score: (\d+)\/100/;
-      const textScore = text.match(scoreRegex)?.[1];
-      const detailedScore = detailed.match(scoreRegex)?.[1];
-      expect(textScore).toBe(detailedScore);
+    it('both formats include the same score number', () => {
+      // Score line shape differs between formats (compact: `**70/100**`,
+      // detailed: `## Collaboration Score: 70/100`) — match either.
+      const compactMatch = text.match(/\*\*(\d+)\/100\*\*/)?.[1];
+      const detailedMatch = detailed.match(/## Collaboration Score: (\d+)\/100/)?.[1];
+      expect(compactMatch).toBeDefined();
+      expect(detailedMatch).toBeDefined();
+      expect(compactMatch).toBe(detailedMatch);
     });
 
-    it('both text and detailed have the same agent archetype', () => {
-      const agentRegex = /\*\*Me — (.+)\*\*/;
-      const textAgent = text.match(agentRegex)?.[1];
-      const detailedAgent = detailed.match(agentRegex)?.[1];
-      expect(textAgent).toBe(detailedAgent);
-    });
-
-    it('text is shorter than detailed', () => {
-      expect(text.split('\n').length).toBeLessThan(detailed.split('\n').length);
+    it('text is much shorter than detailed', () => {
+      // Compact contract: text format must be a clear minority of the
+      // detailed bytes. Anything within ~20% of detailed means we're
+      // re-bloating the compact format and should reconsider.
+      expect(text.length).toBeLessThan(detailed.length * 0.2);
     });
   });
 

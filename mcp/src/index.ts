@@ -32,6 +32,27 @@ import { spawn, execSync } from 'child_process';
 let DASHBOARD_URL: string | null = null;
 
 /**
+ * Build the content array for a tool response that returns a user-facing
+ * report. Wraps the text in `audience: ["user"]` so MCP clients that honour
+ * the spec render it directly to the user (a hint, not a guarantee — Claude
+ * Code in particular still allows the agent to summarise text content). Also
+ * sets `_meta["anthropic/maxResultSizeChars"]` so Claude Code's harness
+ * preserves the full report through context compaction (Claude Code v2.1.92+).
+ *
+ * Even when the agent paraphrases on the way to the user, the preserved
+ * bytes mean follow-up tool calls in the same session see the original — the
+ * "Take 1" / "Take all" implementation flow keeps working without a re-scan.
+ */
+function reportContent(text: string) {
+  return [{
+    type: 'text' as const,
+    text,
+    annotations: { audience: ['user' as const] },
+    _meta: { 'anthropic/maxResultSizeChars': 500_000 },
+  }];
+}
+
+/**
  * Append a one-line error record to ~/.dearuser/dashboard.log so silent DB-write
  * failures during report persistence become diagnosable. Used by the catches in
  * attachDashboardLink — we never want a write failure to break a tool response,
@@ -123,9 +144,9 @@ function buildActionMenu(): string | null {
       '',
       '---',
       '',
-      '## What would you like to do?',
+      '## Three things to fix',
       '',
-      '[AGENT INSTRUCTION: Use the AskUserQuestion tool with the options below so the user gets a native clickable menu. If AskUserQuestion is not available, present the numbered list as-is and accept a digit or short phrase as the answer. When the user picks an option, call `mcp__dearuser__implement_recommendation` with the matching `recommendation_id`. For "spring over" / "drop" answers, call `mcp__dearuser__dismiss_recommendation`.]',
+      '[Agent: present these via AskUserQuestion. User picks → call mcp__dearuser__implement_recommendation with the recommendation_id. User skips → call mcp__dearuser__dismiss_recommendation.]',
       '',
     ];
 
@@ -135,9 +156,15 @@ function buildActionMenu(): string | null {
       const title = f.title?.en ?? f.title?.da ?? r.title;
       const summary = f.summary?.en ?? f.summary?.da ?? '';
       const benefit = f.benefit?.en ?? f.benefit?.da ?? '';
+      // One-line description that combines "what is it" with "what gets
+      // better". Falls back to whichever piece exists. Keeps each item to
+      // 2 lines (title + description) so the menu stays scannable even
+      // when the user reads it inside Claude Code without a browser.
+      const description = summary && benefit
+        ? `${summary} ${benefit}`
+        : (summary || benefit || '');
       lines.push(`${i + 1}. **${title}**`);
-      if (summary) lines.push(`   _What is it:_ ${summary}`);
-      if (benefit) lines.push(`   _What gets better:_ ${benefit}`);
+      if (description) lines.push(`   ${description}`);
       if (autoHint) lines.push(`   _(${autoHint} for you)_`);
       lines.push(`   \`recommendation_id: ${r.id}\``);
       lines.push('');
@@ -294,9 +321,7 @@ Example prompts that should trigger this tool:
 
       const text = formatAnalyzeReport(report, effectiveFormat);
       return {
-        content: [
-          { type: 'text', text: attachDashboardLink(text, (report as any)._agentRunId, report) },
-        ],
+        content: reportContent(attachDashboardLink(text, (report as any)._agentRunId, report)),
       };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -360,7 +385,7 @@ Example prompts that should trigger this tool:
         focus: focus || 'all',
       });
       const text = formatAuditReport(report, focus || 'all');
-      return { content: [{ type: 'text', text: attachDashboardLink(text, (report as any)._agentRunId, report) }] };
+      return { content: reportContent(attachDashboardLink(text, (report as any)._agentRunId, report)) };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       const hint = msg.includes('EACCES') ? ' Check file permissions on ~/.claude/.'
@@ -534,7 +559,7 @@ Example prompts that should trigger this tool:
     try {
       const report = await runSecurity({ projectRoot, scope });
       const text = formatSecurityReport(report);
-      return { content: [{ type: 'text', text: attachDashboardLink(text, (report as any)._agentRunId, report) }] };
+      return { content: reportContent(attachDashboardLink(text, (report as any)._agentRunId, report)) };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       const hint = msg.includes('EACCES') ? ' Check file permissions on ~/.claude/ and your project directory.'
@@ -598,7 +623,7 @@ Example prompts that should trigger this tool:
         });
       } catch { /* silent */ }
 
-      return { content: [{ type: 'text', text: attachDashboardLink(wrappedText, wrappedRunId, report) }] };
+      return { content: reportContent(attachDashboardLink(wrappedText, wrappedRunId, report)) };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       const hint = msg.includes('EACCES') ? ' Check file permissions on ~/.claude/.'
