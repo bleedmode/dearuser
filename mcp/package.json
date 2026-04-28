@@ -1,6 +1,6 @@
 {
   "name": "@poisedhq/dearuser-mcp",
-  "version": "1.0.15",
+  "version": "1.0.16",
   "mcpName": "io.github.bleedmode/dearuser",
   "publishConfig": {
     "access": "public"
