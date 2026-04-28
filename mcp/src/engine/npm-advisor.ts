@@ -16,9 +16,31 @@ export interface NpmProject {
   localPath: string;
 }
 
-export function discoverNpmProjects(searchRoot: string): NpmProject[] {
+/**
+ * Don't audit package.json files older than 90 days. Abandoned prototypes
+ * — old workshop folders, exploration repos in ~/Desktop/, drafts no one
+ * has touched in months — drown the security score in CVEs the user can't
+ * meaningfully fix and never ships. The 90-day window is generous enough
+ * that quarterly-touched projects still get scanned; longer-lived archives
+ * are surfaced as a count instead so the filtering is transparent.
+ *
+ * Override: a user who genuinely wants old projects audited can `touch`
+ * the package.json before running scan, or list the project's parent in
+ * `searchRoots` and we'll still skip it — the right escape hatch is
+ * coming back to the project, not configuring around the filter.
+ */
+const ACTIVE_PROJECT_MTIME_THRESHOLD_MS = 90 * 24 * 60 * 60 * 1000;
+
+export interface NpmDiscoveryResult {
+  projects: NpmProject[];
+  skippedStale: number;
+}
+
+export function discoverNpmProjects(searchRoot: string): NpmDiscoveryResult {
   const found: NpmProject[] = [];
   const seen = new Set<string>();
+  let skippedStale = 0;
+  const now = Date.now();
 
   function walk(dir: string, depth: number): void {
     if (depth > 4) return;
@@ -33,11 +55,26 @@ export function discoverNpmProjects(searchRoot: string): NpmProject[] {
     const hasPkg = entries.some(e => e.isFile() && e.name === 'package.json');
     const hasLock = entries.some(e => e.isFile() && (e.name === 'package-lock.json' || e.name === 'npm-shrinkwrap.json'));
     if (hasPkg && hasLock) {
-      const rel = path.relative(searchRoot, dir);
-      const projectName = rel ? rel.split(path.sep)[0] : path.basename(dir);
+      // Staleness check — read package.json mtime. Older than the
+      // threshold = abandoned project, skip with a count for transparency.
+      const pkgPath = path.join(dir, 'package.json');
+      let isActive = true;
+      try {
+        const stat = fs.statSync(pkgPath);
+        if (now - stat.mtimeMs > ACTIVE_PROJECT_MTIME_THRESHOLD_MS) {
+          isActive = false;
+        }
+      } catch { /* if we can't stat, treat as active and let the audit decide */ }
+
       if (!seen.has(dir)) {
         seen.add(dir);
-        found.push({ projectName, localPath: dir });
+        if (isActive) {
+          const rel = path.relative(searchRoot, dir);
+          const projectName = rel ? rel.split(path.sep)[0] : path.basename(dir);
+          found.push({ projectName, localPath: dir });
+        } else {
+          skippedStale += 1;
+        }
       }
       // don't recurse into sub-packages
       return;
@@ -51,7 +88,7 @@ export function discoverNpmProjects(searchRoot: string): NpmProject[] {
   }
 
   walk(searchRoot, 0);
-  return found;
+  return { projects: found, skippedStale };
 }
 
 interface NpmAuditResult {
@@ -81,16 +118,22 @@ export async function runNpmAdvisor(searchRoots: string[]): Promise<{
   status: PlatformAdvisorStatus;
 }> {
   const allProjects: NpmProject[] = [];
+  let totalSkippedStale = 0;
   for (const root of searchRoots) {
     if (fs.existsSync(root)) {
-      allProjects.push(...discoverNpmProjects(root));
+      const result = discoverNpmProjects(root);
+      allProjects.push(...result.projects);
+      totalSkippedStale += result.skippedStale;
     }
   }
 
   if (allProjects.length === 0) {
+    const reason = totalSkippedStale > 0
+      ? `No active npm projects found (${totalSkippedStale} skipped — package.json older than 90 days)`
+      : 'No npm projects with lockfile found';
     return {
       findings: [],
-      status: { platform: 'npm', status: 'skipped', projectsScanned: 0, reason: 'No npm projects with lockfile found' },
+      status: { platform: 'npm', status: 'skipped', projectsScanned: 0, reason },
     };
   }
 
@@ -161,13 +204,21 @@ export async function runNpmAdvisor(searchRoots: string[]): Promise<{
     }
   }
 
+  // Compose the status reason. Errors take priority (loudest signal); when
+  // there are none, surface the skipped-stale count so the user understands
+  // why their old prototypes don't show up — the absence of findings on
+  // those is intentional, not a missed scan.
+  const reasonParts: string[] = [];
+  if (errors.length > 0) reasonParts.push(`Errors: ${errors.slice(0, 3).join('; ')}`);
+  if (totalSkippedStale > 0) reasonParts.push(`${totalSkippedStale} project${totalSkippedStale === 1 ? '' : 's'} skipped (package.json older than 90 days)`);
+
   return {
     findings,
     status: {
       platform: 'npm',
       status: scanned > 0 ? 'ok' : (errors.length > 0 ? 'error' : 'skipped'),
       projectsScanned: scanned,
-      reason: errors.length > 0 ? `Errors: ${errors.slice(0, 3).join('; ')}` : undefined,
+      reason: reasonParts.length > 0 ? reasonParts.join('. ') : undefined,
     },
   };
 }

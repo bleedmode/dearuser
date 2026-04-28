@@ -40,22 +40,39 @@ function expandPath(p: string): string {
   return path.resolve(p);
 }
 
-/** Default search roots — common dev folders tried in order. */
+/**
+ * Default search roots — common dev folders tried in order. We deliberately
+ * do NOT fall back to $HOME when none of these exist: home contains
+ * Desktop/, Downloads/, Documents/ etc., where users keep abandoned
+ * prototypes with stale package.json files. Earlier behaviour scanned 244+
+ * CVEs from those graveyards on the test machine, dragging the security
+ * score to 0/100 with noise the user couldn't meaningfully fix.
+ *
+ * If a user's projects live somewhere idiosyncratic, they can configure
+ * `searchRoots` in ~/.dearuser/config.json. Returning an empty list is
+ * better UX than scanning home — the security tool gracefully reports
+ * "no projects found" instead of a wall of irrelevant CVEs.
+ */
 function defaultSearchRoots(): string[] {
   const candidates = [
     path.join(os.homedir(), 'code'),
+    path.join(os.homedir(), 'Code'),
     path.join(os.homedir(), 'projects'),
+    path.join(os.homedir(), 'Projects'),
     path.join(os.homedir(), 'work'),
+    path.join(os.homedir(), 'Work'),
     path.join(os.homedir(), 'src'),
     path.join(os.homedir(), 'dev'),
+    path.join(os.homedir(), 'Dev'),
+    path.join(os.homedir(), 'repos'),
+    path.join(os.homedir(), 'github'),
+    path.join(os.homedir(), 'GitHub'),
+    path.join(os.homedir(), 'clawd'),
     path.join(os.homedir(), 'Documents', 'GitHub'),
   ];
-  const existing = candidates.filter(p => {
+  return candidates.filter(p => {
     try { return fs.statSync(p).isDirectory(); } catch { return false; }
   });
-  // If none of the conventional folders exist, fall back to home — still scoped,
-  // avoids scanning the whole FS.
-  return existing.length > 0 ? existing : [os.homedir()];
 }
 
 /** Read and validate config. Returns merged config with defaults filled in. */
