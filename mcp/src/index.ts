@@ -20,7 +20,7 @@ import { reconcilePendingRecommendations } from './engine/reconcile-recommendati
 import { refreshLatestVersion, getStaleVersionNotice } from './engine/version-check.js';
 import { implementClaudeMdAppend, implementSettingsMerge, prepareShellExec, prepareManual } from './engine/implementer.js';
 import { friendlyLabel } from './engine/friendly-labels.js';
-import { isFirstTime } from './engine/user-preferences.js';
+import { isFirstTime, getPreferences } from './engine/user-preferences.js';
 import { existsSync, mkdirSync, openSync, readFileSync, appendFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
@@ -60,6 +60,13 @@ function logDashboardError(op: string, runId: string, err: unknown): void {
  */
 function openInBrowser(url: string): void {
   if (process.env.DEARUSER_NO_AUTO_OPEN === '1') return;
+  // Respect the Q4 onboarding answer / profile-page toggle. Default to true
+  // when unset so users on configs predating v4.2 keep the existing
+  // behaviour. Read-fail (config missing entirely) also defaults to true.
+  try {
+    const prefs = getPreferences();
+    if (prefs.autoOpenBrowser === false) return;
+  } catch { /* fall through to opening */ }
 
   // Map platform → command. We use the array form of spawn so no shell
   // interprets the URL (avoids URL-injection edge cases).

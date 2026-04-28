@@ -2845,13 +2845,7 @@ function renderProfil(): string {
       })()
     : null;
 
-  // Labels match the onboarding v4.1 question/option wording. Keep in sync.
-  const cadenceLabel: Record<string, LocalizedString> = {
-    daily: { da: 'Et dagligt brief', en: 'A daily briefing' },
-    weekly: { da: 'En ugentlig opsummering', en: 'A weekly summary' },
-    event: { da: 'Når noget bestemt sker', en: 'When something specific happens' },
-    'on-demand': { da: 'Ikke noget automatisk', en: 'Nothing automatic' },
-  };
+  // Labels match the onboarding question/option wording. Keep in sync.
   const audienceLabel: Record<string, LocalizedString> = {
     self: { da: 'Kun mig selv', en: 'Just me' },
     team: { da: 'Mit team', en: 'My team' },
@@ -2862,6 +2856,12 @@ function renderProfil(): string {
     'ask-risky': { da: 'Spørg ved store eller risikable ting', en: 'Ask on big or risky things' },
     'ask-all': { da: 'Spørg før hver handling', en: 'Ask before every action' },
   };
+  // v4.2 added Q4 browser preference. Default-true when unset so old configs
+  // keep the existing auto-open behaviour. Stored in prefs.autoOpenBrowser.
+  const autoOpen = prefs.autoOpenBrowser !== false;
+  const browserLabel: LocalizedString = autoOpen
+    ? { da: 'Åbnes automatisk i browseren', en: 'Opens automatically in the browser' }
+    : { da: 'Gemmes — du åbner selv', en: "Saved — you'll open them yourself" };
 
   const row = (
     label: LocalizedString,
@@ -2936,7 +2936,16 @@ function renderProfil(): string {
       <div>
         ${row({ da: 'Hvad du vil opnå', en: 'What you want to achieve' }, prefs.outcome || prefs.work)}
         ${row({ da: 'Selvstændighed', en: 'Autonomy' }, prefs.autonomy ? autonomyLabel[prefs.autonomy] : null)}
-        ${row({ da: 'Rytme', en: 'Rhythm' }, prefs.cadence ? cadenceLabel[prefs.cadence] : null)}
+        <div class="py-5 grid grid-cols-[180px_1fr] gap-6 border-b border-paper-200 items-center">
+          <div class="text-[11px] uppercase tracking-[0.15em] text-ink-500">${t('Brevene', 'Letters')}</div>
+          <form method="POST" action="/profil/auto-open" class="flex items-center gap-3">
+            <input type="hidden" name="value" value="${autoOpen ? 'false' : 'true'}" />
+            <span class="text-ink-900">${tBi(browserLabel)}</span>
+            <button type="submit" class="text-[11px] uppercase tracking-[0.15em] text-action-600 hover:text-action-700 transition">
+              ${t(autoOpen ? 'Slå fra →' : 'Slå til →', autoOpen ? 'Turn off →' : 'Turn on →')}
+            </button>
+          </form>
+        </div>
         ${prefs.audience ? row({ da: 'Hvem ser resultaterne (legacy)', en: 'Who sees the results (legacy)' }, audienceLabel[prefs.audience]) : ''}
       </div>
     </section>
@@ -2953,6 +2962,16 @@ export function createApp(): Hono {
   app.get('/forbedringer', (c) => c.html(renderForbedringer()));
   app.get('/wrapped', (c) => c.html(renderWrappedPage()));
   app.get('/profil', (c) => c.html(renderProfil()));
+  // Toggle auto-open-browser. POSTed from the form on the profile page,
+  // body has `value=true|false`. Updates ~/.dearuser/config.json and
+  // redirects back so the form re-renders with the new state.
+  app.post('/profil/auto-open', async (c) => {
+    const form = await c.req.formData();
+    const raw = (form.get('value') || '').toString();
+    const value = raw === 'true';
+    updatePreferences({ autoOpenBrowser: value });
+    return c.redirect('/profil');
+  });
   app.get('/r/:id', (c) => c.html(renderReport(c.req.param('id'))));
 
   // Onboarding — GET starts fresh, POST advances one step.
