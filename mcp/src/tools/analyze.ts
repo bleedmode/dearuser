@@ -1104,8 +1104,15 @@ function formatJitNextSteps(report: AnalysisReport): string[] {
 /**
  * Format an AnalysisReport as a string.
  *
- * - "text" (default): concise, plain-language report for non-technical users.
- * - "detailed": full technical report with stats, session patterns, injection findings.
+ * - "text" (default): compact terminal-first output. ~15 lines: score header +
+ *   one-line takeaway. The full report (categories, lint, strengths, persona
+ *   detail) lives in the dashboard at /r/<id>; the action menu prepended by
+ *   index.ts attachDashboardLink covers what the user needs to act on. This
+ *   is a deliberate response to the MCP-protocol limitation that the agent
+ *   may summarise long tool outputs — short outputs are agent-stable.
+ * - "detailed": the previous full text format, kept for power users + the
+ *   dashboard's renderMarkdownFallback path. Categories, friction patterns,
+ *   lint findings, recommendations, tool catalog, stats — everything.
  * - "json": raw JSON for programmatic use.
  */
 export function formatAnalyzeReport(report: AnalysisReport, format: AnalyzeFormat = 'text'): string {
@@ -1113,33 +1120,71 @@ export function formatAnalyzeReport(report: AnalysisReport, format: AnalyzeForma
     return JSON.stringify(report, null, 2);
   }
 
-  const isDetailed = format === 'detailed';
-  const lines: string[] = [
-    ...formatHeader(report),
-    ...formatCategories(report, !isDetailed),
-    ...formatFindings(report),
-    ...formatLintFindings(report, !isDetailed),
-    ...formatRecommendations(report),
-  ];
-
-  if (isDetailed) {
-    // Detailed-only sections: stats, git, injection, sessions, feedback loop
-    lines.push(...formatStats(report));
-    lines.push(...formatGitActivity(report));
-    lines.push(...formatInjection(report));
-    lines.push(...formatSessionPatterns(report));
-    lines.push(...formatFeedbackLoop(report));
+  if (format === 'text') {
+    return formatAnalyzeReportCompact(report);
   }
 
-  // Tool recommendations only. Onboarding-gaps and JIT-next-steps used to
-  // live here too, but each duplicated content already in the recs section
-  // (every onboarding question maps 1:1 to a gap rec; "what to do next"
-  // re-listed the top 3 recs). Dropped 2026-04-27 to cut report length in
-  // half without losing information.
-  lines.push(...formatToolRecs(report, isDetailed));
-
-  lines.push(...firstRunWelcome());
-  lines.push(...feedbackFooter());
+  // Detailed: full long-form report.
+  const lines: string[] = [
+    ...formatHeader(report),
+    ...formatCategories(report, false),
+    ...formatFindings(report),
+    ...formatLintFindings(report, false),
+    ...formatRecommendations(report),
+    ...formatStats(report),
+    ...formatGitActivity(report),
+    ...formatInjection(report),
+    ...formatSessionPatterns(report),
+    ...formatFeedbackLoop(report),
+    ...formatToolRecs(report, true),
+    ...firstRunWelcome(),
+    ...feedbackFooter(),
+  ];
 
   return lines.join('\n');
+}
+
+/**
+ * Compact one-screen summary. Score + one-line takeaway only — the action
+ * menu (top 3 recs with descriptive titles + score impact) is appended by
+ * attachDashboardLink in index.ts, and the full breakdown lives in the
+ * dashboard letter at /r/<id>. Designed so that even if the agent
+ * summarises, almost nothing is lost: the score is one number, the
+ * takeaway is one sentence, the actions are below in the menu.
+ */
+function formatAnalyzeReportCompact(report: AnalysisReport): string {
+  const score = report.collaborationScore;
+  const grade = report.grade;
+  const userArchName: string = (report.userArchetype as any)?.archetypeName || '';
+  const archetypeStyle = report.archetype.nameEn;
+  const ceiling = report.scoreCeiling;
+
+  const headerSubtitle = userArchName
+    ? `**${score}/100** · Grade ${grade.letter} (${grade.percentileLabel}) · ${userArchName}`
+    : `**${score}/100** · Grade ${grade.letter} (${grade.percentileLabel}) · ${archetypeStyle}`;
+
+  // One-line takeaway — pivots on the ceiling delta. We avoid claims about
+  // the absolute score quality (those live in the long letter) and instead
+  // tell the user the only thing that matters here: how much room is left,
+  // and that the actions below are how to close it.
+  let takeaway: string;
+  if (ceiling && ceiling.delta >= 10) {
+    takeaway = `The actions below would lift this to **${ceiling.ceilingScore}/100**.`;
+  } else if (ceiling && ceiling.delta > 0) {
+    takeaway = `Small lift available — the actions below take you to **${ceiling.ceilingScore}/100**.`;
+  } else if (ceiling && ceiling.ceilingScore === 100) {
+    takeaway = `Implementing everything below takes you to **100/100**.`;
+  } else if (score >= 90) {
+    takeaway = `You're at the top of what we measure. Skim the dashboard for any ideas worth keeping.`;
+  } else {
+    takeaway = `No obvious next step from this scan — open the dashboard if you want to read the full breakdown.`;
+  }
+
+  return [
+    `# Dear User — Collaboration check`,
+    ``,
+    headerSubtitle,
+    takeaway,
+    ``,
+  ].join('\n');
 }
