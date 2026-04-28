@@ -104,12 +104,28 @@ function findMemoryFiles(dir: string): FileInfo[] {
 /**
  * Collect MCP server names from a settings/mcp config file.
  * Returns a set of lowercased server names so duplicates across files collapse.
+ *
+ * Reads both:
+ *   - top-level `mcpServers` (settings.json, .mcp.json, .claude/mcp.json)
+ *   - per-project `projects[<path>].mcpServers` (.claude.json) — Claude Code
+ *     stores project-scoped MCP servers here when added with `claude mcp add -s project`.
  */
 function collectServerNames(configContent: string): string[] {
   try {
     const data = JSON.parse(configContent);
-    const servers = data.mcpServers || {};
-    return Object.keys(servers).map(s => s.toLowerCase());
+    const names = new Set<string>();
+    const top = data?.mcpServers && typeof data.mcpServers === 'object' ? data.mcpServers : null;
+    if (top) for (const k of Object.keys(top)) names.add(k.toLowerCase());
+    const projects = data?.projects && typeof data.projects === 'object' ? data.projects : null;
+    if (projects) {
+      for (const proj of Object.values(projects)) {
+        const nested = (proj as any)?.mcpServers;
+        if (nested && typeof nested === 'object') {
+          for (const k of Object.keys(nested)) names.add(k.toLowerCase());
+        }
+      }
+    }
+    return Array.from(names);
   } catch {
     return [];
   }

@@ -20,7 +20,7 @@ import { reconcilePendingRecommendations } from './engine/reconcile-recommendati
 import { implementClaudeMdAppend, implementSettingsMerge, prepareShellExec, prepareManual } from './engine/implementer.js';
 import { friendlyLabel } from './engine/friendly-labels.js';
 import { isFirstTime } from './engine/user-preferences.js';
-import { existsSync, mkdirSync, openSync, readFileSync } from 'fs';
+import { existsSync, mkdirSync, openSync, readFileSync, appendFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 import { spawn } from 'child_process';
@@ -29,6 +29,24 @@ import { spawn } from 'child_process';
 // bottom of long reports. Null means the dashboard didn't start (port busy,
 // dependency missing, etc.) — in that case we just skip the CTA.
 let DASHBOARD_URL: string | null = null;
+
+/**
+ * Append a one-line error record to ~/.dearuser/dashboard.log so silent DB-write
+ * failures during report persistence become diagnosable. Used by the catches in
+ * attachDashboardLink — we never want a write failure to break a tool response,
+ * but we do want a paper trail when /r/<id> renders an empty letter.
+ */
+function logDashboardError(op: string, runId: string, err: unknown): void {
+  try {
+    const logDir = join(homedir(), '.dearuser');
+    if (!existsSync(logDir)) mkdirSync(logDir, { recursive: true });
+    const msg = err instanceof Error ? `${err.message}\n${err.stack || ''}` : String(err);
+    appendFileSync(
+      join(logDir, 'dashboard.log'),
+      `[${new Date().toISOString()}] [mcp] ${op} failed for run ${runId}: ${msg}\n`
+    );
+  } catch { /* if even logging fails, give up — never break the tool response */ }
+}
 
 /**
  * Open a URL in the user's default browser. Silent best-effort — we never
@@ -145,9 +163,21 @@ function attachDashboardLink(
   const composed = menu ? `${body}${menu}` : body;
 
   if (agentRunId) {
-    try { updateRunDetails(agentRunId, composed); } catch { /* non-fatal */ }
+    // Log failures to ~/.dearuser/dashboard.log instead of swallowing silently.
+    // Silent catches let real-user reports of "the letter is empty" hit us
+    // with no signal — when /r/<id> renders and details/report_json are NULL,
+    // we need to know whether the writes threw or never ran at all.
+    try {
+      updateRunDetails(agentRunId, composed);
+    } catch (err) {
+      logDashboardError('updateRunDetails', agentRunId, err);
+    }
     if (structuredReport !== undefined) {
-      try { updateRunJson(agentRunId, structuredReport); } catch { /* non-fatal */ }
+      try {
+        updateRunJson(agentRunId, structuredReport);
+      } catch (err) {
+        logDashboardError('updateRunJson', agentRunId, err);
+      }
     }
   }
   if (!DASHBOARD_URL || !agentRunId) return composed;
