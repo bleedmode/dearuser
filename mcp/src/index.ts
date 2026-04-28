@@ -18,6 +18,8 @@ import { sendFeedback, formatFeedbackResult } from './tools/feedback.js';
 import { insertAgentRun, updateRunDetails, updateRunJson, getRecommendationById, updateRecommendationStatus, getRecommendations } from './engine/db.js';
 import { reconcilePendingRecommendations } from './engine/reconcile-recommendations.js';
 import { refreshLatestVersion, getStaleVersionNotice } from './engine/version-check.js';
+import { getCatalogTools } from './engine/catalog-loader.js';
+import { TOOL_CATALOG } from './templates/tool-catalog.js';
 import { implementClaudeMdAppend, implementSettingsMerge, prepareShellExec, prepareManual } from './engine/implementer.js';
 import { friendlyLabel } from './engine/friendly-labels.js';
 import { isFirstTime, getPreferences } from './engine/user-preferences.js';
@@ -140,15 +142,28 @@ function buildActionMenu(): string | null {
       }
     };
 
+    // Agent guidance for this menu lives in the implement_recommendation
+    // and dismiss_recommendation tool descriptions — the agent reads them
+    // once at registration and they're available across the session. No
+    // need to repeat the instruction in user-visible markdown on every
+    // tool call. Earlier versions had a "[Agent: present these via
+    // AskUserQuestion ...]" paragraph here that bled into the user's view
+    // when Claude Code rendered tool output verbatim.
     const lines: string[] = [
       '',
       '---',
       '',
       '## Three things to fix',
       '',
-      '[Agent: present these via AskUserQuestion. User picks → call mcp__dearuser__implement_recommendation with the recommendation_id. User skips → call mcp__dearuser__dismiss_recommendation.]',
-      '',
     ];
+
+    // Catalog lookup so hooks ("Destructive command blocker", "Protected
+    // files guard") that have userFriendlyDescription on their catalog row
+    // but no friendlyLabel entry still get a one-line description in the
+    // action menu. Without this, those items rendered as title-only chips
+    // in the compact format — the user couldn't tell what the action did.
+    const catalog = (getCatalogTools().length > 0 ? getCatalogTools() : TOOL_CATALOG);
+    const catalogByName = new Map(catalog.map(t => [t.name.toLowerCase(), t]));
 
     actionable.forEach((r, i) => {
       const f = friendlyLabel(r.title);
@@ -157,12 +172,17 @@ function buildActionMenu(): string | null {
       const summary = f.summary?.en ?? f.summary?.da ?? '';
       const benefit = f.benefit?.en ?? f.benefit?.da ?? '';
       // One-line description that combines "what is it" with "what gets
-      // better". Falls back to whichever piece exists. Keeps each item to
-      // 2 lines (title + description) so the menu stays scannable even
-      // when the user reads it inside Claude Code without a browser.
-      const description = summary && benefit
-        ? `${summary} ${benefit}`
-        : (summary || benefit || '');
+      // better". Falls back to whichever piece exists, then to the
+      // catalog row's userFriendlyDescription, then to the technical
+      // description, then to nothing. Keeps each item to 2 lines (title +
+      // description) so the menu stays scannable even when the user reads
+      // it inside Claude Code without a browser.
+      const catalogEntry = catalogByName.get(r.title.toLowerCase());
+      const friendlyParts = summary && benefit ? `${summary} ${benefit}` : (summary || benefit);
+      const description = friendlyParts
+        || catalogEntry?.userFriendlyDescription
+        || catalogEntry?.description
+        || '';
       lines.push(`${i + 1}. **${title}**`);
       if (description) lines.push(`   ${description}`);
       if (autoHint) lines.push(`   _(${autoHint} for you)_`);
@@ -226,7 +246,7 @@ function attachDashboardLink(
   // Fire-and-forget — don't wait for the browser.
   openInBrowser(reportUrl);
 
-  return `${composed}\n\n---\n\n📊 **Rapporten er åbnet i din browser:** ${reportUrl}\n\n_Åbner den ikke automatisk? Klik linket eller kør \`open ${reportUrl}\` i terminalen._`;
+  return `${composed}\n\n---\n\n📊 **The full report is open in your browser:** ${reportUrl}\n\n_Didn't open automatically? Click the link or run \`open ${reportUrl}\` in your terminal._`;
 }
 
 // __filename and __dirname are provided by the esbuild banner in the bundled output.
@@ -642,7 +662,7 @@ server.tool(
   'implement_recommendation',
   `Apply a Dear User recommendation to the user's setup — automatically if safe, or by returning the exact command/instruction for the agent to run.
 
-Call this after asking the user (via AskUserQuestion) which of the top recommendations from the latest analyze/audit/security report they want to implement. The recommendation_id comes from the menu we surface in the report's "Hvad vil du gøre?" section.
+After a collab/health/security report runs, the result text contains a "Three things to fix" menu with up to 3 recommendation_ids plus "Take all of them" and "Skip for now" options. Present those options to the user via AskUserQuestion (or as a numbered list if AskUserQuestion isn't available). When the user picks an item: call this tool with that recommendation_id. When the user picks "Take all": call this tool once per id, in order. When the user picks "Skip" or dismisses an item: call mcp__dearuser__dismiss_recommendation instead.
 
 Behavior by action_type:
 - **claude_md_append** — appends the markdown rule to ~/.claude/CLAUDE.md (with timestamped backup). Idempotent.
