@@ -379,8 +379,7 @@ The user cannot see raw tool results. You MUST output the full report as your re
 Example prompts that should trigger this tool:
 - "Check my system's health"
 - "Are any of my scheduled tasks orphaned?"
-- "Kør health"
-- "Kør system-sundhed"
+- "Run dearuser health"
 - "Is my agent substrate well-structured?"`,
   {
     projectRoot: z.string().optional().describe('Project root (e.g., "/Users/me/my-project"). Defaults to cwd. Audit is most useful in global scope.'),
@@ -673,10 +672,10 @@ IMPORTANT: Present the ImplementResult back to the user in plain Danish — conf
     try {
       const rec = getRecommendationById(recommendation_id);
       if (!rec) {
-        return { content: [{ type: 'text', text: `Anbefaling med id ${recommendation_id} blev ikke fundet. Prøv at køre /dearuser-collab igen.` }], isError: true };
+        return { content: [{ type: 'text', text: `Recommendation with id ${recommendation_id} was not found. Try running /dearuser-collab again to refresh the menu.` }], isError: true };
       }
       if (rec.status === 'implemented') {
-        return { content: [{ type: 'text', text: `"${rec.title}" er allerede implementeret (${new Date(rec.checked_at || rec.given_at).toLocaleDateString('da-DK')}).` }] };
+        return { content: [{ type: 'text', text: `"${rec.title}" was already implemented on ${new Date(rec.checked_at || rec.given_at).toISOString().slice(0, 10)}.` }] };
       }
 
       const actionType = rec.action_type as string | null;
@@ -690,9 +689,9 @@ IMPORTANT: Present the ImplementResult back to the user in plain Danish — conf
       } else if (actionType === 'shell_exec' && actionData) {
         result = prepareShellExec(actionData);
       } else if (actionType === 'manual' || !actionType) {
-        result = prepareManual(actionData || rec.text_snippet || 'Ingen instruktioner gemt.');
+        result = prepareManual(actionData || rec.text_snippet || 'No instructions stored.');
       } else {
-        result = { ok: false, summary: `Ukendt action-type: ${actionType}` };
+        result = { ok: false, summary: `Unknown action-type: ${actionType}` };
       }
 
       if (result.ok && !result.command && !result.instructions) {
@@ -703,22 +702,22 @@ IMPORTANT: Present the ImplementResult back to the user in plain Danish — conf
       // Format a clean message back to the agent/user.
       const lines: string[] = [`**${rec.title}**`, '', result.summary];
       if (result.command) {
-        lines.push('', '```bash', result.command, '```', '', '_Kør denne kommando via Bash — jeg kan ikke gøre det selv fra MCP-serveren._');
+        lines.push('', '```bash', result.command, '```', '', '_Run this command via Bash — I can\'t execute shell commands from inside the MCP server._');
       }
       if (result.instructions) {
         lines.push('', result.instructions);
       }
       if (result.backups && result.backups.length > 0) {
-        lines.push('', `_Backup: \`${result.backups[0]}\` — hvis noget går galt kan du kopiere den tilbage._`);
+        lines.push('', `_Backup: \`${result.backups[0]}\` — restore from there if something goes wrong._`);
       }
       if (!result.ok && result.error) {
-        lines.push('', `Fejl: ${result.error}`);
+        lines.push('', `Error: ${result.error}`);
       }
 
       return { content: [{ type: 'text', text: lines.join('\n') }], isError: !result.ok };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      return { content: [{ type: 'text', text: `Implementer fejlede: ${msg}` }], isError: true };
+      return { content: [{ type: 'text', text: `Implement failed: ${msg}` }], isError: true };
     }
   }
 );
@@ -739,7 +738,7 @@ Use recommendation_id from the latest report's menu. For security/health finding
     try {
       const rec = getRecommendationById(recommendation_id);
       if (!rec) {
-        return { content: [{ type: 'text', text: `Anbefaling med id ${recommendation_id} blev ikke fundet.` }], isError: true };
+        return { content: [{ type: 'text', text: `Recommendation with id ${recommendation_id} was not found.` }], isError: true };
       }
       updateRecommendationStatus(recommendation_id, 'dismissed');
       // Propagate to ledger if this rec is finding-linked — otherwise a
@@ -757,10 +756,10 @@ Use recommendation_id from the latest report's menu. For security/health finding
           null,
         );
       }
-      return { content: [{ type: 'text', text: `OK — "${rec.title}" er nu droppet. Jeg foreslår den ikke igen.` }] };
+      return { content: [{ type: 'text', text: `OK — "${rec.title}" is now dismissed. I won't suggest it again.` }] };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      return { content: [{ type: 'text', text: `Kunne ikke droppe anbefalingen: ${msg}` }], isError: true };
+      return { content: [{ type: 'text', text: `Could not dismiss the recommendation: ${msg}` }], isError: true };
     }
   }
 );
