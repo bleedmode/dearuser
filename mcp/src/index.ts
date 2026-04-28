@@ -278,26 +278,19 @@ const server = new McpServer({
 function firstRunNudge(toolName: 'collab' | 'health' | 'security') {
   if (process.env.DEARUSER_SKIP_ONBOARD === '1') return null;
   if (!isFirstTime()) return null;
-  const localeDa = process.env.LANG?.startsWith('da') ?? false;
-  const msg = localeDa
-    ? [
-        '💌 **Velkommen — lad os lige lære hinanden at kende først.**',
-        '',
-        `Før jeg kører \`${toolName}\` har jeg brug for et par oplysninger om dig — hvad jeg skal kalde dig, hvordan du arbejder, og hvad du forventer af mig. Det tager under et minut.`,
-        '',
-        'Kør: `mcp__dearuser__onboard` (eller skriv `/dearuser-onboard` hvis du er i Claude Code).',
-        '',
-        '_Vil du springe over og få en generisk rapport? Sæt `DEARUSER_SKIP_ONBOARD=1` i dit miljø._',
-      ].join('\n')
-    : [
-        "💌 **Welcome — let's get to know each other first.**",
-        '',
-        `Before I run \`${toolName}\` I need a few things about you — what to call you, how you work, and what you expect from me. Takes under a minute.`,
-        '',
-        'Run: `mcp__dearuser__onboard` (or type `/dearuser-onboard` inside Claude Code).',
-        '',
-        '_Want to skip and get a generic report? Set `DEARUSER_SKIP_ONBOARD=1` in your environment._',
-      ].join('\n');
+  // English-only output for v1 — the agent translates into the user's
+  // language via existing CLAUDE.md rules. Earlier we branched on LANG to
+  // emit Danish, but mixed-language output across tools confused the agent
+  // and produced inconsistent translations. Keep the source single-locale.
+  const msg = [
+    "💌 **Welcome — let's get to know each other first.**",
+    '',
+    `Before I run \`${toolName}\` I need a few things about you — what to call you, how you work, and what you expect from me. Takes under a minute.`,
+    '',
+    'Run: `mcp__dearuser__onboard` (or type `/dearuser-onboard` inside Claude Code).',
+    '',
+    '_Want to skip and get a generic report? Set `DEARUSER_SKIP_ONBOARD=1` in your environment._',
+  ].join('\n');
   return { content: [{ type: 'text' as const, text: msg }] };
 }
 
@@ -516,11 +509,11 @@ Example prompts that should trigger this tool:
           content: [{
             type: 'text',
             text: [
-              `💌 **Jeg har åbnet opstarts-vinduet i din browser:** ${onboardUrl}`,
+              `💌 **I've opened the onboarding form in your browser:** ${onboardUrl}`,
               ``,
-              `Svar på de 5 korte spørgsmål der — det er nemmere end at skrive lange svar i chatten. Jeg venter her imens.`,
+              `Answer the four short questions there — it's faster than typing long answers in chat. I'll wait here.`,
               ``,
-              `_Foretrækker du at blive her i chatten? Kør \`onboard\` igen med \`answer=chat\` så fortsætter vi på den gamle måde._`,
+              `_Prefer to stay in chat? Run \`onboard\` again with \`answer=chat\` and we'll fall back to the old flow._`,
             ].join('\n'),
           }],
         };
