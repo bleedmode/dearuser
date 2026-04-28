@@ -17,7 +17,7 @@ If you don't have Node, install it from [nodejs.org](https://nodejs.org) or via 
 ## Claude Code (CLI)
 
 ```bash
-claude mcp add --scope user dearuser -- npx @poisedhq/dearuser-mcp
+claude mcp add --scope user dearuser -- npx -y @poisedhq/dearuser-mcp@latest
 ```
 
 Restart Claude Code afterwards so the tools appear, then open any project with Claude Code and ask:
@@ -152,7 +152,7 @@ See [`setup/README.md`](setup/README.md) for per-platform guides.
 
 **`command not found: claude`** — you don't have Claude Code's CLI installed. Install from [claude.com/code](https://claude.com/code), or use the Claude Desktop instructions above.
 
-**`npx @poisedhq/dearuser-mcp` hangs** — first run downloads the package; can take 30-60s on slow connections. Subsequent runs are instant (npx caches).
+**`npx -y @poisedhq/dearuser-mcp@latest` hangs** — first run downloads the package; can take 30-60s on slow connections. Subsequent runs are instant (npx caches).
 
 **Tools don't appear in the client** — restart the client after adding the MCP server. Claude Code picks up new servers on launch.
 

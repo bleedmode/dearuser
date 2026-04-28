@@ -17,6 +17,8 @@
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { marked } from 'marked';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { getRecentRuns, getRunById, getScoreHistory, getRecommendations, updateRecommendationStatus, getLatestScoresByTool } from './engine/db.js';
 import { reconcilePendingRecommendations } from './engine/reconcile-recommendations.js';
 import { getFindingByHash } from './engine/findings-ledger.js';
@@ -34,6 +36,17 @@ import { runShareReport } from './tools/share.js';
 
 const DEFAULT_PORT = 7700;
 const MAX_PORT_ATTEMPTS = 10;
+
+// Read the dashboard's own package version so /health can advertise it.
+// Used by the MCP boot sequence to detect a stale dashboard process running
+// outdated code (the same npm bump that delivered new fixes can't take effect
+// while a yesterday's process keeps holding the port).
+declare const __dirname: string;
+let DASHBOARD_PKG_VERSION = '0.0.0';
+try {
+  const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
+  if (typeof pkg.version === 'string') DASHBOARD_PKG_VERSION = pkg.version;
+} catch { /* fall through to '0.0.0' — MCP will treat it as a forced restart */ }
 
 // ============================================================================
 // Tool-name labels — friendly Danish for the Lovable audience
@@ -3172,7 +3185,17 @@ export function createApp(): Hono {
 
   // Health probe — used by other MCP sessions to detect that a Dear User
   // dashboard is already running on this port (avoids duplicate servers).
-  app.get('/health', (c) => c.json({ ok: true, product: 'dearuser', version: 1 }));
+  // Returns the dashboard's package version + pid so the MCP can detect a
+  // stale dashboard (mismatch with its own package.json) and respawn it.
+  // `version: 1` is kept for back-compat with older MCPs that just check
+  // truthiness; new MCPs read `pkgVersion`.
+  app.get('/health', (c) => c.json({
+    ok: true,
+    product: 'dearuser',
+    version: 1,
+    pkgVersion: DASHBOARD_PKG_VERSION,
+    pid: process.pid,
+  }));
 
   return app;
 }
