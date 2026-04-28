@@ -338,6 +338,15 @@ export function recommendTools(
   const tools = getCatalogTools();
   const catalog = tools.length > 0 ? tools : TOOL_CATALOG;
 
+  // Pre-normalize installed-server list once so the per-tool check is cheap.
+  // Catalog uses friendly names ("Exa Search") while .claude.json uses install
+  // keys ("exa"); strip whitespace and non-alphanum so "Exa Search" can match
+  // "exa-search" or "exa". Plain `nameLC.includes(installed)` would let "exa"
+  // match "exa search" (good) but `installed.includes(nameLC)` would not —
+  // hence the bidirectional check below.
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const installedNorm = installedMcpServers.map(normalize).filter(Boolean);
+
   const scored = catalog.map(tool => {
     let score = 0;
 
@@ -351,10 +360,17 @@ export function recommendTools(
     // Persona match
     if (tool.personas.includes(persona)) score += 5;
 
-    // Already installed MCP server? Skip
+    // Already installed MCP server? Skip.
+    // Match by either (a) the install-key extracted from `tool.install`
+    // (`claude mcp add <key> ...`) — authoritative when present, or
+    // (b) bidirectional normalized-name overlap as a fallback.
     const nameLC = tool.name.toLowerCase();
-    if (tool.type === 'mcp_server' && installedMcpServers.some(s => s.toLowerCase().includes(nameLC))) {
-      score = -1;
+    if (tool.type === 'mcp_server') {
+      const installKey = tool.install?.match(/claude\s+mcp\s+add\s+(\S+)/i)?.[1]?.toLowerCase() || '';
+      const toolNorm = normalize(tool.name);
+      const keyMatch = installKey && installedMcpServers.some(s => s.toLowerCase() === installKey);
+      const fuzzyMatch = toolNorm && installedNorm.some(s => s === toolNorm || s.includes(toolNorm) || toolNorm.includes(s));
+      if (keyMatch || fuzzyMatch) score = -1;
     }
 
     // Already installed skill? Skip (match against /skillname pattern and bare name)

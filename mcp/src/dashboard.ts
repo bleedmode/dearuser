@@ -1046,7 +1046,16 @@ function renderWrappedLetter(run: any, report: any): string {
 }
 
 function renderMarkdownFallback(run: any): string {
-  const body = run.details || run.summary || '_(Brevet indeholder ingen tekst.)_';
+  // When both details (rendered markdown) and report_json (structured) are
+  // missing, the letter body was never persisted — usually because an
+  // attachDashboardLink write failed silently in the MCP process. Falling back
+  // to `summary` gives the user a one-line teaser with no actual content,
+  // which reads as "broken letter". Surface the situation directly with a
+  // re-run hint instead — see ~/.dearuser/dashboard.log for the underlying error.
+  const hasBody = !!run.details;
+  const body = hasBody
+    ? run.details
+    : `_The body of this letter wasn't saved (the scan completed but the report didn't persist to disk). Re-run the tool to regenerate it._\n\n_If this keeps happening, check \`~/.dearuser/dashboard.log\` for write errors and report them via \`mcp__dearuser__feedback\`._`;
   const stripped = stripAgentOnlyNoise(body);
   const rendered = renderMarkdown(stripped);
   return page(`${toolLabelEn(run.tool_name)}`, `
