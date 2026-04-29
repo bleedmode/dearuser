@@ -75,7 +75,7 @@ Kilde D (dashboard) → Visualisering
 - 26 kvalitetskontrollerede kilder i research DB (quality score 31%)
 - Wrapped prototype live på dearuser.ai
 - Dashboard live på localhost:7700 med score history, run log, recommendations
-- Ikke publiceret til npm endnu
+- Publiceret til npm som `@poisedhq/dearuser-mcp` (v1.0.17 live, granular publish-token via 1Password "npm publish token poisedhq")
 - 0 brugere, 0 validering af betalingsvillighed
 
 ## Open questions
