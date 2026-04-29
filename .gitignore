@@ -20,3 +20,9 @@ mcp/*.tgz
 # from research/calibration/. Generated artifact — sourced from the research
 # tree which is committed.
 mcp/data/
+
+# Internal launch tooling (founder dashboard, 1Password lookups)
+scripts/
+
+# Launch copy drafts (personal narrative, internal-only)
+docs/launch/drafts/

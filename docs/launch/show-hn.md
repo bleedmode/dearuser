@@ -16,7 +16,7 @@ Pick #1 as the primary. It explains what it is in plain terms and lands the "aud
 
 Hi HN,
 
-I built Dear User after spending months staring at a 500-line CLAUDE.md file, wondering whether it was helping my agent or quietly confusing it.
+I built Dear User after spending months staring at a 400-line CLAUDE.md file, wondering whether it was helping my agent or quietly confusing it.
 
 It's an open-source MCP server that reads your Claude Code setup — CLAUDE.md, memory, hooks, skills, scheduled tasks — and tells you what's broken, contradictory, or dangerously permissive. Three main tools:
 
@@ -28,7 +28,7 @@ Everything runs locally. SQLite at `~/.dearuser/dearuser.db`. No cloud required,
 
 Install:
 ```
-claude mcp add --scope user dearuser -- npx @poisedhq/dearuser-mcp
+claude mcp add --scope user dearuser -- npx -y @poisedhq/dearuser-mcp@latest
 ```
 
 Then ask your agent: "run a Dear User audit".
