@@ -3131,31 +3131,10 @@ export function createApp(): Hono {
       }, 422);
     }
 
-    // Env/config check — same resolution order as /wrapped/share so the
-    // banner only fires when both process.env and ~/.dearuser/config.json
-    // are empty.
-    const hasEnv =
-      (process.env.DEARUSER_SUPABASE_URL || process.env.SUPABASE_URL) &&
-      (process.env.DEARUSER_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY);
-    let hasConfig = false;
-    if (!hasEnv) {
-      try {
-        const fs = require('node:fs');
-        const path = require('node:path');
-        const os = require('node:os');
-        const p = path.join(os.homedir(), '.dearuser', 'config.json');
-        if (fs.existsSync(p)) {
-          const cfg = JSON.parse(fs.readFileSync(p, 'utf-8'));
-          hasConfig = !!(cfg?.tokens?.supabase_url && cfg?.tokens?.supabase_service_key);
-        }
-      } catch { /* ignore */ }
-    }
-    if (!hasEnv && !hasConfig) {
-      return c.json({
-        errorDa: 'Offentlig deling er ikke sat op på denne maskine. Sæt DEARUSER_SUPABASE_URL og DEARUSER_SUPABASE_SERVICE_KEY for at aktivere.',
-        errorEn: 'Public sharing is not set up on this machine. Set DEARUSER_SUPABASE_URL and DEARUSER_SUPABASE_SERVICE_KEY to enable it.',
-      }, 503);
-    }
+    // No env/config check — share.ts now ships with hardcoded production
+    // defaults (anon-key + RLS), so sharing works out of the box. Forks/
+    // staging deploys can still override via DEARUSER_SUPABASE_URL +
+    // DEARUSER_SUPABASE_ANON_KEY env vars or ~/.dearuser/config.json.
 
     try {
       const result = await runShareReport({
@@ -3210,31 +3189,10 @@ export function createApp(): Hono {
       }, 422);
     }
 
-    // Env-missing → 503 with friendly message. Checks both process.env and
-    // ~/.dearuser/config.json (same resolution order as share.ts) so the
-    // banner only fires when BOTH paths are truly empty.
-    const hasEnv =
-      (process.env.DEARUSER_SUPABASE_URL || process.env.SUPABASE_URL) &&
-      (process.env.DEARUSER_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY);
-    let hasConfig = false;
-    if (!hasEnv) {
-      try {
-        const fs = require('node:fs');
-        const path = require('node:path');
-        const os = require('node:os');
-        const p = path.join(os.homedir(), '.dearuser', 'config.json');
-        if (fs.existsSync(p)) {
-          const cfg = JSON.parse(fs.readFileSync(p, 'utf-8'));
-          hasConfig = !!(cfg?.tokens?.supabase_url && cfg?.tokens?.supabase_service_key);
-        }
-      } catch { /* ignore */ }
-    }
-    if (!hasEnv && !hasConfig) {
-      return c.json({
-        errorDa: 'Offentlig deling er ikke sat op på denne maskine. Sæt DEARUSER_SUPABASE_URL og DEARUSER_SUPABASE_SERVICE_KEY for at aktivere.',
-        errorEn: 'Public sharing is not set up on this machine. Set DEARUSER_SUPABASE_URL and DEARUSER_SUPABASE_SERVICE_KEY to enable it.',
-      }, 503);
-    }
+    // No env/config check — share.ts now ships with hardcoded production
+    // defaults (anon-key + RLS), so sharing works out of the box. Forks/
+    // staging deploys can still override via DEARUSER_SUPABASE_URL +
+    // DEARUSER_SUPABASE_ANON_KEY env vars or ~/.dearuser/config.json.
 
     try {
       const result = await runShareReport({
