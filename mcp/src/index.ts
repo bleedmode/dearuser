@@ -897,7 +897,7 @@ Privacy contract:
 - Anything matching our secret-scanner patterns (API keys, tokens, JWTs, private keys) is redacted before upload.
 - The user's local ~/.dearuser/ database is NOT modified.
 
-Requires DEARUSER_SUPABASE_URL + DEARUSER_SUPABASE_SERVICE_KEY in the environment. Without them, this tool errors out and nothing uploads — the rest of Dear User keeps working locally.
+Works out of the box — uploads through the public dearuser.ai Supabase endpoint with an RLS-protected anon key. Forks/staging deployments can override with DEARUSER_SUPABASE_URL + DEARUSER_SUPABASE_ANON_KEY.
 
 IMPORTANT — Presenting results:
 Show the returned URL prominently and tell the user it's public. Do NOT auto-paste it anywhere on their behalf.

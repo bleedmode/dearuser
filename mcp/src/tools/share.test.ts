@@ -225,14 +225,19 @@ describe('runShareReport — integration', () => {
     ).rejects.toThrow(/expires_at/);
   });
 
-  it('fails gracefully when Supabase env is missing', async () => {
+  it('uses hardcoded production defaults when no env or config is present', async () => {
+    // Supabase creds were promoted to a hardcoded public anon-key default so
+    // fresh installs work out of the box (security comes from the
+    // INSERT-only RLS policy on du_shared_reports, not from key secrecy).
+    // We assert the call is attempted — and either succeeds (real network
+    // available) or fails with a network/RLS error, NOT a config error.
     delete process.env.DEARUSER_SUPABASE_URL;
     delete process.env.SUPABASE_URL;
+    delete process.env.DEARUSER_SUPABASE_ANON_KEY;
     delete process.env.DEARUSER_SUPABASE_SERVICE_KEY;
+    delete process.env.SUPABASE_ANON_KEY;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-    // Temporarily hide ~/.dearuser/config.json so the fallback path also
-    // returns empty. Fallback was added for the local-dashboard case where
-    // creds live on disk; tests must still exercise the fully-empty branch.
+
     const os = require('node:os');
     const fs = require('node:fs');
     const path = require('node:path');
@@ -244,9 +249,15 @@ describe('runShareReport — integration', () => {
       moved = true;
     }
     try {
-      await expect(
-        runShareReport({ report_type: 'wrapped', report_json: { score: 1 } }),
-      ).rejects.toThrow(/Supabase credentials not configured/);
+      // Whatever happens, it must NOT be a "credentials not configured" error.
+      // Either the call goes through (live network) or it fails with a
+      // network/HTTP error from the real Supabase endpoint.
+      await runShareReport({
+        report_type: 'wrapped',
+        report_json: { score: 1 },
+      }).catch((err: Error) => {
+        expect(err.message).not.toMatch(/credentials not configured/);
+      });
     } finally {
       if (moved) fs.renameSync(backupPath, configPath);
     }

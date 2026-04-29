@@ -196,16 +196,31 @@ export function extractScore(report: Record<string, unknown>): number | null {
 // Supabase transport
 // ============================================================================
 
-function getSupabaseEnv(): { url: string; key: string } | null {
-  // 1. Environment variables — the canonical production path
+// Public anon-key for the production dearuser.ai Supabase project.
+// Anon-keys are designed to be public — security comes from RLS policies
+// (du_shared_reports has an INSERT-only policy for the public role; reads
+// happen server-side from the share-render route). Hardcoding the default
+// here means fresh installs can share Wrapped reports without any config,
+// matching the web client which already ships this same key inline.
+// Forks/staging deployments can override via env vars below.
+const DEFAULT_SUPABASE_URL = 'https://vrjohzzvncfbrzzceuik.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZyam9oenp2bmNmYnJ6emNldWlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTM5MjMsImV4cCI6MjA5MjQyOTkyM30.8KAA7arLDYO9vlMYRtsYjSYVBrVRHXStvuo9wolw_9o';
+
+function getSupabaseEnv(): { url: string; key: string } {
+  // 1. Env vars override (for forks, staging, self-hosted deploys).
+  //    Service-role key still works if someone has it set — it just isn't
+  //    required anymore. Anon-key is the canonical path.
   let url =
     process.env.DEARUSER_SUPABASE_URL || process.env.SUPABASE_URL || '';
   let key =
+    process.env.DEARUSER_SUPABASE_ANON_KEY ||
     process.env.DEARUSER_SUPABASE_SERVICE_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     '';
 
-  // 2. Fallback: ~/.dearuser/config.json { tokens: { supabase_url, supabase_service_key } }
+  // 2. Fallback: ~/.dearuser/config.json { tokens: { supabase_url, supabase_anon_key } }
   //    Lets a local dashboard keep working across restarts without
   //    re-exporting env vars every session.
   if (!url || !key) {
@@ -218,15 +233,19 @@ function getSupabaseEnv(): { url: string; key: string } | null {
         const cfg = JSON.parse(fs.readFileSync(p, 'utf-8'));
         const t = cfg?.tokens || {};
         url = url || t.supabase_url || '';
-        key = key || t.supabase_service_key || '';
+        key = key || t.supabase_anon_key || t.supabase_service_key || '';
       }
     } catch {
-      // Config file unreadable — silently fall through to null return.
+      // Config file unreadable — silently fall through to defaults.
     }
   }
 
-  if (!url || !key) return null;
-  return { url: url.replace(/\/$/, ''), key };
+  // 3. Hardcoded defaults — the production dearuser.ai project.
+  //    Always returns valid credentials so share_report works out of the box.
+  return {
+    url: (url || DEFAULT_SUPABASE_URL).replace(/\/$/, ''),
+    key: key || DEFAULT_SUPABASE_ANON_KEY,
+  };
 }
 
 /**
@@ -244,11 +263,6 @@ async function insertSharedReport(row: {
   expires_at: string | null;
 }): Promise<void> {
   const env = getSupabaseEnv();
-  if (!env) {
-    throw new Error(
-      'Supabase credentials not configured. Set DEARUSER_SUPABASE_URL and DEARUSER_SUPABASE_SERVICE_KEY to enable share_report.',
-    );
-  }
 
   const res = await fetch(`${env.url}/rest/v1/du_shared_reports`, {
     method: 'POST',
