@@ -457,6 +457,7 @@ export type InjectionCategory =
   | 'eval_in_skill'
   | 'hook_missing_set_e'
   | 'mcp_shell_template'
+  | 'mcp_stdio_command_risk'
   | 'arguments_to_sensitive_cmd';
 
 export interface InjectionFinding {
