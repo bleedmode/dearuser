@@ -20,6 +20,7 @@ export type InjectionCategory =
   | 'eval_in_skill'
   | 'hook_missing_set_e'
   | 'mcp_shell_template'
+  | 'mcp_stdio_command_risk'
   | 'arguments_to_sensitive_cmd';
 
 export interface InjectionFinding {
@@ -232,6 +233,116 @@ function detectMcpShellTemplates(artifact: AuditArtifact): InjectionFinding[] {
   return [];
 }
 
+/**
+ * MCP STDIO command-injection risk surfaces in ~/.claude.json mcpServers.
+ *
+ * OX Security April 2026 advisory + OWASP MCP Top 10 #3: untrusted MCP
+ * configs can execute arbitrary commands at startup. This is broader than
+ * detectMcpShellTemplates — flags additional injection-prone patterns:
+ *
+ *   - command is a shell ("sh"/"bash"/"zsh") with args[] containing "-c"
+ *     and command-string concatenation
+ *   - args[] contain shell metacharacters (`;`, `&&`, `||`, `|`, backtick,
+ *     `$(...)`, redirect `>`/`<`)
+ *   - command points at a writable location (`/tmp/*`, `~/Downloads/*`)
+ *     where an attacker could plant a binary
+ *   - command uses `npx`/`bunx`/`pipx` with `-y` and a package name
+ *     supplied via untrusted variable expansion
+ */
+function detectMcpStdioCommandRisk(artifact: AuditArtifact): InjectionFinding[] {
+  if (artifact.type !== 'mcp_server') return [];
+  const content = artifact.prompt;
+  if (!content) return [];
+
+  let parsed: { command?: string; args?: string[] };
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    return [];
+  }
+  const command = parsed.command;
+  const args = Array.isArray(parsed.args) ? parsed.args : [];
+  if (!command) return []; // url-based servers handled elsewhere
+
+  const findings: InjectionFinding[] = [];
+  const argString = args.join(' ');
+
+  // 1. Shell -c with concatenated command string → very high risk
+  const shellExe = /^(?:\/bin\/|\/usr\/bin\/)?(?:bash|sh|zsh|ash|dash)$/;
+  if (shellExe.test(command) && args.includes('-c')) {
+    findings.push({
+      id: makeId('mcp_stdio_command_risk', artifact.id, quickHash('shell-c:' + content)),
+      category: 'mcp_stdio_command_risk',
+      severity: 'critical',
+      title: `MCP server "${artifact.name}" runs as \`${command} -c\` — command-string injection surface`,
+      artifactId: artifact.id,
+      artifactPath: artifact.path,
+      excerpt: content.slice(0, 240),
+      why: 'When an MCP server is invoked via `bash -c "<string>"`, anything in the string is parsed by the shell — including any unquoted variable expansion or metacharacter that ends up in the args. Compromised configs become arbitrary code execution at Claude startup.',
+      recommendation: 'Replace the shell wrapper with a direct executable (node/python/go binary path). If you must keep the shell, audit every char in args[] and ensure no untrusted variable is interpolated unquoted.',
+      owaspCategory: 'ASI-02',
+    });
+  }
+
+  // 2. Shell metacharacters anywhere in args
+  // Detects `;`, `&&`, `||`, backticks, `$(`, `<(`, or any arg that starts
+  // with `>` / `>>` / `<` (a redirect — the binary itself wouldn't accept
+  // those as a positional argument).
+  const metacharGlobalRe = /(?:;|&&|\|\||`|\$\(|<\()/;
+  const argStartsWithRedirect = args.some(a => /^(?:>>?|<)/.test(a));
+  if (metacharGlobalRe.test(argString) || argStartsWithRedirect) {
+    findings.push({
+      id: makeId('mcp_stdio_command_risk', artifact.id, quickHash('metachars:' + argString)),
+      category: 'mcp_stdio_command_risk',
+      severity: 'recommended',
+      title: `MCP server "${artifact.name}" args contain shell metacharacters`,
+      artifactId: artifact.id,
+      artifactPath: artifact.path,
+      excerpt: argString.slice(0, 240),
+      why: 'Metacharacters like `;`, `&&`, backticks, or `$()` in MCP args indicate the args are being parsed by a shell rather than passed to the binary directly. Any future arg added by an installer or hook could be interpreted as a separate command.',
+      recommendation: 'MCP `args` should be a list of literal strings passed to a binary, not a shell-parsed expression. If the metachars are required, switch to a wrapper script you control rather than embedding shell syntax in the MCP config.',
+      owaspCategory: 'ASI-02',
+    });
+  }
+
+  // 3. Command points at writable location an attacker could plant a binary in
+  //    ~/Downloads, /tmp, /var/tmp — flag as high risk.
+  const writableRoots = /^(?:~\/Downloads|\/tmp|\/var\/tmp)\//;
+  if (writableRoots.test(command)) {
+    findings.push({
+      id: makeId('mcp_stdio_command_risk', artifact.id, quickHash('writable:' + command)),
+      category: 'mcp_stdio_command_risk',
+      severity: 'critical',
+      title: `MCP server "${artifact.name}" runs binary from writable location \`${command}\``,
+      artifactId: artifact.id,
+      artifactPath: artifact.path,
+      excerpt: content.slice(0, 240),
+      why: 'Binaries in /tmp or ~/Downloads can be replaced or planted by malicious local processes. Any process on this machine that drops a file at that path silently becomes the MCP server next time Claude starts.',
+      recommendation: 'Move the binary into a trusted location (e.g. /usr/local/bin, a project node_modules with package-lock.json, or a hashed install path) and reference that path instead.',
+      owaspCategory: 'ASI-02',
+    });
+  }
+
+  // 4. npx/bunx/pipx with untrusted variable expansion as package name
+  //    e.g. command="npx" args=["-y", "${MCP_PACKAGE_NAME}"] → attacker-controlled package install.
+  if (/^(?:npx|bunx|pipx|uvx)$/.test(command) && args.some(a => /\$\{[^}]+\}/.test(a))) {
+    findings.push({
+      id: makeId('mcp_stdio_command_risk', artifact.id, quickHash('pkgmgr-var:' + content)),
+      category: 'mcp_stdio_command_risk',
+      severity: 'critical',
+      title: `MCP server "${artifact.name}" installs package from variable-expanded name (\`${command}\`)`,
+      artifactId: artifact.id,
+      artifactPath: artifact.path,
+      excerpt: content.slice(0, 240),
+      why: 'Package managers like npx/bunx/pipx will fetch and execute whatever name they receive. If the name comes from an environment variable, anyone who can set that variable (or the file that stores it) can swap the package for an attacker-controlled one.',
+      recommendation: 'Pin the package to a literal name + version (e.g. `@org/pkg@1.2.3`) in the MCP config. Never compute the package name from a variable.',
+      owaspCategory: 'ASI-02',
+    });
+  }
+
+  return findings;
+}
+
 // ============================================================================
 // Orchestration
 // ============================================================================
@@ -244,6 +355,7 @@ export function detectInjection(artifacts: AuditArtifact[]): InjectionFinding[] 
     findings.push(...detectEvalInSkill(artifact));
     findings.push(...detectHookMissingSetE(artifact));
     findings.push(...detectMcpShellTemplates(artifact));
+    findings.push(...detectMcpStdioCommandRisk(artifact));
   }
 
   // Dedupe by id and sort: critical → recommended → nice_to_have
