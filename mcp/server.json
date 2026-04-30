@@ -3,7 +3,7 @@
   "name": "io.github.bleedmode/dearuser",
   "title": "Dear User",
   "description": "Tells you how you and your Claude agent actually work together. Local-only, no API keys.",
-  "version": "1.0.2",
+  "version": "1.0.19",
   "websiteUrl": "https://dearuser.ai",
   "repository": {
     "url": "https://github.com/bleedmode/dearuser",
@@ -14,7 +14,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@poisedhq/dearuser-mcp",
-      "version": "1.0.2",
+      "version": "1.0.19",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"
