@@ -1,6 +1,6 @@
 {
   "version": "1",
-  "lastSynced": "2026-04-24",
+  "lastSynced": "2026-05-01",
   "source": "github.com/bleedmode/dearuser",
   "tools": [
     {
@@ -468,6 +468,50 @@
         "team_lead"
       ],
       "lastVerified": "2026-04-24"
+    },
+    {
+      "name": "Official MCP Servers Catalog",
+      "type": "github_repo",
+      "description": "Reference list of MCP servers maintained by the Model Context Protocol organization — the canonical directory of what your agent can connect to.",
+      "userFriendlyDescription": "The official directory of MCP servers. Browse it to see what your agent can plug into — databases, cloud services, design tools, and more.",
+      "whoActs": "You browse the list and pick which servers to install — each has its own setup instructions.",
+      "install": "Browse https://github.com/modelcontextprotocol/servers — install individual servers per their READMEs",
+      "stars": 84855,
+      "url": "https://github.com/modelcontextprotocol/servers",
+      "solves": [
+        "mcp_discovery",
+        "missing_context"
+      ],
+      "personas": [
+        "vibe_coder",
+        "indie_hacker",
+        "senior_dev",
+        "venture_studio",
+        "team_lead"
+      ],
+      "lastVerified": "2026-05-01"
+    },
+    {
+      "name": "Claude Context (Zilliz)",
+      "type": "mcp_server",
+      "description": "Semantic hybrid search (BM25 + vector) over your entire codebase — gives any coding agent deep context without hitting token limits.",
+      "userFriendlyDescription": "Lets your agent search your code by meaning, not just keywords — finds the right file faster and uses up to 40% fewer tokens.",
+      "whoActs": "I can add this with one command — want me to?",
+      "install": "claude mcp add claude-context -- npx @zilliz/claude-context-mcp@latest",
+      "stars": 10474,
+      "url": "https://github.com/zilliztech/claude-context",
+      "solves": [
+        "context_overflow",
+        "code_search",
+        "missing_context"
+      ],
+      "personas": [
+        "senior_dev",
+        "indie_hacker",
+        "venture_studio",
+        "team_lead"
+      ],
+      "lastVerified": "2026-05-01"
     }
   ]
 }
