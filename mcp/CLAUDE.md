@@ -45,7 +45,7 @@ Kilde D (dashboard) → Visualisering
 - `wrapped` — shareable stats (text eller JSON)
 - `history` — vis eksisterende rapporter (summary, trend, regression) uden at køre ny scan
 - `implement_recommendation` — udfør en pending recommendation (claude_md_append, settings_merge, manual)
-- `dismiss_recommendation` — markér en recommendation som irrelevant/afvist
+- `dismiss_recommendation` — markér en recommendation som irrelevant/afvist (kaldes internt fra recommendation-flowet når brugeren vælger "Skip" — ingen `/dearuser-*` skill, by design)
 - `share_report` — upload anonymiseret WRAPPED-rapport til dearuser.ai og returnér offentlig URL (kun wrapped; collab/health/security-deling er slået fra pre-launch)
 - `feedback` — send kort note til Dear User's founder-inbox (write-only, eneste udgående data-kanal)
 - `help` — capabilities menu

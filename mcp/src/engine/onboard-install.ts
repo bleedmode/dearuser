@@ -190,6 +190,49 @@ export function ensureToolSearchAuto(): InstallStep {
 }
 
 // ----------------------------------------------------------------------------
+// 4b. ~/.claude.json — set alwaysLoad: true on the dearuser mcpServers entry so
+// tools are guaranteed available on turn 1, independent of ENABLE_TOOL_SEARCH.
+// Requires Claude Code v2.1.121+. Idempotent + backup before write.
+// ----------------------------------------------------------------------------
+export function ensureDearUserAlwaysLoad(): InstallStep {
+  const title = {
+    da: 'Sat Dear User MCP til at loade fra første session-tur (alwaysLoad: true)',
+    en: 'Set Dear User MCP to load from first session turn (alwaysLoad: true)',
+  };
+
+  const configPath = join(homedir(), '.claude.json');
+
+  if (!existsSync(configPath)) {
+    return { title, ok: false, detail: '~/.claude.json not found — install Dear User via `claude mcp add` first' };
+  }
+
+  try {
+    const raw = readFileSync(configPath, 'utf-8');
+    const config = JSON.parse(raw);
+    const entry = config?.mcpServers?.dearuser;
+
+    if (!entry || typeof entry !== 'object') {
+      return { title, ok: false, detail: 'mcpServers.dearuser entry not found in ~/.claude.json' };
+    }
+
+    if (entry.alwaysLoad === true) {
+      return { title, ok: true, detail: 'already set' };
+    }
+
+    const backupDir = join(homedir(), '.dearuser', 'backups');
+    mkdirSync(backupDir, { recursive: true });
+    const backup = join(backupDir, `claude.json.${new Date().toISOString().replace(/[:.]/g, '-')}.bak`);
+    copyFileSync(configPath, backup);
+
+    entry.alwaysLoad = true;
+    writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+    return { title, ok: true, detail: `patched ~/.claude.json (backup: ${backup})` };
+  } catch (err) {
+    return { title, ok: false, detail: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+// ----------------------------------------------------------------------------
 // 5. Platform connect — for each detected platform (github, supabase, vercel),
 // check if it's already authenticated. If not, return a ready-to-paste prompt
 // the user can send to their agent. No digging through docs.

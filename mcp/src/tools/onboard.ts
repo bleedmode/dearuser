@@ -32,6 +32,7 @@ import {
   registerDearUserInClaudeMd,
   installProtectedFilesHook,
   ensureToolSearchAuto,
+  ensureDearUserAlwaysLoad,
   detectPlatformStatus,
 } from '../engine/onboard-install.js';
 import type { InstallStep, PlatformStatus } from '../engine/onboard-install.js';
@@ -437,6 +438,7 @@ function stepPlan(state: OnboardState, _answer: string): OnboardResult {
     registerDearUserInClaudeMd(state),
     installProtectedFilesHook(),
     ensureToolSearchAuto(),
+    ensureDearUserAlwaysLoad(),
   ];
 
   const platformStatus = detectPlatformStatus();
