@@ -1,6 +1,6 @@
 {
   "version": "1",
-  "lastSynced": "2026-05-01",
+  "lastSynced": "2026-05-15",
   "source": "github.com/bleedmode/dearuser",
   "tools": [
     {
@@ -512,6 +512,26 @@
         "team_lead"
       ],
       "lastVerified": "2026-05-01"
+    },
+    {
+      "name": "Anthropic Finance Agent Templates",
+      "type": "skill",
+      "description": "10 official Anthropic agent templates for financial services — pitchbook generation, KYC, earnings analysis, month-end close.",
+      "userFriendlyDescription": "If you build for finance teams: 10 ready-made agent templates from Anthropic — pitchbook generation, KYC, earnings reports, month-end close.",
+      "whoActs": "You browse the templates and adapt them to your stack — no one-command install.",
+      "install": "Browse https://www.anthropic.com/news/agents-for-financial-services for the 10 finance templates",
+      "url": "https://www.anthropic.com/news/agents-for-financial-services",
+      "solves": [
+        "finance_automation",
+        "agent_templates",
+        "vertical_use_case"
+      ],
+      "personas": [
+        "senior_dev",
+        "team_lead",
+        "venture_studio"
+      ],
+      "lastVerified": "2026-05-15"
     }
   ]
 }
