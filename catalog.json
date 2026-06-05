@@ -1,6 +1,6 @@
 {
   "version": "1",
-  "lastSynced": "2026-05-22",
+  "lastSynced": "2026-06-05",
   "source": "github.com/bleedmode/dearuser",
   "tools": [
     {
@@ -532,6 +532,50 @@
         "venture_studio"
       ],
       "lastVerified": "2026-05-15"
+    },
+    {
+      "name": "Agent Skills Standard (agentskills.io)",
+      "type": "github_repo",
+      "description": "Open standard for AI agent skills — defines the SKILL.md format used by Claude Code, Codex, Gemini CLI, Cursor and 8+ other coding agents.",
+      "userFriendlyDescription": "Cross-tool directory where you can browse skills built for other AI coding tools that also work with Claude Code — same SKILL.md format everywhere.",
+      "whoActs": "You browse the directory and copy skill definitions — each skill has its own install notes.",
+      "install": "Browse https://agentskills.io for cross-tool skill discovery",
+      "url": "https://agentskills.io",
+      "solves": [
+        "skill_discovery",
+        "cross_tool_compatibility",
+        "missing_context"
+      ],
+      "personas": [
+        "vibe_coder",
+        "indie_hacker",
+        "senior_dev",
+        "team_lead"
+      ],
+      "lastVerified": "2026-05-29"
+    },
+    {
+      "name": "Claude Forge",
+      "type": "github_repo",
+      "description": "Claude Code plugin framework (oh-my-zsh-inspired) — bundles 11 agents, 36 commands, 15 skills and 6-layer security hooks in one install.",
+      "userFriendlyDescription": "A starter pack for Claude Code — installs a whole set of agents, commands, skills and safety hooks at once, so you don't have to wire each one up yourself.",
+      "whoActs": "You install this yourself inside Claude Code — register the marketplace, then one install command. Takes about 5 minutes.",
+      "install": "/plugin marketplace add sangrokjung/claude-forge then /plugin install claude-forge",
+      "stars": 734,
+      "url": "https://github.com/sangrokjung/claude-forge",
+      "solves": [
+        "skill_discovery",
+        "automation",
+        "process_friction",
+        "missing_context"
+      ],
+      "personas": [
+        "vibe_coder",
+        "indie_hacker",
+        "senior_dev",
+        "team_lead"
+      ],
+      "lastVerified": "2026-06-05"
     }
   ]
 }
