@@ -1,6 +1,6 @@
 {
   "version": "1",
-  "lastSynced": "2026-06-05",
+  "lastSynced": "2026-06-19",
   "source": "github.com/bleedmode/dearuser",
   "tools": [
     {
@@ -576,6 +576,48 @@
         "team_lead"
       ],
       "lastVerified": "2026-06-05"
+    },
+    {
+      "name": "Claude Skills (Full-Stack Pack)",
+      "type": "github_repo",
+      "description": "66 specialized full-stack Claude Code skills + 9 Jira/Confluence workflow commands + /common-ground for surfacing hidden assumptions.",
+      "userFriendlyDescription": "A big pack of ready-made skills that turn Claude Code into an expert full-stack pair programmer — plus Jira/Confluence workflow commands.",
+      "whoActs": "You install this yourself inside Claude Code — follow the repo's setup. Takes a few minutes.",
+      "install": "See https://github.com/Jeffallan/claude-skills for skill install",
+      "stars": 10013,
+      "url": "https://github.com/Jeffallan/claude-skills",
+      "solves": [
+        "skill_discovery",
+        "automation",
+        "process_friction"
+      ],
+      "personas": [
+        "senior_dev",
+        "indie_hacker",
+        "team_lead",
+        "vibe_coder"
+      ],
+      "lastVerified": "2026-06-19"
+    },
+    {
+      "name": "AWS MCP Server (Managed)",
+      "type": "mcp_server",
+      "description": "AWS's GA managed MCP server — secure, auditable access to any AWS API through a single connection.",
+      "userFriendlyDescription": "Lets your agent reach any AWS service through one official, managed connection — instead of wiring up dozens of separate servers.",
+      "whoActs": "You need to follow the setup guide — takes about 5 minutes.",
+      "install": "See https://aws.amazon.com/blogs/aws/the-aws-mcp-server-is-now-generally-available/",
+      "url": "https://aws.amazon.com/blogs/aws/the-aws-mcp-server-is-now-generally-available/",
+      "solves": [
+        "manual_cloud_ops",
+        "aws_integration",
+        "missing_context"
+      ],
+      "personas": [
+        "senior_dev",
+        "team_lead",
+        "venture_studio"
+      ],
+      "lastVerified": "2026-06-19"
     }
   ]
 }
