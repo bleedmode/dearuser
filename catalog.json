@@ -1,6 +1,6 @@
 {
   "version": "1",
-  "lastSynced": "2026-06-19",
+  "lastSynced": "2026-06-26",
   "source": "github.com/bleedmode/dearuser",
   "tools": [
     {
@@ -618,6 +618,28 @@
         "venture_studio"
       ],
       "lastVerified": "2026-06-19"
+    },
+    {
+      "name": "Anthropic Skills",
+      "type": "github_repo",
+      "description": "Anthropic's official open-source skills repo — 17 Agent Skills incl. Word/Excel/PowerPoint/PDF creation, doc co-authoring, skill-creator, mcp-builder and frontend design.",
+      "userFriendlyDescription": "Official Anthropic skills that let your agent produce polished Word docs, slide decks, spreadsheets and PDFs — and build new skills of its own. The real thing, straight from the source.",
+      "whoActs": "You install this yourself inside Claude Code — add the marketplace, then install the plugin. Takes about 3 minutes.",
+      "install": "/plugin marketplace add anthropics/skills then /plugin install — or copy individual skill folders from the repo into ~/.claude/skills/",
+      "stars": 155329,
+      "url": "https://github.com/anthropics/skills",
+      "solves": [
+        "skill_discovery",
+        "document_generation",
+        "automation"
+      ],
+      "personas": [
+        "vibe_coder",
+        "indie_hacker",
+        "senior_dev",
+        "team_lead"
+      ],
+      "lastVerified": "2026-06-26"
     }
   ]
 }
