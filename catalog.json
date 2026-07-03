@@ -1,6 +1,6 @@
 {
   "version": "1",
-  "lastSynced": "2026-06-26",
+  "lastSynced": "2026-07-03",
   "source": "github.com/bleedmode/dearuser",
   "tools": [
     {
@@ -640,6 +640,49 @@
         "team_lead"
       ],
       "lastVerified": "2026-06-26"
+    },
+    {
+      "name": "FastMCP",
+      "type": "github_repo",
+      "description": "The fast, Pythonic framework for building your own MCP servers and clients — turns plain Python functions into agent tools with automatic schema, validation and docs.",
+      "userFriendlyDescription": "If you want to build your own MCP server, this is the easiest way — turn ordinary Python functions into agent tools without wiring up the protocol yourself.",
+      "whoActs": "You install this yourself with pip and follow the docs — a few minutes to a first working server.",
+      "install": "uv pip install fastmcp — docs at https://gofastmcp.com",
+      "stars": 23500,
+      "url": "https://github.com/PrefectHQ/fastmcp",
+      "solves": [
+        "build_mcp_server",
+        "custom_tooling",
+        "automation"
+      ],
+      "personas": [
+        "senior_dev",
+        "indie_hacker",
+        "venture_studio"
+      ],
+      "lastVerified": "2026-07-03"
+    },
+    {
+      "name": "Anthropic Connectors Directory",
+      "type": "github_repo",
+      "description": "Anthropic's official directory of 500+ vetted MCP connectors — every server reviewed for security, reliability and compatibility, browsable inside Claude.",
+      "userFriendlyDescription": "Anthropic's own shortlist of safe, ready-to-use integrations — browse it to add trusted tools (Slack, Notion, databases and more) that Anthropic has already vetted.",
+      "whoActs": "You browse the directory inside Claude, Desktop or mobile and pick which connectors to enable — each has its own one-click or OAuth setup.",
+      "install": "Browse the Connectors Directory in Claude, Claude Desktop or the mobile app — see https://support.claude.com/en/articles/11596036-anthropic-connectors-directory-faq",
+      "url": "https://support.claude.com/en/articles/11596036-anthropic-connectors-directory-faq",
+      "solves": [
+        "mcp_discovery",
+        "missing_context",
+        "safety"
+      ],
+      "personas": [
+        "vibe_coder",
+        "indie_hacker",
+        "senior_dev",
+        "venture_studio",
+        "team_lead"
+      ],
+      "lastVerified": "2026-07-03"
     }
   ]
 }
