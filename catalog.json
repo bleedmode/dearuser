@@ -1,6 +1,6 @@
 {
   "version": "1",
-  "lastSynced": "2026-07-03",
+  "lastSynced": "2026-08-02",
   "source": "github.com/bleedmode/dearuser",
   "tools": [
     {
@@ -683,6 +683,28 @@
         "team_lead"
       ],
       "lastVerified": "2026-07-03"
+    },
+    {
+      "name": "Anthropic Knowledge Work Plugins",
+      "type": "github_repo",
+      "description": "Anthropic's official plugin marketplace with 11 knowledge-worker categories (sales, engineering, HR, legal, marketing, support, PM, finance, productivity, enterprise search, bio research) — 23k+ stars, actively maintained.",
+      "userFriendlyDescription": "A ready-made pack of work skills from Anthropic — add the marketplace once, then install the pack that matches your job and get slash commands like /sales:call-prep without building anything yourself.",
+      "whoActs": "I can add this with one command — want me to?",
+      "install": "claude plugin marketplace add anthropics/knowledge-work-plugins  (then: claude plugin install sales@knowledge-work-plugins)",
+      "stars": 23237,
+      "url": "https://github.com/anthropics/knowledge-work-plugins",
+      "solves": [
+        "missing_context",
+        "workflow_gaps",
+        "daily_overview"
+      ],
+      "personas": [
+        "vibe_coder",
+        "indie_hacker",
+        "venture_studio",
+        "team_lead"
+      ],
+      "lastVerified": "2026-08-02"
     }
   ]
 }
