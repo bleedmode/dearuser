@@ -1,6 +1,6 @@
 {
   "version": "1",
-  "lastSynced": "2026-08-02",
+  "lastSynced": "2026-08-07",
   "source": "github.com/bleedmode/dearuser",
   "tools": [
     {
@@ -705,6 +705,115 @@
         "team_lead"
       ],
       "lastVerified": "2026-08-02"
+    },
+    {
+      "name": "Graphify",
+      "type": "github_repo",
+      "description": "/graphify skill that turns any codebase — including docs, SQL schemas, configs and PDFs — into a queryable knowledge graph the agent searches instead of grepping file by file.",
+      "userFriendlyDescription": "Instead of your agent opening file after file to work out how your code fits together, this builds a map of it up front — so it answers \"where is this used?\" fast and guesses less.",
+      "whoActs": "You install this yourself — one command for the CLI, one to register the skill. Takes about 5 minutes.",
+      "install": "uv tool install graphifyy  (or: pipx install graphifyy)  then: graphify install",
+      "stars": 103658,
+      "url": "https://github.com/Graphify-Labs/graphify",
+      "solves": [
+        "code_search",
+        "missing_context",
+        "context_overflow",
+        "hallucination"
+      ],
+      "personas": [
+        "vibe_coder",
+        "senior_dev",
+        "indie_hacker",
+        "team_lead"
+      ],
+      "lastVerified": "2026-08-07"
+    },
+    {
+      "name": "Headroom",
+      "type": "github_repo",
+      "description": "Compresses tool outputs, logs, files and RAG chunks before they reach the model — around 20% fewer tokens for coding agents and 60–95% on JSON payloads.",
+      "userFriendlyDescription": "Your agent burns context on huge tool outputs and log dumps. This squeezes them down before they land, so a session stays useful for longer and costs less.",
+      "whoActs": "You install this yourself with pip and point your agent at it — a few minutes.",
+      "install": "pip install \"headroom-ai[all]\" — setup guide at https://github.com/headroomlabs-ai/headroom",
+      "stars": 65276,
+      "url": "https://github.com/headroomlabs-ai/headroom",
+      "solves": [
+        "context_overflow",
+        "context_loss_between_sessions",
+        "process_friction"
+      ],
+      "personas": [
+        "senior_dev",
+        "indie_hacker",
+        "venture_studio",
+        "vibe_coder"
+      ],
+      "lastVerified": "2026-08-07"
+    },
+    {
+      "name": "Marketing Skills",
+      "type": "github_repo",
+      "description": "Marketing skill pack for Claude Code — CRO, copywriting, SEO, analytics and growth engineering as installable skills.",
+      "userFriendlyDescription": "Ready-made marketing help right where you build — landing page copy, SEO, conversion fixes and growth experiments, without switching to another tool.",
+      "whoActs": "I can add this with one command — want me to?",
+      "install": "npx skills add coreyhaines31/marketingskills  (or inside Claude Code: /plugin marketplace add coreyhaines31/marketingskills then /plugin install marketing-skills)",
+      "stars": 43384,
+      "url": "https://github.com/coreyhaines31/marketingskills",
+      "solves": [
+        "skill_discovery",
+        "workflow_gaps",
+        "vertical_use_case"
+      ],
+      "personas": [
+        "indie_hacker",
+        "venture_studio",
+        "vibe_coder"
+      ],
+      "lastVerified": "2026-08-07"
+    },
+    {
+      "name": "Planning with Files",
+      "type": "github_repo",
+      "description": "Persistent file-based planning for long agent tasks — crash-proof markdown plans and session recovery so work survives a context reset.",
+      "userFriendlyDescription": "When a long task gets interrupted or your agent loses the thread, this keeps the plan in files on disk — so you pick up where you left off instead of starting over.",
+      "whoActs": "I can add this with one command — want me to?",
+      "install": "npx skills add OthmanAdi/planning-with-files --skill planning-with-files -g  (or inside Claude Code: /plugin marketplace add OthmanAdi/planning-with-files then /plugin install planning-with-files@planning-with-files)",
+      "stars": 26026,
+      "url": "https://github.com/OthmanAdi/planning-with-files",
+      "solves": [
+        "context_loss_between_sessions",
+        "session_amnesia",
+        "missing_priorities"
+      ],
+      "personas": [
+        "vibe_coder",
+        "indie_hacker",
+        "senior_dev",
+        "team_lead"
+      ],
+      "lastVerified": "2026-08-07"
+    },
+    {
+      "name": "Hallmark",
+      "type": "github_repo",
+      "description": "Anti-AI-slop design skill for Claude Code, Cursor and Codex — raises the visual quality of generated frontend instead of the default generic look.",
+      "userFriendlyDescription": "Generated interfaces tend to look the same bland way. This gives your agent actual design taste, so what it builds looks like somebody designed it.",
+      "whoActs": "I can add this with one command — want me to?",
+      "install": "npx skills add nutlope/hallmark",
+      "stars": 22402,
+      "url": "https://github.com/Nutlope/hallmark",
+      "solves": [
+        "ui_mismatch",
+        "design_to_code",
+        "ui_components"
+      ],
+      "personas": [
+        "vibe_coder",
+        "indie_hacker",
+        "senior_dev"
+      ],
+      "lastVerified": "2026-08-07"
     }
   ]
 }
